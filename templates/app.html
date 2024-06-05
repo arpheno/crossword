@@ -1,0 +1,31 @@
+<!-- static/index.html -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Crossword Puzzle</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
+</head>
+<body>
+<input type="text" aria-label="date to search for" id="crossword-input">
+<button id="load" onclick="load_crossword()">Load Crossword</button>
+<button id="sample" onclick="load_sample_crossword()">Sample</button>
+<button id="check" onclick="check_cell()">Check</button>
+<button id="check-all" onclick="check_all()">Check all</button>
+<button id="monday" onclick="load_monday()">Monday</button>
+<button id="tuesday" onclick="load_tuesday()">tuesday</button>
+<button id="toggle-night-mode">Toggle Night Mode</button>
+
+<div id="app-container">
+    <div id="crossword-container"></div>
+    <div id="hint-container">
+        <h2 style="text-align: left;margin:0;">Across</h2>
+        <ul id="across"></ul>
+        <h2 style="text-align: left;margin:0;">Down</h2>
+        <ul id="down"></ul>
+    </div>
+</div>
+<script src="{{ url_for('static', filename='script.js') }}"></script>
+</body>
+</html>
