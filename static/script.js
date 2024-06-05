@@ -294,7 +294,7 @@ function get_starting_location(coordinate, starting_locations) {
 
 
 
-function make_hints() {
+function make_hints(across,down) {
     const across_html = document.getElementById('across');
     const down_html = document.getElementById('down');
     // for each hint in across_hints, add a new item to across
@@ -310,11 +310,10 @@ function make_hints() {
         listItem.textContent = `${index}. ${hint}`;
         down_html.appendChild(listItem);
     });
-
+    return [across_html, down_html];
 }
-function make_grid() {
+function make_grid(grid) {
     const crosswordContainer = document.getElementById('crossword-container');
-    const grid = character_lookup; // Ensure this is defined and accessible
     let y = 0;
 
     grid.forEach(row => {
@@ -339,6 +338,8 @@ function make_grid() {
                 if (hint) {
                     const hintElement = document.createElement('div');
                     hintElement.classList.add('hint');
+                    //set id to hint-hintid
+                    hintElement.id = `hint-${hint}`;
                     hintElement.textContent = hint;
                     cell.appendChild(hintElement);
                 }
@@ -362,6 +363,7 @@ function make_grid() {
         }
         // You can add more logic here to handle the clicked element
     });
+    return crosswordContainer;
 }
 function getRandomDate(start, end) {
     // Generate a random timestamp between start and end dates
@@ -441,7 +443,7 @@ function check_all() {
         }
     });
 }
-function glue(crossword_raw,hints){
+function usecase(crossword_raw,hints){
     last_clicked_element = null;
     character_lookup = asArray(crossword_raw)
     candidates_including_hashtags = chain(crossword_raw, [padCrossword, unpadCrossword,
@@ -456,9 +458,46 @@ function glue(crossword_raw,hints){
     down_hints = hints.split('\n\n')[1].split('\n')
     across = zip(starting_locations_across, across_hints)
     down = zip(starting_locations_down, down_hints)
+    crossword_container = make_grid(character_lookup)
+    setupUnfocusingForCrossword();
+    //how do u destructre across and down correctly
+    [across_html,down_html] =make_hints(across,down)
+    connect_hints_and_cells(crossword_container,across,down,across_html,down_html)
+
+}
+function connect_hints_and_cells(crossword_container,across,down,across_html,down_html) {
+    //When i click on a hint, the corresponding cell should be focused
+    // Let's find the hint element by id for each hint
+    console.log(across_html);
+    across_html.childNodes.forEach((hint) => {
+        hint.addEventListener('click', function() {
+            //parse the hint id from the hint element like "9. Computer suffix with soft or hard"
+            // i think u split the text content by '.' and then get the first element
+            const hint_id = hint.textContent.split('.')[0];
+
+            console.log(`Hint ID: ${hint_id}`)
+            const cell = crossword_container.querySelector(`#hint-${hint_id}`).parentNode;
+            cell.querySelector('.input-cell').focus();
+            direction = 'across';
+        });
+    });
+    //same for down
+    down_html.childNodes.forEach((hint) => {
+        hint.addEventListener('click', function() {
+            //parse the hint id from the hint element like "9. Computer suffix with soft or hard"
+            // i think u split the text content by '.' and then get the first element
+            const hint_id = hint.textContent.split('.')[0];
+
+            console.log(`Hint ID: ${hint_id}`)
+            const cell = crossword_container.querySelector(`#hint-${hint_id}`).parentNode;
+            cell.querySelector('.input-cell').focus();
+            direction = 'down';
+        });
+    });
+
+
 }
 function load_sample_crossword() {
-
     const crossword_raw = `WARE#ABBA#OUSTS
 EBAY#SOAR#UBOAT
 BLUEWHALE#TEMPE
@@ -553,11 +592,7 @@ High point
 Colored part of the eye
 "We only use 10% of our brain," e.g.
 Long stretch of time`
-    glue(crossword_raw,hints)
-    make_grid()
-    setupArrowNavigation();
-    setupUnfocusingForCrossword();
-    make_hints()
+    usecase(crossword_raw,hints)
 }
 function load_crossword() {
     last_clicked_element = null;
@@ -571,11 +606,7 @@ function load_crossword() {
         crossword = parts[parts.length - 3]
         //Hints is the two last ones combined by \n\n
         hints = parts.slice(-2).join('\n\n')
-        glue(crossword,hints)
-        make_grid()
-        setupArrowNavigation();
-        setupUnfocusingForCrossword();
-        make_hints();
+        usecase(crossword,hints)
     })
 }
 function formatDateToYYMMDD(date) {
@@ -608,11 +639,7 @@ function load_monday() {
         crossword = parts[parts.length - 3]
         //Hints is the two last ones combined by \n\n
         hints = parts.slice(-2).join('\n\n')
-        glue(crossword,hints)
-        make_grid()
-        setupArrowNavigation();
-        setupUnfocusingForCrossword();
-        make_hints();
+        usecase(crossword,hints)
     })
 }
 function load_tuesday() {
@@ -632,10 +659,6 @@ function load_tuesday() {
         crossword = parts[parts.length - 3]
         //Hints is the two last ones combined by \n\n
         hints = parts.slice(-2).join('\n\n')
-        glue(crossword,hints)
-        make_grid()
-        setupArrowNavigation();
-        setupUnfocusingForCrossword();
-        make_hints();
+        usecase(crossword,hints)
     })
 }
