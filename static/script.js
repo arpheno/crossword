@@ -442,6 +442,7 @@ function check_all() {
             cell.classList.add('red');
         }
     });
+    //play a sound of success when all cells are correct
 }
 function usecase(crossword_raw,hints){
     last_clicked_element = null;
@@ -463,7 +464,16 @@ function usecase(crossword_raw,hints){
     //how do u destructre across and down correctly
     [across_html,down_html] =make_hints(across,down)
     connect_hints_and_cells(crossword_container,across,down,across_html,down_html)
+    setup_keybinds();
 
+}
+function setup_keybinds() {
+    // enter should check all cells
+    document.addEventListener('keydown', function(event) {
+        if (event.key === 'Enter') {
+            check_all();
+        }
+    });
 }
 function connect_hints_and_cells(crossword_container,across,down,across_html,down_html) {
     //When i click on a hint, the corresponding cell should be focused
