@@ -59,80 +59,159 @@ function findNeighbors(hashes) {
     }
     return result
 }
+// create a cell class
+class Cell {
+    // i want the actual cell as a property, along with x, y coordinates
+    constructor(cell, x, y) {
+        this.cell = cell; // cell should be a dom element
+        this.x = x;
+        this.y = y;
+    }
+    //function isblack that returns true if the cell is black
+    isBlack() {
+        return this.cell.classList.contains('black-cell');
+    }
+    //function that returns the contenteditable div inside the cell
+    getEditable() {
+        return this.cell.querySelector('.input-cell');
+    }
+
+}
 function setupUnfocusingForCrossword() {
         const cells = document.querySelectorAll('.cell div[contenteditable="true"]');
         // Calculate the side length of the square grid
         const all_cells = document.querySelectorAll('.cell');
         const side_length = Math.sqrt(all_cells.length);
-        // pack the cells into a 2D array
-        const cell_array = Array.from(cells);
+        // pack the all_cells into a 2D array of Cell
         const grid = [];
-        for (let i = 0; i < side_length; i++) {
-            grid.push(cell_array.slice(i * side_length, (i + 1) * side_length));
-        }
-        //rewrite the below for grid
+        let y = 0;
+        all_cells.forEach((cell, index) => {
+            if (index % side_length === 0) {
+                grid.push([]);
+            }
+            grid[grid.length - 1].push(new Cell(cell, index % side_length, grid.length - 1));
+        });
 
-        cells.forEach((cell, index, cellArray) => {
-            cell.addEventListener('keydown', (event) => {
-                const key = event.key;
-                const isCharacter = key.length === 1 && key.match(/[a-z]/i); // Check if it's a letter
-                const isArrow = key.startsWith('Arrow');
-                console.log(key, isCharacter, isArrow);
-                if(isCharacter){
-                    // prevent the default
-                    event.preventDefault();
-                    // If there's already a character in the cell, delete it then add the new character
-                    if (cell.textContent.length === 1) {
+        grid.forEach((row ) => {
+            row.forEach(cell_obj => {
+            if(!cell_obj.isBlack()) {
+                cell = cell_obj.getEditable();
+                cell.addEventListener('keydown', (event) => {
+                    const key = event.key;
+                    const isCharacter = key.length === 1 && key.match(/[a-z]/i); // Check if it's a letter
+                    const isArrow = key.startsWith('Arrow');
+                    const cell = grid[cell_obj.y][cell_obj.x].getEditable();
+                    console.log(key, isCharacter, isArrow);
+                    if (isCharacter) {
+                        // prevent the default
+                        event.preventDefault();
+                        // If there's already a character in the cell, delete it then add the new character
+                        if (cell.textContent.length === 1) {
+                            cell.textContent = '';
+                            console.log('Cell already has a character')
+                        }
+                        //now add the character
+                        cell.textContent = key;
+                        //move to the next cell
+                        if (direction === 'across') {
+                            // work with grid instead
+                            offset = 1;
+                            // while not black and not out of bounds
+                            while (grid[cell_obj.y][cell_obj.x + offset] && grid[cell_obj.y][cell_obj.x + offset].isBlack()) {
+                                offset += 1;
+                            }
+                            grid[cell_obj.y][cell_obj.x + offset].getEditable().focus();
+                        }else if (direction === 'down') {
+                            offset = 1;
+                            // while not black and not out of bounds
+                            while (grid[cell_obj.y + offset][cell_obj.x] && grid[cell_obj.y + offset][cell_obj.x].isBlack()) {
+                                offset += 1;
+                            }
+                            grid[cell_obj.y + offset][cell_obj.x].getEditable().focus();
+                        }
+                    }
+                    // if key is backspace
+                    if (key === 'Backspace') {
+                        event.preventDefault();
                         cell.textContent = '';
-                    }
-                    //now add the character
-                    cell.textContent = key;
-                    //move to the next cell
-                    if(direction === 'across') {
-                        // work with grid instead
+                        if (direction === 'across') {
+                            offset = -1;
+                            // while not black and not out of bounds
+                            while (grid[cell_obj.y][cell_obj.x + offset] && grid[cell_obj.y][cell_obj.x + offset].isBlack()) {
+                                offset -= 1;
+                            }
+                            grid[cell_obj.y][cell_obj.x + offset].getEditable().focus();
+                        }else if (direction === 'down') {
+                            offset = -1;
+                            // while not black and not out of bounds
+                            while (grid[cell_obj.y + offset][cell_obj.x] && grid[cell_obj.y + offset][cell_obj.x].isBlack()) {
+                                offset -= 1;
+                            }
+                            grid[cell_obj.y + offset][cell_obj.x].getEditable().focus();
 
-                        cellArray[index + 1].focus();
-                    }
-                }
-                // if key is backspace
-                if(key === 'Backspace') {
-                    event.preventDefault();
-                    cell.textContent = '';
-                    if(direction === 'across') {
-                        cellArray[index - 1].focus();
-                    }
-                }
-                if(isArrow) {
-                    event.preventDefault();
-                    if (direction === 'across') {
-                        if (key === 'ArrowRight') {
-                            cellArray[index + 1].focus();
-                        }
-                        if (key === 'ArrowLeft') {
-                            cellArray[index - 1].focus();
-                        }
-                        if (key === 'ArrowDown') {
-                            direction = 'down';
-                        }
-                        if (key === 'ArrowUp') {
-                            direction = 'down';
-                        }
-                    } else if (direction === 'down') {
-                        if (key === 'ArrowDown') {
-                            cellArray[index + 1].focus();
-                        }
-                        if (key === 'ArrowUp') {
-                            cellArray[index - 1].focus();
-                        }
-                        if (key === 'ArrowRight') {
-                            direction = 'across';
-                        }
-                        if (key === 'ArrowLeft') {
-                            direction = 'across';
                         }
                     }
-                    console.log(direction)
-                }
+                    if (isArrow) {
+                        event.preventDefault();
+                        if (direction === 'across') {
+                            if (key === 'ArrowRight') {
+                                offset=1;
+                                // while not black and not out of bounds
+                                while (grid[cell_obj.y][cell_obj.x + offset] && grid[cell_obj.y][cell_obj.x + offset].isBlack()) {
+                                    offset += 1;
+                                }
+                                grid[cell_obj.y][cell_obj.x + offset].getEditable().focus();
+                            }
+                            //implement rest
+                            if (key === 'ArrowLeft') {
+                                offset=-1;
+                                // while black and not out of bounds
+                                while (grid[cell_obj.y][cell_obj.x + offset] && grid[cell_obj.y][cell_obj.x + offset].isBlack()) {
+                                    offset -= 1;
+                                }
+                                grid[cell_obj.y][cell_obj.x + offset].getEditable().focus();
+                            }
+                            if (key === 'ArrowDown') {
+                                console.log('changing direction to down')
+                                direction = 'down';
+
+                            }
+                            if (key === 'ArrowUp') {
+                                console.log('changing direction to down')
+
+                                direction = 'down';
+                            }
+
+                        } else if (direction === 'down') {
+                            //implement rest
+                            if (key === 'ArrowDown') {
+                                offset=1;
+                                // while not black and not out of bounds
+                                while (grid[cell_obj.y + offset][cell_obj.x] && grid[cell_obj.y + offset][cell_obj.x].isBlack()) {
+                                    offset += 1;
+                                }
+                                grid[cell_obj.y + offset][cell_obj.x].getEditable().focus();
+                            }
+                            if (key === 'ArrowUp') {
+                                offset=-1;
+                                // while not black and not out of bounds
+                                while (grid[cell_obj.y + offset][cell_obj.x] && grid[cell_obj.y + offset][cell_obj.x].isBlack()) {
+                                    offset -= 1;
+                                }
+                                grid[cell_obj.y + offset][cell_obj.x].getEditable().focus();
+                            }
+                            if (key === 'ArrowRight') {
+                                direction = 'across';
+                                console.log('changing direction to across')
+                            }
+                            if (key === 'ArrowLeft') {
+                                direction = 'across';
+                                console.log('changing direction to across')
+                            }
+                        }
+                    }
+                });
+            }
             });
 
         });
@@ -330,70 +409,6 @@ function formatTuesdayDate(startDate, endDate) {
 
 // Make sure to define CSS for .hint to position it in the top-left corner and potentially style it to be small and unobtrusive.
 function setupArrowNavigation() {
-    const rows = document.querySelectorAll('#crossword-container .row');
-    const grid = [];
-
-    // Construct a 2D array of all content-editable elements for easy navigation
-    rows.forEach(row => {
-        const cells = Array.from(row.querySelectorAll('.cell .input-cell'));
-        if (cells.length > 0) {
-            grid.push(cells);
-        }
-    });
-    console.log(grid);
-    // Function to move focus
-    function moveFocus(currentElement, dx, dy) {
-        const currentPosition = findPosition(currentElement);
-        if (currentPosition) {
-            const {x, y} = currentPosition;
-            const newY = y + dy;
-            const newX = x + dx;
-
-            if (newY >= 0 && newY < grid.length && newX >= 0 && newX < grid[newY].length) {
-                if(grid[newY][newX].classList.contains('black-cell')){
-                    return moveFocus(grid[newY][newX],dx,dy)
-                }
-                grid[newY][newX].focus();
-            }
-        }
-    }
-
-    // Find the current position of the element in the grid
-    function findPosition(element) {
-        for (let y = 0; y < grid.length; y++) {
-            const x = grid[y].indexOf(element);
-            if (x !== -1) {
-                return {x, y};
-            }
-        }
-        return null;
-    }
-
-    // Attach keydown event to all editable elements
-    grid.forEach(row => {
-        row.forEach(element => {
-            element.addEventListener('keydown', event => {
-                switch (event.key) {
-                    case 'ArrowLeft':
-                        // Move left
-                        moveFocus(event.target, -1, 0);
-                        break;
-                    case 'ArrowRight':
-                        // Move right
-                        moveFocus(event.target, 1, 0);
-                        break;
-                    case 'ArrowUp':
-                        // Move up
-                        moveFocus(event.target, 0, -1);
-                        break;
-                    case 'ArrowDown':
-                        // Move down
-                        moveFocus(event.target, 0, 1);
-                        break;
-                }
-            });
-        });
-    });
 }
 
 function check_cell() {

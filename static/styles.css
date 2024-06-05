@@ -57,6 +57,9 @@
 .cell div[contenteditable="true"] {
     cursor: text;   /* Changes the cursor to indicate text can be edited */
 }
+.active{
+    background-color: rgba(211, 211, 211, 0.56);
+}
 
 .cell div[contenteditable="true"]:focus {
     background-color: #acacac; /* Adds a light grey background to indicate focus */
