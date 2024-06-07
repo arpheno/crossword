@@ -652,6 +652,43 @@ function load_monday() {
         usecase(crossword,hints)
     })
 }
+function load_thursday() {
+    last_clicked_element = null;
+    //input text should be a random monday date from 2019 until today
+    // it should be dynamically generated and not hardcoded
+    const startDate = new Date('2019-01-01');
+    const endDate = new Date(); // Current date
+    const randomThursday = formatThursdayDate(startDate, endDate);
+    console.log(randomThursday); // Outputs: Mon, <Month> <Day> <Year>
+    // call the app endpoint /crossword/<date> and pass the input_text
+    // the response should be the a text blob which we will parse
+    content = fetch(`/crossword/${randomThursday}`).then(response => response.text()).then(data => {
+        parts = data.split('\n\n')
+        console.log(parts)
+        //Crossword is the 3rd from the end
+        crossword = parts[parts.length - 3]
+        //Hints is the two last ones combined by \n\n
+        hints = parts.slice(-2).join('\n\n')
+        usecase(crossword, hints)
+    })
+}
+function formatThursdayDate(startDate, endDate) {
+    // Get a random date
+    let randomDate = getRandomDate(startDate, endDate);
+    // Adjust this date to the nearest Monday
+    randomDate = adjustToThursday(randomDate);
+    // Format the date to a readable string (e.g., 'Mon, Mar 15 2021')
+    return formatDateToYYMMDD(randomDate);
+}
+function adjustToThursday(date) {
+    // Get the day of the week as a number (0=Sunday, 1=Monday, ..., 6=Saturday)
+    const dayOfWeek = date.getDay();
+    // Calculate the difference from Monday
+    const difference = dayOfWeek === 0 ? 3 : dayOfWeek - 4; // If Sunday, set to move 4 days back, otherwise dayOfWeek - 3
+    // Adjust the date to the nearest Monday (subtract the difference)
+    date.setDate(date.getDate() - difference);
+    return date;
+}
 function load_tuesday() {
     last_clicked_element = null;
     //input text should be a random monday date from 2019 until today
