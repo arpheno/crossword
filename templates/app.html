@@ -11,11 +11,14 @@
 <input type="text" aria-label="date to search for" id="crossword-input">
 <button id="load" onclick="load_crossword()">Load Crossword</button>
 <button id="sample" onclick="load_sample_crossword()">Sample</button>
-<button id="check" onclick="check_cell()">Check</button>
 <button id="check-all" onclick="check_all()">Check all</button>
-<button id="monday" onclick="load_monday()">Monday</button>
-<button id="tuesday" onclick="load_tuesday()">tuesday</button>
-<button id="thursday" onclick="load_thursday()">Thursday</button>
+<button id="monday" onclick="load_weekday(1)">Monday</button>
+<button id="tuesday" onclick="load_weekday(2)">tuesday</button>
+<button id="wednesday" onclick="load_weekday(3)">Wednesday</button>
+<button id="thursday" onclick="load_weekday(4)">Thursday</button>
+<button id="friday" onclick="load_weekday(5)">Friday</button>
+<button id="saturday" onclick="load_weekday(6)">Saturday</button>
+<button id="sunday" onclick="load_weekday(7)">Sunday</button>
 <button id="toggle-night-mode">Toggle Night Mode</button>
 
 <div id="app-container">
@@ -27,6 +30,9 @@
         <ul id="down"></ul>
     </div>
 </div>
+<script src="{{ url_for('static', filename='util.js') }}"></script>
+<script src="{{ url_for('static', filename='datemanipulation.js') }}"></script>
+<script src="{{ url_for('static', filename='crossword_parsing.js') }}"></script>
 <script src="{{ url_for('static', filename='script.js') }}"></script>
 </body>
 </html>

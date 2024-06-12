@@ -1,6 +1,16 @@
-// write a function that returns the crossword but i want it padded with the # character on all sides
-// so the crossword is the size of the crossword +2 in both x and y dimensions
-direction = 'across';
+//write af unciton that strips the last column ,and last row
+function unpadCrossword(crossword) {
+    // Split the crossword into rows
+    const rows = crossword.split('\n');
+    // Remove the last row
+    rows.pop();
+    // Remove the last column from each remaining row
+    const updatedRows = rows.map(row => row.slice(0, -1));
+    // Join the rows back into a single string
+    const updatedCrossword = updatedRows.join('\n');
+    return updatedCrossword;
+}
+
 function padCrossword(crossword) {
     const lines = crossword.split('\n')
     const padded = lines.map(line => `#${line}#`)
@@ -8,42 +18,6 @@ function padCrossword(crossword) {
     padded.push('#'.repeat(padded[0].length))
     return padded.join('\n')
 }
-
-//write af unciton that strips the last column ,and last row
-function unpadCrossword(crossword) {
-    // Split the crossword into rows
-    const rows = crossword.split('\n');
-
-    // Remove the last row
-    rows.pop();
-
-    // Remove the last column from each remaining row
-    const updatedRows = rows.map(row => row.slice(0, -1));
-
-    // Join the rows back into a single string
-    const updatedCrossword = updatedRows.join('\n');
-
-    return updatedCrossword;
-}
-
-// Given a crossword string, find the coordinates of all characters like [('#',(0,0)),...]
-//I want something like ndenumerate from python
-//can i alias console.log to print?
-print = console.log
-
-function ndenumerate(crossword) {
-    print(crossword)
-    const lines = crossword.split('\n')
-    const result = []
-    for (let y = 0; y < lines.length; y++) {
-        for (let x = 0; x < lines[y].length; x++) {
-            result.push([lines[y][x], [x, y]])
-        }
-    }
-    return result
-}
-
-// write a function that filters the output of ndenumarete to only contain # characters
 function findHashes(grid) {
     return grid.filter(([char, _]) => char === '#')
 }
@@ -59,6 +33,92 @@ function findNeighbors(hashes) {
     }
     return result
 }
+
+/**
+ * Generate a random date between the given start and end dates.
+ * @param {Date} start - The start date.
+ * @param {Date} end - The end date.
+ * @returns {Date} - A random date between start and end.
+ */
+function getRandomDate(start, end) {
+    return new Date(start.getTime() + Math.random() * (end.getTime() - start.getTime()));
+}
+/**
+ * Adjust the given date to the nearest specified weekday.
+ * @param {Date} date - The original date.
+ * @param {number} targetDay - The target weekday (0 = Sunday, 1 = Monday, ..., 6 = Saturday).
+ * @returns {Date} - The adjusted date.
+ */
+function adjustToWeekday(date, targetDay) {
+    const dayOfWeek = date.getDay();
+    const difference = (targetDay - dayOfWeek + 7) % 7; // Calculate the difference to the next targetDay
+    date.setDate(date.getDate() + difference);
+    return date;
+}
+
+/**
+ * Format a date to YYMMDD.
+ * @param {Date} date - The date to format.
+ * @returns {string} - The formatted date string.
+ */
+function formatDateToYYMMDD(date) {
+    const year = date.getFullYear().toString().slice(-2); // Last two digits of year
+    const month = ('0' + (date.getMonth() + 1)).slice(-2); // Two digit month
+    const day = ('0' + date.getDate()).slice(-2); // Two digit day
+    return `${year}${month}${day}`;
+}
+
+/**
+ * Get a random date adjusted to the specified weekday between the given date range.
+ * @param {Date} startDate - The start date.
+ * @param {Date} endDate - The end date.
+ * @param {number} weekday - The target weekday (0 = Sunday, 1 = Monday, ..., 6 = Saturday).
+ * @returns {string} - The formatted date string in YYMMDD.
+ */
+function getRandomWeekdayDate(startDate, endDate, weekday) {
+    let randomDate = getRandomDate(startDate, endDate);
+    randomDate = adjustToWeekday(randomDate, weekday);
+    return formatDateToYYMMDD(randomDate);
+}
+/**
+ * ndenumerate - Enumerate over a 2d string
+ *
+ * Example:
+ * ndenumerate('abc\ndef\nghi') =>
+ * [['a', [0, 0]], ['b', [1, 0]], ['c', [2, 0]], ['d', [0, 1]], ['e', [1, 1]],
+ * ['f', [2, 1]], ['g', [0, 2]], ['h', [1, 2]], ['i', [2, 2]]]
+ * @param {string} crossword
+ * @returns {Array<[string, [number, number]]>}
+ */
+function ndenumerate(crossword) {
+    const lines = crossword.split('\n')
+    const result = []
+    for (let y = 0; y < lines.length; y++) {
+        for (let x = 0; x < lines[y].length; x++) {
+            result.push([lines[y][x], [x, y]])
+        }
+    }
+    return result
+}
+// write a function that takes a list of functions and applies it to the crossword
+function chain(crossword, functions) {
+    let result = crossword
+    for (const func of functions) {
+        result = func(result)
+    }
+    return result
+}
+
+function enumerate(iterable) {
+    return iterable.map((item, index) => [index + 1, item])
+}
+// zip the starting locations with the hints
+function zip(starting_locations, hints) {
+    return starting_locations.map((location, index) => [location, hints[index]])
+}
+print = console.log
+
+// write a function that filters the output of ndenumerete to only contain # characters
 // create a cell class
 class Cell {
     // i want the actual cell as a property, along with x, y coordinates
@@ -67,156 +127,130 @@ class Cell {
         this.x = x;
         this.y = y;
     }
+
     //function isblack that returns true if the cell is black
     isBlack() {
         return this.cell.classList.contains('black-cell');
     }
+
     //function that returns the contenteditable div inside the cell
     getEditable() {
         return this.cell.querySelector('.input-cell');
     }
 
 }
+
 function setupUnfocusingForCrossword() {
-        const cells = document.querySelectorAll('.cell div[contenteditable="true"]');
-        // Calculate the side length of the square grid
-        const all_cells = document.querySelectorAll('.cell');
-        const side_length = Math.sqrt(all_cells.length);
-        // pack the all_cells into a 2D array of Cell
-        const grid = [];
-        let y = 0;
-        all_cells.forEach((cell, index) => {
-            if (index % side_length === 0) {
-                grid.push([]);
+    const allCells = document.querySelectorAll('.cell');
+    const sideLength = Math.sqrt(allCells.length);
+    const grid = [];
+
+    allCells.forEach((cell, index) => {
+        const x = index % sideLength;
+        const y = Math.floor(index / sideLength);
+
+        if (!grid[y]) {
+            grid[y] = [];
+        }
+        grid[y].push(new Cell(cell, x, y));
+    });
+
+    grid.forEach(row => {
+        row.forEach(cellObj => {
+            if (!cellObj.isBlack()) {
+                const editableCell = cellObj.getEditable();
+                editableCell.addEventListener('keydown', event => handleKeydown(event, cellObj, grid));
             }
-            grid[grid.length - 1].push(new Cell(cell, index % side_length, grid.length - 1));
         });
-
-        grid.forEach((row ) => {
-            row.forEach(cell_obj => {
-            if(!cell_obj.isBlack()) {
-                cell = cell_obj.getEditable();
-                cell.addEventListener('keydown', (event) => {
-                    const key = event.key;
-                    const isCharacter = key.length === 1 && key.match(/[a-z]/i); // Check if it's a letter
-                    const isArrow = key.startsWith('Arrow');
-                    const cell = grid[cell_obj.y][cell_obj.x].getEditable();
-                    console.log(key, isCharacter, isArrow);
-                    if (isCharacter) {
-                        // prevent the default
-                        event.preventDefault();
-                        // If there's already a character in the cell, delete it then add the new character
-                        if (cell.textContent.length === 1) {
-                            cell.textContent = '';
-                            console.log('Cell already has a character')
-                        }
-                        //now add the character
-                        cell.textContent = key;
-                        //move to the next cell
-                        if (direction === 'across') {
-                            // work with grid instead
-                            offset = 1;
-                            // while not black and not out of bounds
-                            while (grid[cell_obj.y][cell_obj.x + offset] && grid[cell_obj.y][cell_obj.x + offset].isBlack()) {
-                                offset += 1;
-                            }
-                            grid[cell_obj.y][cell_obj.x + offset].getEditable().focus();
-                        }else if (direction === 'down') {
-                            offset = 1;
-                            // while not black and not out of bounds
-                            while (grid[cell_obj.y + offset][cell_obj.x] && grid[cell_obj.y + offset][cell_obj.x].isBlack()) {
-                                offset += 1;
-                            }
-                            grid[cell_obj.y + offset][cell_obj.x].getEditable().focus();
-                        }
-                    }
-                    // if key is backspace
-                    if (key === 'Backspace') {
-                        event.preventDefault();
-                        cell.textContent = '';
-                        if (direction === 'across') {
-                            offset = -1;
-                            // while not black and not out of bounds
-                            while (grid[cell_obj.y][cell_obj.x + offset] && grid[cell_obj.y][cell_obj.x + offset].isBlack()) {
-                                offset -= 1;
-                            }
-                            grid[cell_obj.y][cell_obj.x + offset].getEditable().focus();
-                        }else if (direction === 'down') {
-                            offset = -1;
-                            // while not black and not out of bounds
-                            while (grid[cell_obj.y + offset][cell_obj.x] && grid[cell_obj.y + offset][cell_obj.x].isBlack()) {
-                                offset -= 1;
-                            }
-                            grid[cell_obj.y + offset][cell_obj.x].getEditable().focus();
-
-                        }
-                    }
-                    if (isArrow) {
-                        event.preventDefault();
-                        if (direction === 'across') {
-                            if (key === 'ArrowRight') {
-                                offset=1;
-                                // while not black and not out of bounds
-                                while (grid[cell_obj.y][cell_obj.x + offset] && grid[cell_obj.y][cell_obj.x + offset].isBlack()) {
-                                    offset += 1;
-                                }
-                                grid[cell_obj.y][cell_obj.x + offset].getEditable().focus();
-                            }
-                            //implement rest
-                            if (key === 'ArrowLeft') {
-                                offset=-1;
-                                // while black and not out of bounds
-                                while (grid[cell_obj.y][cell_obj.x + offset] && grid[cell_obj.y][cell_obj.x + offset].isBlack()) {
-                                    offset -= 1;
-                                }
-                                grid[cell_obj.y][cell_obj.x + offset].getEditable().focus();
-                            }
-                            if (key === 'ArrowDown') {
-                                console.log('changing direction to down')
-                                direction = 'down';
-
-                            }
-                            if (key === 'ArrowUp') {
-                                console.log('changing direction to down')
-
-                                direction = 'down';
-                            }
-
-                        } else if (direction === 'down') {
-                            //implement rest
-                            if (key === 'ArrowDown') {
-                                offset=1;
-                                // while not black and not out of bounds
-                                while (grid[cell_obj.y + offset][cell_obj.x] && grid[cell_obj.y + offset][cell_obj.x].isBlack()) {
-                                    offset += 1;
-                                }
-                                grid[cell_obj.y + offset][cell_obj.x].getEditable().focus();
-                            }
-                            if (key === 'ArrowUp') {
-                                offset=-1;
-                                // while not black and not out of bounds
-                                while (grid[cell_obj.y + offset][cell_obj.x] && grid[cell_obj.y + offset][cell_obj.x].isBlack()) {
-                                    offset -= 1;
-                                }
-                                grid[cell_obj.y + offset][cell_obj.x].getEditable().focus();
-                            }
-                            if (key === 'ArrowRight') {
-                                direction = 'across';
-                                console.log('changing direction to across')
-                            }
-                            if (key === 'ArrowLeft') {
-                                direction = 'across';
-                                console.log('changing direction to across')
-                            }
-                        }
-                    }
-                });
-            }
-            });
-
-        });
-
+    });
 }
+
+function handleKeydown(event, cellObj, grid) {
+    const keyActions = {
+        Backspace: () => handleBackspace(event, cellObj, grid),
+        ArrowRight: () => handleArrowKey(event, cellObj, grid, 'ArrowRight'),
+        ArrowLeft: () => handleArrowKey(event, cellObj, grid, 'ArrowLeft'),
+        ArrowDown: () => handleArrowKey(event, cellObj, grid, 'ArrowDown'),
+        ArrowUp: () => handleArrowKey(event, cellObj, grid, 'ArrowUp')
+
+    };
+
+    const key = event.key;
+    const isCharacter = key.length === 1 && key.match(/[a-z]/i);
+    if (isCharacter) {
+        handleCharacterInput(event, cellObj, grid, key);
+    } else if (keyActions[key]) {
+        keyActions[key]();
+    }
+}
+
+let direction = 'across';
+
+function handleCharacterInput(event, cellObj, grid, key) {
+    event.preventDefault();
+    const cell = cellObj.getEditable();
+
+    cell.classList.remove('red');
+    cell.classList.remove('green');
+    if (cell.textContent.length === 1) {
+        cell.textContent = '';
+    }
+
+    cell.textContent = key;
+    moveToNextCell(cellObj, grid, 1, direction);
+}
+
+function handleBackspace(event, cellObj, grid) {
+    event.preventDefault();
+    const cell = cellObj.getEditable();
+    cell.textContent = '';
+    moveToNextCell(cellObj, grid, -1, direction);
+}
+
+function handleArrowKey(event, cellObj, grid, key) {
+    event.preventDefault();
+    const directionMap = {
+        ArrowRight: 'across',
+        ArrowLeft: 'across',
+        ArrowDown: 'down',
+        ArrowUp: 'down'
+    };
+    const offset = key === 'ArrowRight' || key === 'ArrowDown' ? 1 : -1;
+    const new_direction = directionMap[key];
+    if (new_direction === direction) {
+        moveToNextCell(cellObj, grid, offset, direction);
+    } else {
+        direction = new_direction;
+    }
+}
+
+function moveToNextCell(cellObj, grid, offset, direction = 'across') {
+    const {x, y} = cellObj;
+    let nextCell;
+
+    if (direction === 'across') {
+        print('moving across')
+        nextCell = grid[y][x + offset];
+    } else if (direction === 'down') {
+        print('moving down')
+        nextCell = grid[y + offset]?.[x];
+    }
+
+    while (nextCell && nextCell.isBlack()) {
+        if (direction === 'across') {
+            offset += Math.sign(offset);
+            nextCell = grid[y][x + offset];
+        } else if (direction === 'down') {
+            offset += Math.sign(offset);
+            nextCell = grid[y + offset]?.[x];
+        }
+    }
+
+    if (nextCell && nextCell.getEditable()) {
+        nextCell.getEditable().focus();
+    }
+}
+
 //write a function that takes the set of coordinates and returns an ordered list sorted by y coordinate first and then x
 function sortNeighbors(neighbors) {
     return Array.from(neighbors).sort(([x1, y1], [x2, y2]) => {
@@ -244,26 +278,10 @@ function subtract_one_from_x_and_y(coordinate_list) {
     return coordinate_list.map(([x, y]) => [x - 1, y - 1])
 }
 
-// write a function that takes a list of functions and applies it to the crossword
-function chain(crossword, functions) {
-    let result = crossword
-    for (const func of functions) {
-        result = func(result)
-    }
-    return result
-}
-
 function filter_hashtags_out(candidate_coordinates, character_lookup) {
     return candidate_coordinates.filter(([x, y]) => character_lookup[y] && character_lookup[y][x] !== '#');
 }
 
-
-// i want python enumerate
-function enumerate(iterable) {
-    return iterable.map((item, index) => [index + 1, item])
-}
-
-// filter out starting locations that have their x coordinate equal to the width of the crossword
 
 function find_starting_locations_across(starting_locations, character_lookup) {
     // It is a valid across starting location if x==0 or the character to the left is a #
@@ -273,12 +291,6 @@ function find_starting_locations_across(starting_locations, character_lookup) {
 function find_starting_locations_down(starting_locations, character_lookup) {
     // It is a valid down starting location if y==0 or the character above is a #
     return starting_locations.filter(([i, [x, y]]) => y === 0 || character_lookup[y - 1][x] === '#')
-}
-
-
-// zip the starting locations with the hints
-function zip(starting_locations, hints) {
-    return starting_locations.map((location, index) => [location, hints[index]])
 }
 
 
@@ -293,8 +305,7 @@ function get_starting_location(coordinate, starting_locations) {
 }
 
 
-
-function make_hints(across,down) {
+function make_hints(across, down) {
     const across_html = document.getElementById('across');
     const down_html = document.getElementById('down');
     // for each hint in across_hints, add a new item to across
@@ -312,6 +323,7 @@ function make_hints(across,down) {
     });
     return [across_html, down_html];
 }
+
 function make_grid(grid) {
     const crosswordContainer = document.getElementById('crossword-container');
     let y = 0;
@@ -357,73 +369,14 @@ function make_grid(grid) {
 
     crosswordContainer.addEventListener('click', function (event) {
         const clickedElement = event.target;
-        if(clickedElement.classList.contains('input-cell')) {
+        if (clickedElement.classList.contains('input-cell')) {
             console.log('Clicked element:', clickedElement);
-            last_clicked_element= clickedElement;
         }
         // You can add more logic here to handle the clicked element
     });
     return crosswordContainer;
 }
-function getRandomDate(start, end) {
-    // Generate a random timestamp between start and end dates
-    const date = new Date(start.getTime() + Math.random() * (end.getTime() - start.getTime()));
-    return date;
-}
 
-function adjustToMonday(date) {
-    // Get the day of the week as a number (0=Sunday, 1=Monday, ..., 6=Saturday)
-    const dayOfWeek = date.getDay();
-    // Calculate the difference from Monday
-    const difference = dayOfWeek === 0 ? 6 : dayOfWeek - 1; // If Sunday, set to move 6 days back, otherwise dayOfWeek - 1
-    // Adjust the date to the nearest Monday (subtract the difference)
-    date.setDate(date.getDate() - difference);
-    return date;
-}
-
-function formatMondayDate(startDate, endDate) {
-    // Get a random date
-    let randomDate = getRandomDate(startDate, endDate);
-    // Adjust this date to the nearest Monday
-    randomDate = adjustToMonday(randomDate);
-    // Format the date to a readable string (e.g., 'Mon, Mar 15 2021')
-    return formatDateToYYMMDD(randomDate);
-}
-
-function adjustToTuesday(date) {
-    // Get the day of the week as a number (0=Sunday, 1=Monday, ..., 6=Saturday)
-    const dayOfWeek = date.getDay();
-    // Calculate the difference from Monday
-    const difference = dayOfWeek === 0 ? 5 : dayOfWeek - 2; // If Sunday, set to move 5 days back, otherwise dayOfWeek - 2
-    // Adjust the date to the nearest Monday (subtract the difference)
-    date.setDate(date.getDate() - difference);
-    return date;
-}
-
-function formatTuesdayDate(startDate, endDate) {
-    // Get a random date
-    let randomDate = getRandomDate(startDate, endDate);
-    // Adjust this date to the nearest Monday
-    randomDate = adjustToTuesday(randomDate);
-    // Format the date to a readable string (e.g., 'Mon, Mar 15 2021')
-    return formatDateToYYMMDD(randomDate);
-}
-
-// Make sure to define CSS for .hint to position it in the top-left corner and potentially style it to be small and unobtrusive.
-function setupArrowNavigation() {
-}
-
-function check_cell() {
-    if (last_clicked_element) {
-        const character = last_clicked_element.getAttribute('data-character').toLowerCase();
-        const input = last_clicked_element.textContent.toLowerCase();
-        if (character === input) {
-            last_clicked_element.style.color = 'green';
-        } else {
-            last_clicked_element.style.color = 'red';
-        }
-    }
-}
 function check_all() {
     //Check all cells by finding all celsl with class input-cell and then checking them
     const input_cells = document.querySelectorAll('.input-cell');
@@ -435,52 +388,61 @@ function check_all() {
         if (input === '') {
             cell.classList.remove('red');
             cell.classList.remove('green');
-        } else
-        if (character === input) {
+        } else if (character === input) {
             cell.classList.add('green');
+            cell.classList.remove('red');
         } else {
             cell.classList.add('red');
+            cell.classList.remove('green');
         }
     });
     //play a sound of success when all cells are correct
 }
-function usecase(crossword_raw,hints){
-    last_clicked_element = null;
-    character_lookup = asArray(crossword_raw)
-    candidates_including_hashtags = chain(crossword_raw, [padCrossword, unpadCrossword,
+
+function usecase(crossword_raw, hints) {
+    let last_clicked_element = null;
+    //clear the crossword container
+    document.getElementById('crossword-container').innerHTML = '';
+    //clear the hints
+    document.getElementById('across').innerHTML = '';
+    document.getElementById('down').innerHTML = '';
+    let character_lookup = asArray(crossword_raw)
+    let candidates_including_hashtags = chain(crossword_raw, [padCrossword, unpadCrossword,
         ndenumerate, findHashes, findNeighbors,
         sortNeighbors, removeEdges, deduplicate, subtract_one_from_x_and_y])
     starting_locations = filter_hashtags_out(candidates_including_hashtags, character_lookup)
     starting_locations = starting_locations.filter(([x, y]) => x < character_lookup[0].length)
     starting_locations = enumerate(starting_locations)
-    starting_locations_across = find_starting_locations_across(starting_locations, character_lookup)
-    starting_locations_down = find_starting_locations_down(starting_locations, character_lookup)
-    across_hints = hints.split('\n\n')[0].split('\n')
-    down_hints = hints.split('\n\n')[1].split('\n')
-    across = zip(starting_locations_across, across_hints)
-    down = zip(starting_locations_down, down_hints)
-    crossword_container = make_grid(character_lookup)
+    let starting_locations_across = find_starting_locations_across(starting_locations, character_lookup)
+    let starting_locations_down = find_starting_locations_down(starting_locations, character_lookup)
+    let across_hints = hints.split('\n\n')[0].split('\n')
+    let down_hints = hints.split('\n\n')[1].split('\n')
+    let across = zip(starting_locations_across, across_hints)
+    let down = zip(starting_locations_down, down_hints)
+    let crossword_container = make_grid(character_lookup)
     setupUnfocusingForCrossword();
     //how do u destructre across and down correctly
-    [across_html,down_html] =make_hints(across,down)
-    connect_hints_and_cells(crossword_container,across,down,across_html,down_html)
+    [across_html, down_html] = make_hints(across, down)
+    connect_hints_and_cells(crossword_container, across, down, across_html, down_html)
     setup_keybinds();
 
 }
+
 function setup_keybinds() {
     // enter should check all cells
-    document.addEventListener('keydown', function(event) {
+    document.addEventListener('keydown', function (event) {
         if (event.key === 'Enter') {
             check_all();
         }
     });
 }
-function connect_hints_and_cells(crossword_container,across,down,across_html,down_html) {
+
+function connect_hints_and_cells(crossword_container, across, down, across_html, down_html) {
     //When i click on a hint, the corresponding cell should be focused
     // Let's find the hint element by id for each hint
     console.log(across_html);
     across_html.childNodes.forEach((hint) => {
-        hint.addEventListener('click', function() {
+        hint.addEventListener('click', function () {
             //parse the hint id from the hint element like "9. Computer suffix with soft or hard"
             // i think u split the text content by '.' and then get the first element
             const hint_id = hint.textContent.split('.')[0];
@@ -493,7 +455,7 @@ function connect_hints_and_cells(crossword_container,across,down,across_html,dow
     });
     //same for down
     down_html.childNodes.forEach((hint) => {
-        hint.addEventListener('click', function() {
+        hint.addEventListener('click', function () {
             //parse the hint id from the hint element like "9. Computer suffix with soft or hard"
             // i think u split the text content by '.' and then get the first element
             const hint_id = hint.textContent.split('.')[0];
@@ -507,6 +469,48 @@ function connect_hints_and_cells(crossword_container,across,down,across_html,dow
 
 
 }
+
+function load_crossword() {
+    const input_text = document.getElementById('crossword-input').value;
+    //assert that the input text is a valid date
+
+    let content = fetch(`/crossword/${input_text}`).then(
+        response => response.text()).then(
+        data => parse_and_run_crossword(data)
+    )
+
+}
+
+document.getElementById('toggle-night-mode').addEventListener('click', function () {
+    document.body.classList.toggle('night-mode');
+});
+
+function parse_and_run_crossword(raw_crossword) {
+    const parts = raw_crossword.split('\n\n')
+    console.log(parts)
+    //Crossword is the 3rd from the end
+    const parsed_crossword = parts[parts.length - 3]
+    //Hints is the two last ones combined by \n\n
+    const hints = parts.slice(-2).join('\n\n')
+    usecase(parsed_crossword, hints)
+}
+
+/**
+ * Load the crossword for a specific weekday.
+ * @param {number} day_of_the_week - The target weekday (0 = Sunday, 1 = Monday, ..., 6 = Saturday).
+ */
+function load_weekday(day_of_the_week) {
+    const from = new Date('2019-01-01');
+    const till = new Date();
+    const randomDate = getRandomWeekdayDate(from, till, day_of_the_week);
+
+    fetch(`/crossword/${randomDate}`).then(
+        response => response.text()).then(
+        data => parse_and_run_crossword(data)
+    );
+
+}
+
 function load_sample_crossword() {
     const crossword_raw = `WARE#ABBA#OUSTS
 EBAY#SOAR#UBOAT
@@ -602,110 +606,6 @@ High point
 Colored part of the eye
 "We only use 10% of our brain," e.g.
 Long stretch of time`
-    usecase(crossword_raw,hints)
+    usecase(crossword_raw, hints)
 }
-function load_crossword() {
-    last_clicked_element = null;
-    const input_text = document.getElementById('crossword-input').value;
-    // call the app endpoint /crossword/<date> and pass the input_text
-    // the response should be the a text blob which we will parse
-    content = fetch(`/crossword/${input_text}`).then(response => response.text()).then(data => {
-        parts = data.split('\n\n')
-        console.log(parts)
-        //Crossword is the 3rd from the end
-        crossword = parts[parts.length - 3]
-        //Hints is the two last ones combined by \n\n
-        hints = parts.slice(-2).join('\n\n')
-        usecase(crossword,hints)
-    })
-}
-function formatDateToYYMMDD(date) {
-    console.log(date);
-     if (!(date instanceof Date)) {
-        throw new Error("The input must be a Date object.");
-    }
-    const year = date.getFullYear().toString().slice(-2); // Get last two digits of year
-    const month = ('0' + (date.getMonth() + 1)).slice(-2); // Format month as two digits
-    const day = ('0' + date.getDate()).slice(-2); // Format day as two digits
-    return year + month + day; // Concatenate to form YYMMDD
-}
-document.getElementById('toggle-night-mode').addEventListener('click', function() {
-    document.body.classList.toggle('night-mode');
-});
-function load_monday() {
-    last_clicked_element = null;
-    //input text should be a random monday date from 2019 until today
-    // it should be dynamically generated and not hardcoded
-    const startDate = new Date('2019-01-01');
-    const endDate = new Date(); // Current date
-    const randomMonday = formatMondayDate(startDate, endDate);
-    console.log(randomMonday); // Outputs: Mon, <Month> <Day> <Year>
-    // call the app endpoint /crossword/<date> and pass the input_text
-    // the response should be the a text blob which we will parse
-    content = fetch(`/crossword/${randomMonday}`).then(response => response.text()).then(data => {
-        parts = data.split('\n\n')
-        console.log(parts)
-        //Crossword is the 3rd from the end
-        crossword = parts[parts.length - 3]
-        //Hints is the two last ones combined by \n\n
-        hints = parts.slice(-2).join('\n\n')
-        usecase(crossword,hints)
-    })
-}
-function load_thursday() {
-    last_clicked_element = null;
-    //input text should be a random monday date from 2019 until today
-    // it should be dynamically generated and not hardcoded
-    const startDate = new Date('2019-01-01');
-    const endDate = new Date(); // Current date
-    const randomThursday = formatThursdayDate(startDate, endDate);
-    console.log(randomThursday); // Outputs: Mon, <Month> <Day> <Year>
-    // call the app endpoint /crossword/<date> and pass the input_text
-    // the response should be the a text blob which we will parse
-    content = fetch(`/crossword/${randomThursday}`).then(response => response.text()).then(data => {
-        parts = data.split('\n\n')
-        console.log(parts)
-        //Crossword is the 3rd from the end
-        crossword = parts[parts.length - 3]
-        //Hints is the two last ones combined by \n\n
-        hints = parts.slice(-2).join('\n\n')
-        usecase(crossword, hints)
-    })
-}
-function formatThursdayDate(startDate, endDate) {
-    // Get a random date
-    let randomDate = getRandomDate(startDate, endDate);
-    // Adjust this date to the nearest Monday
-    randomDate = adjustToThursday(randomDate);
-    // Format the date to a readable string (e.g., 'Mon, Mar 15 2021')
-    return formatDateToYYMMDD(randomDate);
-}
-function adjustToThursday(date) {
-    // Get the day of the week as a number (0=Sunday, 1=Monday, ..., 6=Saturday)
-    const dayOfWeek = date.getDay();
-    // Calculate the difference from Monday
-    const difference = dayOfWeek === 0 ? 3 : dayOfWeek - 4; // If Sunday, set to move 4 days back, otherwise dayOfWeek - 3
-    // Adjust the date to the nearest Monday (subtract the difference)
-    date.setDate(date.getDate() - difference);
-    return date;
-}
-function load_tuesday() {
-    last_clicked_element = null;
-    //input text should be a random monday date from 2019 until today
-    // it should be dynamically generated and not hardcoded
-    const startDate = new Date('2019-01-01');
-    const endDate = new Date(); // Current date
-    const randomTuesday = formatTuesdayDate(startDate, endDate);
-    console.log(randomTuesday); // Outputs: Mon, <Month> <Day> <Year>
-    // call the app endpoint /crossword/<date> and pass the input_text
-    // the response should be the a text blob which we will parse
-    content = fetch(`/crossword/${randomTuesday}`).then(response => response.text()).then(data => {
-        parts = data.split('\n\n')
-        console.log(parts)
-        //Crossword is the 3rd from the end
-        crossword = parts[parts.length - 3]
-        //Hints is the two last ones combined by \n\n
-        hints = parts.slice(-2).join('\n\n')
-        usecase(crossword,hints)
-    })
-}
+
