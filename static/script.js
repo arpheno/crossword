@@ -490,7 +490,7 @@ function parse_and_run_crossword(raw_crossword) {
     // Remove lines that contain only non-letter characters
     const cleaned_parts = parts.map(part => {
         return part.split('\n')
-                   .filter(line => /[a-zA-Z]/.test(line))
+                   .filter(line => /[a-zA-Z]/.test(line)) // This checks if the line contains exclusively non-character characters (e.g. punctuation)
                    .join('\n');
     });
     // Crossword is the 3rd from the end
