@@ -486,13 +486,18 @@ document.getElementById('toggle-night-mode').addEventListener('click', function 
 });
 
 function parse_and_run_crossword(raw_crossword) {
-    const parts = raw_crossword.split('\n\n')
-    console.log(parts)
-    //Crossword is the 3rd from the end
-    const parsed_crossword = parts[parts.length - 3]
-    //Hints is the two last ones combined by \n\n
-    const hints = parts.slice(-2).join('\n\n')
-    usecase(parsed_crossword, hints)
+    const parts = raw_crossword.split('\n\n');
+    // Remove lines that contain only non-letter characters
+    const cleaned_parts = parts.map(part => {
+        return part.split('\n')
+                   .filter(line => /[a-zA-Z]/.test(line)) // This checks if the line contains exclusively non-character characters (e.g. punctuation)
+                   .join('\n');
+    });
+    // Crossword is the 3rd from the end
+    const parsed_crossword = cleaned_parts[cleaned_parts.length - 3];
+    // Hints is the two last ones combined by \n\n
+    const hints = cleaned_parts.slice(-2).join('\n\n');
+    usecase(parsed_crossword, hints);
 }
 
 /**
