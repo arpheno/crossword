@@ -419,6 +419,8 @@ function usecase(crossword_raw, hints) {
     let down_hints = hints.split('\n\n')[1].split('\n')
     let across = zip(starting_locations_across, across_hints)
     let down = zip(starting_locations_down, down_hints)
+    console.log(across)
+    console.log(down)
     let crossword_container = make_grid(character_lookup)
     setupUnfocusingForCrossword();
     //how do u destructre across and down correctly
