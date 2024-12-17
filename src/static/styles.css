@@ -169,31 +169,62 @@ body.night-mode input::placeholder{
   color: #ffff;
 
 }
-body {
-    background-color: white;
-    color: black;
+:root {
+    color-scheme: light dark;
+}
+.day-mode{
+    color-scheme: light;
+}
+.night-mode {
+    color-scheme: dark;
 }
 
-body.night-mode {
-    background-color: #333;
-    color: white;
-}
-
-/* More specific selector for input fields in night mode */
+/* More specific selector for input fields in night mode
 body.night-mode input[type="text"] {
     color: white !important;
-    background-color: #333 !important; /* Optional: to change the background color */
-    border: 1px solid #555 !important; /* Optional: to change the border color */
+    background-color: #333 !important; 
+    border: 1px solid #555 !important;
 }
 body.night-mode input[type="text"]:focus {
     color: white !important;
-    background-color: #888 !important; /* Optional: to change the background color */
-    border: 1px solid #555 !important; /* Optional: to change the border color */
+    background-color: #888 !important; 
+    border: 1px solid #555 !important; 
     outline-color: transparent;
 }
 body.night-mode input[type="text"]:focus,
 body.night-mode input[type="text"]:focus-visible {
-    outline: none; /* Remove the outline */
-    border: 1px solid #999; /* Optional: Custom border color on focus */
-    box-shadow: 0 0 5px rgba(255, 255, 255, 0.5); /* Optional: Custom box shadow on focus */
+    outline: none;
+    border: 1px solid #999; 
+    box-shadow: 0 0 5px rgba(255, 255, 255, 0.5); 
+} */
+
+
+body {
+    color: light-dark(#333, #efefec);
+    background-color: light-dark(#efedea, #333);
+}
+
+.cell {
+    border-color: light-dark(#000, #555);
+}
+
+.input-cell {
+    background-color: light-dark(#fff, #444);
+    color: light-dark(#000, #fff);
+}
+
+.input-cell:focus {
+    background-color: light-dark(#ddd, #555);
+}
+
+.red {
+    color: light-dark(red, #ff6666);
+}
+
+.green {
+    color: light-dark(green, #66ff66);
+}
+
+.hint {
+    color: light-dark(#888, #bbb);
 }

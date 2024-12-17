@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -9,273 +10,58 @@
 
     <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
 </head>
+
 <body>
-<div id="app">
-    <div id="menu">
-        <button id="load" onclick="load_crossword()">Load Crossword</button>
-        <button id="sample" onclick="load_sample_crossword()">Sample</button>
-        <button @click="check_all()" id="check-all">Check all</button>
-        <button id="monday" onclick="load_weekday(1)">Monday</button>
-        <button id="tuesday" onclick="load_weekday(2)">tuesday</button>
-        <button id="wednesday" onclick="load_weekday(3)">Wednesday</button>
-        <button id="thursday" onclick="load_weekday(4)">Thursday</button>
-        <button id="friday" onclick="load_weekday(5)">Friday</button>
-        <button id="saturday" onclick="load_weekday(6)">Saturday</button>
-        <button id="sunday" onclick="load_weekday(7)">Sunday</button>
-        <button @click="toggle_night_mode()" id="toggle-night-mode">Toggle Night Mode</button>
-    </div>
-    <div id="notmenu">
-        <div id='crossword-container' class="grid">
-            <div class="row" v-for="(row, rowIndex) in grid" :key="rowIndex">
-                <div v-for="(cell, cellIndex) in row" :key="cellIndex" class="newcell cell"
-                     :class="{'black-cell': cell === null}">
-                    <span class="clue-index">[[find_index(rowIndex, cellIndex)]]</span>
-                    <template v-if="cell !== null">
-                        <input class="input-cell"
-                               ref="inputCells"
-                               :ref="'input-' + rowIndex + '-' + cellIndex"
-                               type="text"
-                               maxlength="1"
-                               v-model="grid[rowIndex][cellIndex]"
-                               @keydown="handle_crossword_cell_keydown($event, rowIndex, cellIndex)"
-                               :data-row="rowIndex"
-                               :data-cell="cellIndex"
-                               :data-solution="find_solution(rowIndex,cellIndex)">
-                    </template>
+    <div id="app">
+        <div id="menu">
+            <button id="load" onclick="load_crossword()">Load Crossword</button>
+            <button id="sample" onclick="load_sample_crossword()">Sample</button>
+            <button @click="check_all()" id="check-all">Check all</button>
+            <button id="monday" onclick="load_weekday(1)">Monday</button>
+            <button id="tuesday" onclick="load_weekday(2)">tuesday</button>
+            <button id="wednesday" onclick="load_weekday(3)">Wednesday</button>
+            <button id="thursday" onclick="load_weekday(4)">Thursday</button>
+            <button id="friday" onclick="load_weekday(5)">Friday</button>
+            <button id="saturday" onclick="load_weekday(6)">Saturday</button>
+            <button id="sunday" onclick="load_weekday(7)">Sunday</button>
+            <button @click="toggle_night_mode()" id="toggle-night-mode">Toggle Night Mode</button>
+        </div>
+        <div id="notmenu">
+            <div id='crossword-container' class="grid">
+                <div class="row" v-for="(row, rowIndex) in grid" :key="rowIndex">
+                    <div v-for="(cell, cellIndex) in row" :key="cellIndex" class="newcell cell"
+                        :class="{'black-cell': cell === null}">
+                        <span class="clue-index">[[find_index(rowIndex, cellIndex)]]</span>
+                        <template v-if="cell !== null">
+                            <input class="input-cell" ref="inputCells" :ref="'input-' + rowIndex + '-' + cellIndex"
+                                type="text" maxlength="1" v-model="grid[rowIndex][cellIndex]"
+                                @keydown="handle_crossword_cell_keydown($event, rowIndex, cellIndex)"
+                                :data-row="rowIndex" :data-cell="cellIndex"
+                                :data-solution="find_solution(rowIndex,cellIndex)">
+                        </template>
+                    </div>
                 </div>
             </div>
-        </div>
-        <div id="hint-container">
-            <h2 style="text-align: left;margin:0;">Across</h2>
-            <ul id="across">
-                <li v-for="word in crossword" v-if="word.direction === 'across'">
-                    <span @click="handle_clue_click($event,word)">[[ word.index ]]. [[ word.clue ]] </span>
-                    <span v-for="char in getCurrentAnswer(word)" class="state">[[char]]</span>
-                </li>
-            </ul>
-            <h2 style="text-align: left;margin:0;">Down</h2>
-            <ul id="down">
-                <li v-for="word in crossword" :key="word" v-if="word.direction ==='down'">
-                    <span @click="handle_clue_click($event,word)">[[ word.index ]]. [[ word.clue ]] </span>
-                    <span v-for="char in getCurrentAnswer(word)" class="state">[[char]]</span>
-                </li>
-            </ul>
+            <div id="hint-container">
+                <h2 style="text-align: left;margin:0;">Across</h2>
+                <ul id="across">
+                    <li v-for="word in crossword" v-if="word.direction === 'across'">
+                        <span @click="handle_clue_click($event,word)">[[ word.index ]]. [[ word.clue ]] </span>
+                        <span v-for="char in getCurrentAnswer(word)" class="state">[[char]]</span>
+                    </li>
+                </ul>
+                <h2 style="text-align: left;margin:0;">Down</h2>
+                <ul id="down">
+                    <li v-for="word in crossword" :key="word" v-if="word.direction ==='down'">
+                        <span @click="handle_clue_click($event,word)">[[ word.index ]]. [[ word.clue ]] </span>
+                        <span v-for="char in getCurrentAnswer(word)" class="state">[[char]]</span>
+                    </li>
+                </ul>
+            </div>
         </div>
     </div>
-</div>
 
-<script>
-
-    new Vue({
-        el: '#app',
-        delimiters: ['[[', ']]'],
-
-        data: {
-            crossword: [
-                {answer: "BOAT", clue: "What travels on sound waves?", direction: "across", index: 5, x: 0, y: 0},
-                {answer: "CHEST", clue: "Heart's home", direction: "down", index: 9, x: 0, y: 0}
-            ],
-            grid: [],
-            direction: 'across'
-        },
-        created() {
-            // make a request to fetch it from 127.0.0.1:5000/random_crossword/monday
-            axios.get('http://127.0.0.1:50001/random_crossword/monday')
-                .then(response => {
-                    this.crossword = response.data;
-                    this.init();
-                })
-                .catch(error => {
-                    console.error("There was an error fetching the crossword data!", error);
-                });
-        },
-        methods: {
-            init() {
-                this.calculateGridSize();
-                this.generateGrid();
-                this.placeWords();
-            },
-            toggle_night_mode() {
-                document.body.classList.toggle('night-mode');
-            },
-
-            check_all() {
-                //Check all cells by finding all celsl with class input-cell and then checking them
-                const input_cells = document.querySelectorAll('.input-cell');
-                for(const cell of input_cells) {
-                    const character = cell.getAttribute('data-solution')?.toLowerCase();
-                    const input = cell.value.toLowerCase();
-
-                    if (input === '') {
-                        cell.classList.remove('red');
-                        cell.classList.remove('green');
-                    } else if (character === input) {
-                        cell.classList.add('green');
-                        cell.classList.remove('red');
-                        console.log('correct')
-                    } else {
-                        cell.classList.add('red');
-                        cell.classList.remove('green');
-                        console.log('incorrect')
-                    }
-                }
-                //play a sound of success when all cells are correct
-            },
-            find_index(rowIndex, cellIndex) {
-                for (const word of this.crossword) {
-                    if (word.y === rowIndex && cellIndex === word.x) {
-                        console.log(`found ${word.index} at ${rowIndex},${cellIndex}`)
-                        console.log(word)
-                        return word.index;
-                    }
-                }
-                return null;
-            },
-            calculateGridSize() {
-                let maxX = 0;
-                let maxY = 0;
-                this.crossword.forEach(word => {
-                    if (word.direction === 'across') {
-                        maxX = Math.max(maxX, word.x + word.answer.length);
-                        maxY = Math.max(maxY, word.y + 1);
-                    } else {
-                        maxX = Math.max(maxX, word.x + 1);
-                        maxY = Math.max(maxY, word.y + word.answer.length);
-                    }
-                });
-                // Create 2D array with empty strings
-                this.grid = [];
-                for (let i = 0; i < maxY; i++) {
-                    this.grid.push(new Array(maxX).fill(''));
-                }
-                // Assert the grid is the correct size
-                console.assert(this.grid.length === maxY, 'Grid height is incorrect');
-                console.assert(this.grid[0].length === maxX, 'Grid width is incorrect');
-            },
-            generateGrid() {
-                for (let i = 0; i < this.grid.length; i++) {
-                    for (let j = 0; j < this.grid[i].length; j++) {
-                        this.grid[i][j] = null;
-                    }
-                }
-            },
-            placeWords() {
-                this.crossword.forEach(word => {
-                    if (word.direction === 'across') {
-                        for (let i = 0; i < word.answer.length; i++) {
-                            this.grid[word.y][word.x + i] = '';
-                        }
-                    } else {
-                        for (let i = 0; i < word.answer.length; i++) {
-                            this.grid[word.y + i][word.x] = '';
-                        }
-                    }
-                });
-            },
-            handle_clue_click(event, word) {
-                this.direction = word.direction;
-                this.$nextTick(() => {
-                    const input = this.$refs[`input-${word.y}-${word.x}`];
-                    if (input) {
-                        input[0].focus();
-                    }
-                });
-            },
-            getCurrentAnswer(word) {
-                let answer = '';
-                if (word.direction === 'across') {
-                    for (let i = 0; i < word.answer.length; i++) {
-                        answer += this.grid[word.y][word.x + i] || ' ';
-                    }
-                } else {
-                    for (let i = 0; i < word.answer.length; i++) {
-                        answer += this.grid[word.y + i][word.x] || ' ';
-                    }
-                }
-                return answer;
-            },
-            find_solution(rowIndex, cellIndex) {
-                for (const word of this.crossword) {
-                    //If it's in the same row try whether an across word contains this rowindex,cellindex
-                    if (word.direction === 'across' && word.y === rowIndex && cellIndex >= word.x && cellIndex < word.x + word.answer.length) {
-                        //return the correct letter
-                        return word.answer[cellIndex - word.x];
-                    }
-                }
-                return null;
-            },
-            move(rowIndex, cellIndex, direction) {
-                const sign = direction === 'forward' ? 1 : -1;
-                // let's first check if move is permitted, if not, we'll return
-                if (this.direction === 'across' && (cellIndex + 1 * sign < 0 || cellIndex + 1 * sign >= this.grid[0].length)) {
-                    return;
-                } else if (this.direction === 'down' && (rowIndex + 1 * sign < 0 || rowIndex + 1 * sign >= this.grid.length)) {
-                    return;
-                }
-                let targetX = cellIndex + sign * (this.direction === 'across');
-                let targetY = rowIndex + 1 * sign * (this.direction === 'down');
-                let targetCell = this.grid[targetY][targetX]
-                if (targetCell !== null) {
-                    this.$nextTick(() => {
-                        const nextInput = this.$refs[`input-${targetY}-${targetX}`];
-
-                        if (nextInput) {
-                            console.log(`moving to ${targetCell} at ${targetY},${targetX}`)
-                            nextInput[0].focus();
-                        } else {
-                            console.log('no next input');
-                            console.log(targetCell)
-                        }
-                    });
-                } else {
-                    // if the next cell is black, call the function again
-                    // with the next cell as the target
-                    // This will eventually stop when we reach the end of the grid
-                    this.move(targetY, targetX, direction);
-                }
-
-            },
-            handle_crossword_cell_keydown(event, rowIndex, cellIndex) {
-                if (event.key === "ArrowRight") {
-                    if (this.direction === 'across')
-                        this.move(rowIndex, cellIndex, 'forward');
-                    else
-                        this.direction = 'across';
-                } else if (event.key === "ArrowLeft") {
-                    if (this.direction === 'across')
-                        this.move(rowIndex, cellIndex, 'backward');
-                    else
-                        this.direction = 'across';
-
-                } else if (event.key === "ArrowDown") {
-                    if (this.direction === 'down')
-                        this.move(rowIndex, cellIndex, 'forward');
-                    else
-                        this.direction = 'down';
-
-                } else if (event.key === "ArrowUp") {
-                    if (this.direction === 'down')
-                        this.move(rowIndex, cellIndex, 'backward');
-                    else
-                        this.direction = 'down';
-                } else if (event.key === "Backspace") {
-                    this.grid[rowIndex][cellIndex] = '';
-                    this.$forceUpdate();
-                    event.preventDefault();
-                    // Move to the previous cell if backspace is pressed
-                    this.move(rowIndex, cellIndex, 'backward');
-                } else if (event.key.length === 1 && /^[a-zA-Z]$/.test(event.key)) {
-                    this.grid[rowIndex][cellIndex] = event.key.toUpperCase();
-                    //Update binding
-                    this.$forceUpdate();
-                    event.preventDefault();
-                    // Move to the next cell if there's any letter input
-                    this.move(rowIndex, cellIndex, 'forward');
-                } else {
-                }
-            }
-        }
-    });
-</script>
+    <script src="{{ url_for('static', filename='main.js') }}"></script>
 </body>
+
 </html>

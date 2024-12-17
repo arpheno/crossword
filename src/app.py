@@ -5,8 +5,10 @@ import os
 from flask import Flask, render_template
 import requests
 
-from .scraper import DataReader, Crossword
-from .work_in_progress import process_to_entities
+from .data_reader import DataReader
+
+from .entity import Crossword
+from .work_in_progress import build_crossword
 
 # Get the directory containing this file
 current_dir = os.path.dirname(os.path.abspath(__file__))
@@ -60,7 +62,7 @@ def get_random_crossword(weekday):
     print(f'Crossword for {formatted_date} fetched')
     #Validate that the crosswords date is the correct weekday
     assert datetime.strptime(crossword.date, "%y%m%d").weekday() == weekday_map[weekday]
-    entities = process_to_entities(crossword)
+    entities = build_crossword(crossword)
     #Do i need to turn the pedantic model to json here?
     return [entity.dict() for entity in entities]
 
