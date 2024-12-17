@@ -1,28 +1,27 @@
 import random
 from datetime import datetime, timedelta
+import os
 
 from flask import Flask, render_template
 import requests
 
-from scraper import DataReader, Crossword
-from work_in_progress import process_to_entities
+from .data_reader import DataReader
 
-app = Flask(__name__)
+from .entity import Crossword
+from .work_in_progress import build_crossword
+
+# Get the directory containing this file
+current_dir = os.path.dirname(os.path.abspath(__file__))
+
+app = Flask(__name__,
+           template_folder=os.path.join(current_dir, 'templates'),
+           static_folder=os.path.join(current_dir, 'static'))
 
 
 @app.route('/')
-def hello_world():  # return the static content at static/app.html
-    html = render_template('app.html')
-    return html
-@app.route('/new')
-def new():  # return the static content at static/app.html
+def index():  # return the static content at static/app.html
     html = render_template('newapp.html')
     return html
-# I want to load from https://nytsyn.pzzl.com/nytsyn-crossword-mh/nytsyncrossword?date={date}
-# and then extract the crossword data from the response and return to client
-# client will send the date as a query parameter
-# The date will be in the format YYMMDD
-# the response is a text blob with the crossword data
 @app.route('/crossword/<date>')
 def get_crossword(date):
     content = requests.get(f'https://nytsyn.pzzl.com/nytsyn-crossword-mh/nytsyncrossword?date={date}').text
@@ -63,10 +62,10 @@ def get_random_crossword(weekday):
     print(f'Crossword for {formatted_date} fetched')
     #Validate that the crosswords date is the correct weekday
     assert datetime.strptime(crossword.date, "%y%m%d").weekday() == weekday_map[weekday]
-    entities = process_to_entities(crossword)
+    entities = build_crossword(crossword)
     #Do i need to turn the pedantic model to json here?
     return [entity.dict() for entity in entities]
 
 
 if __name__ == '__main__':
-    app.run()
+    app.run(port=50001)
