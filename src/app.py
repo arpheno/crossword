@@ -8,7 +8,7 @@ import requests
 from .data_reader import DataReader
 
 from .entity import Crossword
-from .work_in_progress import build_crossword
+from .crossword_builder import build_crossword
 
 # Get the directory containing this file
 current_dir = os.path.dirname(os.path.abspath(__file__))
@@ -63,8 +63,15 @@ def get_random_crossword(weekday):
     #Validate that the crosswords date is the correct weekday
     assert datetime.strptime(crossword.date, "%y%m%d").weekday() == weekday_map[weekday]
     entities = build_crossword(crossword)
-    #Do i need to turn the pedantic model to json here?
+    #Do i need to turn the pydantic model to json here?
     return [entity.dict() for entity in entities]
+
+
+@app.route('/grid')
+def grid():
+    # Example black cells - you can modify this pattern
+    black_cells = {(0, 4), (1, 1), (2, 2), (3, 3), (4, 0)}
+    return render_template('grid.html', black_cells=black_cells)
 
 
 if __name__ == '__main__':

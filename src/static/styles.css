@@ -1,230 +1,274 @@
 /* static/styles.css */
-#app-container{
-    display:flex;
+:root {
+    --cell-size: 3.5rem;
+    --border-width: 1px;
+    --cell-border: color-mix(in srgb, currentColor 20%, transparent);
+    --cell-bg: color-mix(in srgb, Canvas 95%, currentColor);
+    --cell-focus-bg: color-mix(in srgb, Canvas 85%, currentColor);
+    --cell-text: currentColor;
+    --font-system: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', 
+                   Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
 }
-#app{
-}
-#notmenu{display: flex;
-}
-#crossword-container {
-    display: flex;
-    flex: 1 0 50%;
-    flex-direction: column;
-}
-.row {
-    display: flex;
-    flex-wrap: wrap;
-}
-#across{
-    list-style: none;
-    height: 250px;
-    overflow-y: scroll;
-}
-#down{
-    list-style: none;
-    height: 250px;
-    overflow-y: scroll;
-}
-#hint-container{
-    display:flex;
-    flex-wrap: wrap;
-    flex: 1 1 50%;
-    flex-direction: column;
-}
-.state{
-    font-family: 'Franklin Gothic Medium', 'Arial Narrow', Arial, sans-serif;
-    width: 15px;
-    height: 15px;
-    border: #acacac 1px solid;
-    display:inline-flex;
-    justify-content: center;
-    align-items: center;
-}
-.clue-index{
-    position: absolute; /* Positions the hint element absolutely within its parent .cell */
-    top: 2px; /* 2px from the top of the cell */
-    left: 2px; /* 2px from the left of the cell */
-    font-size: 10px; /* Smaller font size for the hint */
-    color: #888;
-    font-weight: bold;/* Optional: Changes the color to distinguish it from the main content */
 
+/* Reset body margins and set full viewport coverage */
+body {
+    margin: 0;
+    padding: 0;
+    min-height: 100vh;
+    min-width: 100vw;
+    overflow-x: hidden;  /* Prevent horizontal scrolling */
+    font-family: var(--font-system);
 }
-.hint {
-    position: absolute; /* Positions the hint element absolutely within its parent .cell */
-    top: 2px; /* 2px from the top of the cell */
-    left: 2px; /* 2px from the left of the cell */
-    font-size: 10px; /* Smaller font size for the hint */
-    color: #888;
-    font-weight: bold;/* Optional: Changes the color to distinguish it from the main content */
+
+#app {
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    margin: 0;
+    padding: 0;
+    width: 100vw;
 }
-.cell input{
+
+#notmenu {
+    display: flex;
+    gap: 0;
+    padding: 0;
+    margin: 0;
+    min-height: 100vh;
+    width: 100vw;
+}
+
+.center-column {
+    flex: 0 0 auto;
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+    align-items: center;
+    background-color: var(--cell-bg);
+    margin: 0;
+}
+
+#crossword-container {
+    flex: 0 0 auto;
+    display: flex;
+    align-items: center;
+    padding: 0 0.5rem;
+}
+
+#menu {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    justify-content: center;
+    padding: 0.5rem;
+    max-width: fit-content;
+}
+
+#menu button {
+    font-size: 0.9rem;
+    padding: 0.25rem 0.5rem;
+    border-radius: 3px;
+    border: var(--border-width) solid var(--cell-border);
+    background-color: var(--cell-bg);
+    color: var(--cell-text);
+    cursor: pointer;
+}
+
+#menu button:hover {
+    background-color: var(--cell-focus-bg);
+}
+
+.grid {
+    display: grid;
+    width: fit-content;
+    border: none;
+    padding-right: 1px;
+    padding-bottom: 1px;
+}
+
+.grid-row {
+    display: grid;
+}
+
+.grid-cell {
+    position: relative;
+    width: var(--cell-size);
+    height: var(--cell-size);
+    border: var(--border-width) solid var(--cell-border);
+    margin-right: -1px;
+    margin-bottom: -1px;
+    background-color: var(--cell-bg);
+}
+
+.grid-cell:last-child {
+    border-right: var(--border-width) solid var(--cell-border);
+}
+
+.grid-row:last-child .grid-cell {
+    border-bottom: var(--border-width) solid var(--cell-border);
+}
+
+.grid-cell input {
     width: 100%;
     height: 100%;
-    cursor: text;   /* Changes the cursor to indicate text can be edited */
-    background:transparent;
-    padding:0;
-    font-weight: bold;/* Optional: Changes the color to distinguish it from the main content */
-    /*border: 1px solid #000;*/
-    text-align: center;
-    vertical-align: middle;
-    font-size: 20px; /* Adjust size as needed */
-    display:flex;
-    justify-content: center;
-    align-items: center;
-    text-transform: uppercase;  /* Makes all text appear uppercase */
-
-    font-family: 'Franklin Gothic Medium', 'Arial Narrow', Arial, sans-serif;
-}
-.cell input:focus {
-    background-color: #acacac; /* Adds a light grey background to indicate focus */
-    flex: 1 1 100%;
-    height: 100%;
-    justify-content: center;
-    display: flex;
-    align-items: center;
-    caret-color:transparent;
-}
-.cell {
-        position: relative; /* Sets up the .cell to be a positioning context for absolutely positioned children */
-    font-weight: bold;/* Optional: Changes the color to distinguish it from the main content */
-    border: 1px solid #000;
-    width: 40px; /* Adjust size as needed */
-    height: 40px; /* Adjust size as needed */
-    text-align: center;
-    vertical-align: middle;
-    font-size: 20px; /* Adjust size as needed */
-    display:flex;
-    justify-content: center;
-    align-items: center;
-        text-transform: uppercase;  /* Makes all text appear uppercase */
-
-    font-family: 'Franklin Gothic Medium', 'Arial Narrow', Arial, sans-serif;
-}
-.newcell {
-    position: relative; /* Sets up the .cell to be a positioning context for absolutely positioned children */
-    font-weight: bold;/* Optional: Changes the color to distinguish it from the main content */
-    border: 0;
-    width: 40px; /* Adjust size as needed */
-    height: 40px; /* Adjust size as needed */
-    text-align: center;
-    vertical-align: middle;
-    font-size: 20px; /* Adjust size as needed */
-    display:flex;
-    justify-content: center;
-    align-items: center;
-    text-transform: uppercase;  /* Makes all text appear uppercase */
-
-    font-family: 'Franklin Gothic Medium', 'Arial Narrow', Arial, sans-serif;
-}
-/* styles.css */
-.cell div[contenteditable="true"] {
-    cursor: text;   /* Changes the cursor to indicate text can be edited */
-}
-.active{
-    background-color: rgba(211, 211, 211, 0.56);
-}
-
-.cell div[contenteditable="true"]:focus {
-    background-color: #acacac; /* Adds a light grey background to indicate focus */
-    flex: 1 1 100%;
-    height: 100%;
-    justify-content: center;
-    display: flex;
-    align-items: center;
-    caret-color:transparent;
-}
-.black-cell {
-    background-color: #000;
-}
-
-.cell div:focus {
-    background-color: pink; /* Slightly pinkish color */
-}
-.cell div:focus-visible {
-    background-color: pink;
-    border: none/* Slightly pinkish color */
-}
-
-/* To hide the blinking cursor */
-.cell div::selection {
+    border: none;
     background: none;
-}
-/* Default light mode styles */
-body {
-    background-color: #fff;
-    color: #333;
-}
-.red {
-    color: red;
-}
-.green {
-    color: green;
-}
-/* Night mode styles */
-body.night-mode {
-    background-color: #333;
-    color: #fff !important;
-}
-body.night-mode input::placeholder{
-  color: #ffff;
-
-}
-:root {
-    color-scheme: light dark;
-}
-.day-mode{
-    color-scheme: light;
-}
-.night-mode {
-    color-scheme: dark;
+    text-align: center;
+    font-size: 1.5rem;
+    font-weight: 500;
+    color: var(--cell-text);
+    text-transform: uppercase;
+    padding: 0;
 }
 
-/* More specific selector for input fields in night mode
-body.night-mode input[type="text"] {
-    color: white !important;
-    background-color: #333 !important; 
-    border: 1px solid #555 !important;
-}
-body.night-mode input[type="text"]:focus {
-    color: white !important;
-    background-color: #888 !important; 
-    border: 1px solid #555 !important; 
-    outline-color: transparent;
-}
-body.night-mode input[type="text"]:focus,
-body.night-mode input[type="text"]:focus-visible {
+.grid-cell input:focus {
     outline: none;
-    border: 1px solid #999; 
-    box-shadow: 0 0 5px rgba(255, 255, 255, 0.5); 
-} */
-
-
-body {
-    color: light-dark(#333, #efefec);
-    background-color: light-dark(#efedea, #333);
+    background-color: var(--cell-focus-bg);
 }
 
-.cell {
-    border-color: light-dark(#000, #555);
+.black-cell {
+    background-color: black;
 }
 
-.input-cell {
-    background-color: light-dark(#fff, #444);
-    color: light-dark(#000, #fff);
+.clue-index {
+    position: absolute;
+    top: 2px;
+    left: 2px;
+    font-size: 0.75rem;
+    color: var(--cell-text);
+    opacity: 0.7;
 }
 
-.input-cell:focus {
-    background-color: light-dark(#ddd, #555);
+/* Hint container styles */
+#hint-container {
+    flex: 1;
+    display: flex;
+    gap: 2rem;
+    height: 100%;
 }
 
-.red {
-    color: light-dark(red, #ff6666);
+#across, #down {
+    flex: 1;
+    margin: 0;
+    padding: 0.5rem 1rem;
+    background-color: var(--cell-bg);
+    border: none;
+    border-radius: 0;
+    overflow-y: visible;
 }
 
-.green {
-    color: light-dark(green, #66ff66);
+.state {
+    font-family: var(--font-system);
+    width: 1.5rem;
+    height: 1.5rem;
+    border: var(--border-width) solid var(--cell-border);
+    display: inline-flex;
+    justify-content: center;
+    align-items: center;
+    margin: 0;
+    text-align: center;
+    line-height: 1;
+    padding: 0;
+    font-size: 0.9rem;
+    font-weight: 500;
+    vertical-align: middle;
 }
 
-.hint {
-    color: light-dark(#888, #bbb);
+/* Style for the clue list items */
+#across li, #down li {
+    display: flex;
+    flex-direction: row;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    margin-bottom: 0.75rem;
+    font-size: 1rem;
+    line-height: 1.4;
+    align-items: center;
+    padding: 0.25rem;
+}
+
+/* Style for the clue text */
+#across li span:first-child, #down li span:first-child {
+    margin-bottom: 0;
+    flex: 1 1;
+}
+
+/* Container for the state boxes */
+#across li > span:not(:first-child), #down li > span:not(:first-child) {
+    display: inline-flex;
+    flex-wrap: nowrap;
+    align-items: center;
+    gap: 0.15rem;
+    flex: 0 0 auto;
+}
+
+/* Add hover effect for clues */
+#across li:hover, #down li:hover {
+    background-color: var(--cell-focus-bg);
+    border-radius: 4px;
+}
+
+/* Style for clue headers */
+#hint-container h2, .clue-column h2 {
+    display: none;
+}
+
+/* Wrap each list in a container */
+.clue-column {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    height: 100vh;
+    margin: 0;
+    padding: 0;
+    overflow-y: auto;
+    position: sticky;
+    top: 0;
+}
+
+/* Add scrollbar styling for a cleaner look */
+#across, #down {
+    scrollbar-width: thin;
+    scrollbar-color: var(--cell-border) transparent;
+}
+
+#across::-webkit-scrollbar, #down::-webkit-scrollbar {
+    width: 6px;
+}
+
+#across::-webkit-scrollbar-thumb, #down::-webkit-scrollbar-thumb {
+    background-color: var(--cell-border);
+    border-radius: 3px;
+}
+
+.clue-column::-webkit-scrollbar {
+    width: 8px;
+}
+
+.clue-column::-webkit-scrollbar-thumb {
+    background-color: var(--cell-border);
+    border-radius: 4px;
+}
+
+/* Add these styles for the state container */
+.state-container {
+    display: inline-flex;
+    flex-wrap: nowrap;
+    align-items: center;
+    gap: 0.15rem;
+    flex: 0 0 auto;
+    line-height: 1.5rem;
+}
+
+/* Add styles for check states */
+.state.red {
+    color: #ff4444;
+    border-color: #ff4444;
+    background-color: rgba(255, 68, 68, 0.1);
+}
+
+.state.green {
+    color: #44ff44;
+    border-color: #44ff44;
+    background-color: rgba(68, 255, 68, 0.1);
 }

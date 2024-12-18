@@ -8,7 +8,8 @@ const CrosswordApp = {
                 { answer: "CHEST", clue: "Heart's home", direction: "down", index: 9, x: 0, y: 0 }
             ],
             grid: [],
-            direction: 'across'
+            direction: 'across',
+            isChecking: false
         }
     },
     created() {
@@ -37,22 +38,46 @@ const CrosswordApp = {
             }
         },
         check_all() {
-            const input_cells = document.querySelectorAll('.input-cell');
-            for (const cell of input_cells) {
-                const character = cell.getAttribute('data-solution')?.toLowerCase();
-                const input = cell.value.toLowerCase();
+            this.isChecking = true;
+            this.crossword.forEach(word => {
+                if (word.direction === 'across') {
+                    for (let i = 0; i < word.answer.length; i++) {
+                        const input = this.$refs[`input-${word.y}-${word.x + i}`]?.[0];
+                        if (!input) continue;
 
-                if (input === '') {
-                    cell.classList.remove('red');
-                    cell.classList.remove('green');
-                } else if (character === input) {
-                    cell.classList.add('green');
-                    cell.classList.remove('red');
+                        const value = input.value.toLowerCase();
+                        const correct = word.answer[i].toLowerCase();
+
+                        if (value === '') {
+                            input.classList.remove('red', 'green');
+                        } else if (value === correct) {
+                            input.classList.add('green');
+                            input.classList.remove('red');
+                        } else {
+                            input.classList.add('red');
+                            input.classList.remove('green');
+                        }
+                    }
                 } else {
-                    cell.classList.add('red');
-                    cell.classList.remove('green');
+                    for (let i = 0; i < word.answer.length; i++) {
+                        const input = this.$refs[`input-${word.y + i}-${word.x}`]?.[0];
+                        if (!input) continue;
+
+                        const value = input.value.toLowerCase();
+                        const correct = word.answer[i].toLowerCase();
+
+                        if (value === '') {
+                            input.classList.remove('red', 'green');
+                        } else if (value === correct) {
+                            input.classList.add('green');
+                            input.classList.remove('red');
+                        } else {
+                            input.classList.add('red');
+                            input.classList.remove('green');
+                        }
+                    }
                 }
-            }
+            });
         },
         find_index(rowIndex, cellIndex) {
             for (const word of this.crossword) {
@@ -107,14 +132,16 @@ const CrosswordApp = {
             let answer = '';
             if (word.direction === 'across') {
                 for (let i = 0; i < word.answer.length; i++) {
-                    answer += this.grid[word.y][word.x + i] || ' ';
+                    const value = this.grid[word.y][word.x + i];
+                    answer += (value === null || value === undefined || value === '') ? ' ' : value;
                 }
             } else {
                 for (let i = 0; i < word.answer.length; i++) {
-                    answer += this.grid[word.y + i][word.x] || ' ';
+                    const value = this.grid[word.y + i][word.x];
+                    answer += (value === null || value === undefined || value === '') ? ' ' : value;
                 }
             }
-            return answer;
+            return answer.split('');  // Convert string to array of characters
         },
         find_solution(rowIndex, cellIndex) {
             for (const word of this.crossword) {
@@ -178,6 +205,15 @@ const CrosswordApp = {
                 event.preventDefault();
                 this.move(rowIndex, cellIndex, 'forward');
             }
+            if (this.isChecking) {
+                this.clearChecks();
+            }
+        },
+        clearChecks() {
+            this.isChecking = false;
+            document.querySelectorAll('.input-cell').forEach(cell => {
+                cell.classList.remove('red', 'green');
+            });
         }
     }
 };
