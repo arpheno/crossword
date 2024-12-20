@@ -14,7 +14,7 @@
 <body>
     <div id="app">
         <div id="notmenu">
-            <div class="clue-column">
+            <div class="clue-column" data-label="ACROSS">
                 <ul id="across">
                     <li v-for="word in crossword" v-if="word.direction === 'across'">
                         <span @click="handle_clue_click($event,word)">[[ word.index ]]. [[ word.clue ]]</span>
@@ -61,17 +61,21 @@
                     </div>
                 </div>
                 <div id="menu">
-                    <button id="load" onclick="load_crossword()">Load Crossword</button>
-                    <button id="sample" onclick="load_sample_crossword()">Sample</button>
                     <button @click="check_all()" id="check-all">Check all</button>
-                    <button id="monday" onclick="load_weekday(1)">Monday</button>
-                    <button id="tuesday" onclick="load_weekday(2)">tuesday</button>
-                    <button id="wednesday" onclick="load_weekday(3)">Wednesday</button>
-                    <button @click="toggle_night_mode()" id="toggle-night-mode">Toggle Night Mode</button>
+                    <button @click="handleWeekdayClick('monday')" id="monday">Monday</button>
+                    <button @click="handleWeekdayClick('tuesday')" id="tuesday">Tuesday</button>
+                    <button @click="handleWeekdayClick('wednesday')" id="wednesday">Wednesday</button>
+                    <div class="theme-switch">
+                        <label class="switch">
+                            <input type="checkbox" v-model="isDarkMode" @change="toggle_night_mode">
+                            <span class="slider"></span>
+                            <span class="switch-label">Night Mode</span>
+                        </label>
+                    </div>
                 </div>
             </div>
             
-            <div class="clue-column">
+            <div class="clue-column" data-label="DOWN">
                 <ul id="down">
                     <li v-for="word in crossword" :key="word" v-if="word.direction ==='down'">
                         <span @click="handle_clue_click($event,word)">[[ word.index ]]. [[ word.clue ]]</span>

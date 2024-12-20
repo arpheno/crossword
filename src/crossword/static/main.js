@@ -3,27 +3,31 @@ const CrosswordApp = {
     delimiters: ['[[', ']]'],
     data() {
         return {
-            crossword: [
-                { answer: "BOAT", clue: "What travels on sound waves?", direction: "across", index: 5, x: 0, y: 0 },
-                { answer: "CHEST", clue: "Heart's home", direction: "down", index: 9, x: 0, y: 0 }
-            ],
+            crossword: [],
             grid: [],
             direction: 'across',
-            isChecking: false
+            isChecking: false,
+            baseUrl: 'http://127.0.0.1:50001'
         }
     },
     created() {
-        // make a request to fetch it from 127.0.0.1:5000/random_crossword/monday
-        axios.get('http://127.0.0.1:50001/random_crossword/monday')
-            .then(response => {
-                this.crossword = response.data;
-                this.init();
-            })
-            .catch(error => {
-                console.error("There was an error fetching the crossword data!", error);
-            });
+        this.loadCrossword('monday');
     },
     methods: {
+        loadCrossword(day) {
+            axios.get(`${this.baseUrl}/random_crossword/${day.toLowerCase()}`)
+                .then(response => {
+                    this.crossword = response.data;
+                    this.init();
+                })
+                .catch(error => {
+                    console.error(`Error loading ${day} crossword:`, error);
+                });
+        },
+        handleWeekdayClick(day) {
+            this.isChecking = false;
+            this.loadCrossword(day);
+        },
         init() {
             this.calculateGridSize();
             this.generateGrid();
@@ -204,15 +208,15 @@ const CrosswordApp = {
                 this.$forceUpdate();
                 event.preventDefault();
                 this.move(rowIndex, cellIndex, 'forward');
-            }
-            if (this.isChecking) {
-                this.clearChecks();
+                if (this.isChecking) {
+                    this.clearChecks();
+                }
             }
         },
         clearChecks() {
             this.isChecking = false;
-            document.querySelectorAll('.input-cell').forEach(cell => {
-                cell.classList.remove('red', 'green');
+            document.querySelectorAll('.grid-cell input').forEach(input => {
+                input.classList.remove('red', 'green');
             });
         }
     }
