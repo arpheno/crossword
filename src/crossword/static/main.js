@@ -25,6 +25,17 @@ const CrosswordApp = {
                 });
         },
         handleWeekdayClick(day) {
+            // Check if there's any progress in the current puzzle
+            const hasProgress = this.grid.some(row => 
+                row.some(cell => cell !== null && cell !== '')
+            );
+
+            if (hasProgress) {
+                if (!confirm('Loading a new puzzle will erase your current progress. Are you sure you want to continue?')) {
+                    return; // User clicked Cancel, so don't load new puzzle
+                }
+            }
+
             this.isChecking = false;
             this.loadCrossword(day);
         },
@@ -156,16 +167,92 @@ const CrosswordApp = {
             }
             return null;
         },
+        findCurrentWord(rowIndex, cellIndex) {
+            for (const word of this.crossword) {
+                if (word.direction === this.direction) {
+                    if (word.direction === 'across') {
+                        if (word.y === rowIndex && 
+                            cellIndex >= word.x && 
+                            cellIndex < word.x + word.answer.length) {
+                            return word;
+                        }
+                    } else {
+                        if (word.x === cellIndex && 
+                            rowIndex >= word.y && 
+                            rowIndex < word.y + word.answer.length) {
+                            return word;
+                        }
+                    }
+                }
+            }
+            return null;
+        },
+        findNextWord(currentWord) {
+            if (!currentWord) return null;
+            
+            // Sort words by clue number for the current direction
+            const directionWords = this.crossword
+                .filter(w => w.direction === currentWord.direction)
+                .sort((a, b) => {
+                    // Extract numeric part from clue text
+                    const aNum = parseInt(a.clue.split('.')[0]);
+                    const bNum = parseInt(b.clue.split('.')[0]);
+                    return aNum - bNum;
+                });
+            
+            // Find the next word
+            const currentIndex = directionWords.findIndex(w => w.clue.split('.')[0] === currentWord.clue.split('.')[0]);
+            if (currentIndex < directionWords.length - 1) {
+                return directionWords[currentIndex + 1];
+            }
+            return null;
+        },
+        isWordComplete(word) {
+            if (!word) return false;
+            const answer = this.getCurrentAnswer(word).join('');
+            return answer.trim().length === word.answer.length;
+        },
         move(rowIndex, cellIndex, direction) {
             const sign = direction === 'forward' ? 1 : -1;
+            const currentWord = this.findCurrentWord(rowIndex, cellIndex);
+            
+            // Check if we're at the end of a word or about to hit a black square
+            if (currentWord && direction === 'forward') {
+                const nextCell = this.direction === 'across' ? 
+                    this.grid[rowIndex]?.[cellIndex + 1] : 
+                    this.grid[rowIndex + 1]?.[cellIndex];
+                
+                const isLastCell = (this.direction === 'across' && 
+                                  cellIndex === currentWord.x + currentWord.answer.length - 1) ||
+                                 (this.direction === 'down' && 
+                                  rowIndex === currentWord.y + currentWord.answer.length - 1);
+                
+                const isBlackSquareNext = nextCell === null;
+                
+                if ((isLastCell || isBlackSquareNext) && this.isWordComplete(currentWord)) {
+                    const nextWord = this.findNextWord(currentWord);
+                    if (nextWord) {
+                        this.$nextTick(() => {
+                            const nextInput = this.$refs[`input-${nextWord.y}-${nextWord.x}`];
+                            if (nextInput) {
+                                nextInput[0].focus();
+                                return;
+                            }
+                        });
+                        return;
+                    }
+                }
+            }
+            
+            // Existing movement logic
             if (this.direction === 'across' && (cellIndex + 1 * sign < 0 || cellIndex + 1 * sign >= this.grid[0].length)) {
                 return;
             } else if (this.direction === 'down' && (rowIndex + 1 * sign < 0 || rowIndex + 1 * sign >= this.grid.length)) {
                 return;
             }
             let targetX = cellIndex + sign * (this.direction === 'across');
-            let targetY = rowIndex + 1 * sign * (this.direction === 'down');
-            let targetCell = this.grid[targetY][targetX]
+            let targetY = rowIndex + sign * (this.direction === 'down');
+            let targetCell = this.grid[targetY][targetX];
             if (targetCell !== null) {
                 this.$nextTick(() => {
                     const nextInput = this.$refs[`input-${targetY}-${targetX}`];
