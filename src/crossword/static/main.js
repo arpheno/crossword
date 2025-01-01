@@ -7,7 +7,8 @@ const CrosswordApp = {
             grid: [],
             direction: 'across',
             isChecking: false,
-            baseUrl: 'http://127.0.0.1:50001'
+            baseUrl: 'http://127.0.0.1:50001',
+            completedWords: new Set()  // Track completed words
         }
     },
     created() {
@@ -37,6 +38,7 @@ const CrosswordApp = {
             }
 
             this.isChecking = false;
+            this.completedWords.clear(); // Clear completed words when loading new puzzle
             this.loadCrossword(day);
         },
         init() {
@@ -54,7 +56,10 @@ const CrosswordApp = {
         },
         check_all() {
             this.isChecking = true;
+            
             this.crossword.forEach(word => {
+                let isWordCorrect = true;  // Track if entire word is correct
+                
                 if (word.direction === 'across') {
                     for (let i = 0; i < word.answer.length; i++) {
                         const input = this.$refs[`input-${word.y}-${word.x + i}`]?.[0];
@@ -65,12 +70,14 @@ const CrosswordApp = {
 
                         if (value === '') {
                             input.classList.remove('red', 'green');
+                            isWordCorrect = false;
                         } else if (value === correct) {
                             input.classList.add('green');
                             input.classList.remove('red');
                         } else {
                             input.classList.add('red');
                             input.classList.remove('green');
+                            isWordCorrect = false;
                         }
                     }
                 } else {
@@ -83,14 +90,24 @@ const CrosswordApp = {
 
                         if (value === '') {
                             input.classList.remove('red', 'green');
+                            isWordCorrect = false;
                         } else if (value === correct) {
                             input.classList.add('green');
                             input.classList.remove('red');
                         } else {
                             input.classList.add('red');
                             input.classList.remove('green');
+                            isWordCorrect = false;
                         }
                     }
+                }
+                
+                // If word is completely correct, add it to completedWords
+                if (isWordCorrect) {
+                    this.completedWords.add(word.clue);
+                } else {
+                    // If word was previously marked as complete but is now incorrect, remove it
+                    this.completedWords.delete(word.clue);
                 }
             });
         },

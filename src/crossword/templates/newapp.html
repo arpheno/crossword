@@ -16,7 +16,7 @@
         <div id="notmenu">
             <div class="clue-column" data-label="ACROSS">
                 <ul id="across">
-                    <li v-for="word in crossword" v-if="word.direction === 'across'">
+                    <li v-for="word in crossword" v-if="word.direction === 'across' && !completedWords.has(word.clue)">
                         <span @click="handle_clue_click($event,word)">[[ word.index ]]. [[ word.clue ]]</span>
                         <div class="state-container">
                             <span v-for="(char, index) in getCurrentAnswer(word)" 
@@ -79,7 +79,7 @@
             
             <div class="clue-column" data-label="DOWN">
                 <ul id="down">
-                    <li v-for="word in crossword" :key="word" v-if="word.direction ==='down'">
+                    <li v-for="word in crossword" :key="word" v-if="word.direction ==='down' && !completedWords.has(word.clue)">
                         <span @click="handle_clue_click($event,word)">[[ word.index ]]. [[ word.clue ]]</span>
                         <div class="state-container">
                             <span v-for="(char, index) in getCurrentAnswer(word)" 
