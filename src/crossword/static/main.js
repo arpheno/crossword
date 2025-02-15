@@ -8,22 +8,169 @@ const CrosswordApp = {
             direction: 'across',
             isChecking: false,
             baseUrl: window.location.origin,
-            completedWords: new Set()  // Track completed words
+            completedWords: new Set(),  // Track completed words
+            isOffline: false,
+            cachedCrosswordsCount: {
+                monday: 0,
+                tuesday: 0,
+                wednesday: 0,
+                thursday: 0,
+                friday: 0,
+                saturday: 0,
+                sunday: 0
+            },
+            solvedPuzzlesCount: {
+                monday: 0,
+                tuesday: 0,
+                wednesday: 0,
+                thursday: 0,
+                friday: 0,
+                saturday: 0,
+                sunday: 0
+            }
         }
     },
     created() {
+        // Check online status
+        window.addEventListener('online', this.handleOnlineStatus);
+        window.addEventListener('offline', this.handleOnlineStatus);
+        this.isOffline = !navigator.onLine;
+        
+        // Initialize cached counts and start background caching if needed
+        this.updateCachedCounts();
+        if (!this.isOffline) {
+            this.ensureCachesFilled();
+        }
+        
         this.loadCrossword('monday');
     },
     methods: {
-        loadCrossword(day) {
-            axios.get(`${this.baseUrl}/random_crossword/${day.toLowerCase()}`)
-                .then(response => {
-                    this.crossword = response.data;
-                    this.init();
-                })
-                .catch(error => {
-                    console.error(`Error loading ${day} crossword:`, error);
-                });
+        handleOnlineStatus() {
+            const wasOffline = this.isOffline;
+            this.isOffline = !navigator.onLine;
+            
+            // If we just came online, check cache levels
+            if (wasOffline && !this.isOffline) {
+                this.ensureCachesFilled();
+            }
+        },
+        updateCachedCounts() {
+            Object.keys(this.cachedCrosswordsCount).forEach(day => {
+                const puzzles = JSON.parse(localStorage.getItem(`crosswords_${day}`) || '[]');
+                this.cachedCrosswordsCount[day] = puzzles.length;
+            });
+        },
+        updateSolvedCounts() {
+            Object.keys(this.solvedPuzzlesCount).forEach(day => {
+                const solved = JSON.parse(localStorage.getItem(`solved_${day}`) || '[]');
+                this.solvedPuzzlesCount[day] = solved.length;
+            });
+        },
+        isPuzzleSolved(day, puzzleId) {
+            const solved = JSON.parse(localStorage.getItem(`solved_${day}`) || '[]');
+            return solved.includes(puzzleId);
+        },
+        markPuzzleSolved(day, puzzleId) {
+            const solved = JSON.parse(localStorage.getItem(`solved_${day}`) || '[]');
+            if (!solved.includes(puzzleId)) {
+                solved.push(puzzleId);
+                localStorage.setItem(`solved_${day}`, JSON.stringify(solved));
+                this.updateSolvedCounts();
+            }
+        },
+        getPuzzleId(puzzleData) {
+            // Create a unique identifier for a puzzle based on its first two clues
+            if (!puzzleData || puzzleData.length < 2) return null;
+            return `${puzzleData[0].clue}-${puzzleData[0].answer}-${puzzleData[1].clue}`;
+        },
+        async loadCrossword(day) {
+            day = day.toLowerCase();
+            
+            if (this.isOffline) {
+                this.loadCachedCrossword(day);
+                return;
+            }
+
+            try {
+                const response = await axios.get(`${this.baseUrl}/random_crossword/${day}`);
+                this.crossword = response.data;
+                const puzzleId = this.getPuzzleId(response.data);
+                
+                // If we've already solved this puzzle, try to get another one
+                if (puzzleId && this.isPuzzleSolved(day, puzzleId)) {
+                    console.log('Already solved this puzzle, trying another one...');
+                    this.loadCrossword(day);
+                    return;
+                }
+                
+                // Cache the crossword if we have room
+                this.cacheCrossword(day, response.data);
+                
+                this.init();
+            } catch (error) {
+                console.error(`Error loading ${day} crossword:`, error);
+                // If fetch fails, try to load from cache
+                this.loadCachedCrossword(day);
+            }
+        },
+        cacheCrossword(day, puzzleData) {
+            const storageKey = `crosswords_${day}`;
+            let puzzles = JSON.parse(localStorage.getItem(storageKey) || '[]');
+            const puzzleId = this.getPuzzleId(puzzleData);
+            
+            // Don't cache if we've already solved it
+            if (puzzleId && this.isPuzzleSolved(day, puzzleId)) {
+                return;
+            }
+            
+            // Check if we already have this puzzle cached
+            const isDuplicate = puzzles.some(p => this.getPuzzleId(p) === puzzleId);
+            
+            if (!isDuplicate) {
+                // Add new puzzle and keep only the latest 50
+                puzzles.push(puzzleData);
+                if (puzzles.length > 50) {
+                    puzzles = puzzles.slice(-50);
+                }
+                
+                try {
+                    localStorage.setItem(storageKey, JSON.stringify(puzzles));
+                    this.updateCachedCounts();
+                } catch (e) {
+                    console.error('Error caching crossword:', e);
+                    // If storage is full, remove the oldest puzzle and try again
+                    if (e.name === 'QuotaExceededError') {
+                        puzzles.shift();
+                        localStorage.setItem(storageKey, JSON.stringify(puzzles));
+                        this.updateCachedCounts();
+                    }
+                }
+            }
+        },
+        loadCachedCrossword(day) {
+            const storageKey = `crosswords_${day}`;
+            let puzzles = JSON.parse(localStorage.getItem(storageKey) || '[]');
+            
+            if (puzzles.length === 0) {
+                alert(`No cached ${day} crosswords available. Please connect to the internet to download new puzzles.`);
+                return;
+            }
+            
+            // Get a random puzzle from cache
+            const randomIndex = Math.floor(Math.random() * puzzles.length);
+            this.crossword = puzzles[randomIndex];
+            
+            // Remove the used puzzle from cache
+            puzzles.splice(randomIndex, 1);
+            localStorage.setItem(storageKey, JSON.stringify(puzzles));
+            this.updateCachedCounts();
+            
+            // If we're online and cache is getting low, fill it up
+            if (!this.isOffline && puzzles.length < 25) {
+                this.fillCache(day, 50 - puzzles.length);
+            }
+            
+            this.init();
         },
         handleWeekdayClick(day) {
             // Check if there's any progress in the current puzzle
@@ -61,6 +208,7 @@ const CrosswordApp = {
             }
             
             this.isChecking = true;
+            let allCorrect = true;
             
             this.crossword.forEach(word => {
                 let isWordCorrect = true;  // Track if entire word is correct
@@ -76,6 +224,7 @@ const CrosswordApp = {
                         if (value === '') {
                             input.classList.remove('red', 'green');
                             isWordCorrect = false;
+                            allCorrect = false;
                         } else if (value === correct) {
                             input.classList.add('green');
                             input.classList.remove('red');
@@ -83,6 +232,7 @@ const CrosswordApp = {
                             input.classList.add('red');
                             input.classList.remove('green');
                             isWordCorrect = false;
+                            allCorrect = false;
                         }
                     }
                 } else {
@@ -96,6 +246,7 @@ const CrosswordApp = {
                         if (value === '') {
                             input.classList.remove('red', 'green');
                             isWordCorrect = false;
+                            allCorrect = false;
                         } else if (value === correct) {
                             input.classList.add('green');
                             input.classList.remove('red');
@@ -103,6 +254,7 @@ const CrosswordApp = {
                             input.classList.add('red');
                             input.classList.remove('green');
                             isWordCorrect = false;
+                            allCorrect = false;
                         }
                     }
                 }
@@ -115,6 +267,29 @@ const CrosswordApp = {
                     this.completedWords.delete(word.clue);
                 }
             });
+            
+            // If all words are correct, mark the puzzle as solved
+            if (allCorrect) {
+                const puzzleId = this.getPuzzleId(this.crossword);
+                if (puzzleId) {
+                    const day = this.getCurrentDay();
+                    this.markPuzzleSolved(day, puzzleId);
+                }
+            }
+        },
+        getCurrentDay() {
+            // Helper to get current day from the active puzzle
+            const firstWord = this.crossword[0];
+            if (!firstWord) return 'monday';
+            
+            // Try to determine the day based on the puzzle's properties
+            // This is a simplified example - you might need to adjust based on your data
+            const difficulty = firstWord.answer.length + this.crossword.length;
+            if (difficulty < 20) return 'monday';
+            if (difficulty < 25) return 'tuesday';
+            if (difficulty < 30) return 'wednesday';
+            if (difficulty < 35) return 'thursday';
+            return 'friday';
         },
         find_index(rowIndex, cellIndex) {
             for (const word of this.crossword) {
@@ -327,6 +502,28 @@ const CrosswordApp = {
             document.querySelectorAll('.grid-cell input').forEach(input => {
                 input.classList.remove('red', 'green');
             });
+        },
+        async ensureCachesFilled() {
+            const days = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday'];
+            for (const day of days) {
+                const puzzles = JSON.parse(localStorage.getItem(`crosswords_${day}`) || '[]');
+                if (puzzles.length < 50) {
+                    this.fillCache(day, 50 - puzzles.length);
+                }
+            }
+        },
+        async fillCache(day, count) {
+            for (let i = 0; i < count; i++) {
+                try {
+                    const response = await axios.get(`${this.baseUrl}/random_crossword/${day}`);
+                    this.cacheCrossword(day, response.data);
+                } catch (error) {
+                    console.error(`Error caching ${day} crossword:`, error);
+                    break; // Stop if we encounter an error
+                }
+                // Add a small delay between requests to not overwhelm the server
+                await new Promise(resolve => setTimeout(resolve, 100));
+            }
         }
     }
 };

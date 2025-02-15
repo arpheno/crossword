@@ -62,11 +62,34 @@
                 </div>
                 <div id="menu">
                     <button @click="check_all()" id="check-all">Check all</button>
-                    <button @click="handleWeekdayClick('monday')" id="monday">Monday</button>
-                    <button @click="handleWeekdayClick('tuesday')" id="tuesday">Tuesday</button>
-                    <button @click="handleWeekdayClick('wednesday')" id="wednesday">Wednesday</button>
-                    <button @click="handleWeekdayClick('thursday')" id="thursday">Thursday</button>
-                    <button @click="handleWeekdayClick('friday')" id="friday">Friday</button>
+                    <div class="weekday-buttons">
+                        <button @click="handleWeekdayClick('monday')" id="monday">
+                            Monday
+                            <span class="cache-count" v-if="cachedCrosswordsCount.monday > 0">([[cachedCrosswordsCount.monday]])</span>
+                        </button>
+                        <button @click="handleWeekdayClick('tuesday')" id="tuesday">
+                            Tuesday
+                            <span class="cache-count" v-if="cachedCrosswordsCount.tuesday > 0">([[cachedCrosswordsCount.tuesday]])</span>
+                        </button>
+                        <button @click="handleWeekdayClick('wednesday')" id="wednesday">
+                            Wednesday
+                            <span class="cache-count" v-if="cachedCrosswordsCount.wednesday > 0">([[cachedCrosswordsCount.wednesday]])</span>
+                        </button>
+                        <button @click="handleWeekdayClick('thursday')" id="thursday">
+                            Thursday
+                            <span class="cache-count" v-if="cachedCrosswordsCount.thursday > 0">([[cachedCrosswordsCount.thursday]])</span>
+                        </button>
+                        <button @click="handleWeekdayClick('friday')" id="friday">
+                            Friday
+                            <span class="cache-count" v-if="cachedCrosswordsCount.friday > 0">([[cachedCrosswordsCount.friday]])</span>
+                        </button>
+                    </div>
+                    <div class="status-indicators">
+                        <div class="offline-indicator" v-if="isOffline">Offline Mode</div>
+                        <div class="cache-status" v-if="!isOffline">
+                            Caching puzzles for offline play...
+                        </div>
+                    </div>
                     <div class="theme-switch">
                         <label class="switch">
                             <input type="checkbox" v-model="isDarkMode" @change="toggle_night_mode">
