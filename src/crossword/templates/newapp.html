@@ -5,8 +5,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Crossword Puzzle</title>
-    <script src="https://cdn.jsdelivr.net/npm/vue@2.6.14/dist/vue.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
+    <script src="{{ url_for('static', filename='lib/vue.js') }}"></script>
+    <script src="{{ url_for('static', filename='lib/axios.min.js') }}"></script>
 
     <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
 </head>
