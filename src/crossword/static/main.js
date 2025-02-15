@@ -15,9 +15,7 @@ const CrosswordApp = {
                 tuesday: 0,
                 wednesday: 0,
                 thursday: 0,
-                friday: 0,
-                saturday: 0,
-                sunday: 0
+                friday: 0
             },
             solvedPuzzlesCount: {
                 monday: 0,
@@ -27,7 +25,22 @@ const CrosswordApp = {
                 friday: 0,
                 saturday: 0,
                 sunday: 0
-            }
+            },
+            activeCaching: {
+                monday: false,
+                tuesday: false,
+                wednesday: false,
+                thursday: false,
+                friday: false
+            },
+            cachingErrors: {
+                monday: 0,
+                tuesday: 0,
+                wednesday: 0,
+                thursday: 0,
+                friday: 0
+            },
+            isCachingInProgress: false
         }
     },
     created() {
@@ -36,26 +49,44 @@ const CrosswordApp = {
         window.addEventListener('offline', this.handleOnlineStatus);
         this.isOffline = !navigator.onLine;
         
-        // Initialize cached counts and start background caching if needed
+        // Initialize cached counts
         this.updateCachedCounts();
+        
+        // Only start caching if we're online and any day needs more puzzles
         if (!this.isOffline) {
-            this.ensureCachesFilled();
+            this.checkAndStartCaching();
         }
         
         this.loadCrossword('monday');
     },
     methods: {
+        async checkAndStartCaching() {
+            const needsMore = Object.values(this.cachedCrosswordsCount).some(count => count < 50);
+            if (!needsMore || this.isCachingInProgress) return;
+            
+            this.isCachingInProgress = true;
+            try {
+                await this.ensureCachesFilled();
+            } finally {
+                this.isCachingInProgress = false;
+                // Reset all active flags to be sure
+                Object.keys(this.activeCaching).forEach(day => {
+                    this.activeCaching[day] = false;
+                });
+            }
+        },
         handleOnlineStatus() {
             const wasOffline = this.isOffline;
             this.isOffline = !navigator.onLine;
             
-            // If we just came online, check cache levels
+            // If we just came online, check if we need more puzzles
             if (wasOffline && !this.isOffline) {
-                this.ensureCachesFilled();
+                this.checkAndStartCaching();
             }
         },
         updateCachedCounts() {
-            Object.keys(this.cachedCrosswordsCount).forEach(day => {
+            const days = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday'];
+            days.forEach(day => {
                 const puzzles = JSON.parse(localStorage.getItem(`crosswords_${day}`) || '[]');
                 this.cachedCrosswordsCount[day] = puzzles.length;
             });
@@ -503,26 +534,63 @@ const CrosswordApp = {
                 input.classList.remove('red', 'green');
             });
         },
-        async ensureCachesFilled() {
-            const days = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday'];
-            for (const day of days) {
-                const puzzles = JSON.parse(localStorage.getItem(`crosswords_${day}`) || '[]');
-                if (puzzles.length < 50) {
-                    this.fillCache(day, 50 - puzzles.length);
+        async fillCache(day, count) {
+            // Don't start caching if we already have 50 puzzles
+            const currentCount = this.cachedCrosswordsCount[day];
+            if (currentCount >= 50 || this.activeCaching[day] || this.cachingErrors[day] > 3) {
+                return;
+            }
+            
+            this.activeCaching[day] = true;
+            let successfulCaches = 0;
+            
+            try {
+                for (let i = 0; i < count && this.cachedCrosswordsCount[day] < 50; i++) {
+                    try {
+                        const response = await axios.get(`${this.baseUrl}/random_crossword/${day}`);
+                        await this.cacheCrossword(day, response.data);
+                        successfulCaches++;
+                        this.cachingErrors[day] = 0;
+                        await new Promise(resolve => setTimeout(resolve, 100));
+                    } catch (error) {
+                        console.error(`Error caching ${day} crossword:`, error);
+                        this.cachingErrors[day]++;
+                        if (this.cachingErrors[day] > 3) break;
+                        await new Promise(resolve => setTimeout(resolve, 1000));
+                    }
+                }
+            } finally {
+                this.activeCaching[day] = false;
+                
+                // Only retry if we need more and haven't hit error limit
+                if (this.cachedCrosswordsCount[day] < 50 && 
+                    successfulCaches > 0 && 
+                    this.cachingErrors[day] <= 3 && 
+                    !this.isOffline) {
+                    setTimeout(() => this.checkAndStartCaching(), 5000);
                 }
             }
         },
-        async fillCache(day, count) {
-            for (let i = 0; i < count; i++) {
-                try {
-                    const response = await axios.get(`${this.baseUrl}/random_crossword/${day}`);
-                    this.cacheCrossword(day, response.data);
-                } catch (error) {
-                    console.error(`Error caching ${day} crossword:`, error);
-                    break; // Stop if we encounter an error
+        async ensureCachesFilled() {
+            const days = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday'];
+            let needsCaching = false;
+            
+            // First check if any days need caching
+            for (const day of days) {
+                if (this.cachedCrosswordsCount[day] < 50 && this.cachingErrors[day] <= 3) {
+                    needsCaching = true;
+                    break;
                 }
-                // Add a small delay between requests to not overwhelm the server
-                await new Promise(resolve => setTimeout(resolve, 100));
+            }
+            
+            // If no days need caching, don't proceed
+            if (!needsCaching) return;
+            
+            // Otherwise, start caching for days that need it
+            for (const day of days) {
+                if (this.cachedCrosswordsCount[day] < 50 && this.cachingErrors[day] <= 3) {
+                    await this.fillCache(day, 50 - this.cachedCrosswordsCount[day]);
+                }
             }
         }
     }
