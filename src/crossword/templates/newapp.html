@@ -64,31 +64,28 @@
                     <button @click="check_all()" id="check-all">Check all</button>
                     <div class="weekday-buttons">
                         <button @click="handleWeekdayClick('monday')" id="monday">
-                            Monday
+                            Mon
                             <span class="cache-count" v-if="cachedCrosswordsCount.monday > 0">([[cachedCrosswordsCount.monday]])</span>
                         </button>
                         <button @click="handleWeekdayClick('tuesday')" id="tuesday">
-                            Tuesday
+                            Tue
                             <span class="cache-count" v-if="cachedCrosswordsCount.tuesday > 0">([[cachedCrosswordsCount.tuesday]])</span>
                         </button>
                         <button @click="handleWeekdayClick('wednesday')" id="wednesday">
-                            Wednesday
+                            Wed
                             <span class="cache-count" v-if="cachedCrosswordsCount.wednesday > 0">([[cachedCrosswordsCount.wednesday]])</span>
                         </button>
                         <button @click="handleWeekdayClick('thursday')" id="thursday">
-                            Thursday
+                            Thu
                             <span class="cache-count" v-if="cachedCrosswordsCount.thursday > 0">([[cachedCrosswordsCount.thursday]])</span>
                         </button>
                         <button @click="handleWeekdayClick('friday')" id="friday">
-                            Friday
+                            Fri
                             <span class="cache-count" v-if="cachedCrosswordsCount.friday > 0">([[cachedCrosswordsCount.friday]])</span>
                         </button>
                     </div>
                     <div class="status-indicators">
                         <div class="offline-indicator" v-if="isOffline">Offline Mode</div>
-                        <div class="cache-status" v-if="!isOffline">
-                            Caching puzzles for offline play...
-                        </div>
                     </div>
                     <div class="theme-switch">
                         <label class="switch">
