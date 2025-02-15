@@ -7,7 +7,7 @@ const CrosswordApp = {
             grid: [],
             direction: 'across',
             isChecking: false,
-            baseUrl: 'http://127.0.0.1:50001',
+            baseUrl: window.location.origin,
             completedWords: new Set()  // Track completed words
         }
     },
@@ -55,6 +55,11 @@ const CrosswordApp = {
             }
         },
         check_all() {
+            if (this.isChecking) {
+                this.clearChecks();
+                return;
+            }
+            
             this.isChecking = true;
             
             this.crossword.forEach(word => {
