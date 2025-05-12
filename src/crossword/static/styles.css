@@ -1,0 +1,462 @@
+/* static/styles.css */
+:root {
+    --cell-size: 3.5rem;
+    --border-width: 1px;
+    --cell-border: color-mix(in srgb, currentColor 20%, transparent);
+    --cell-bg: color-mix(in srgb, Canvas 95%, currentColor);
+    --cell-focus-bg: color-mix(in srgb, Canvas 85%, currentColor);
+    --cell-text: currentColor;
+    --font-system: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', 
+                   Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+    --correct-color: #2e7d32;
+    --incorrect-color: #cc0000;
+    --correct-bg: rgba(46, 125, 50, 0.3);
+    --incorrect-bg: rgba(255, 200, 200, 0.7);
+}
+
+/* Reset body margins and set full viewport coverage */
+body {
+    margin: 0;
+    padding: 0;
+    min-height: 100vh;
+    min-width: 100vw;
+    overflow-x: hidden;  /* Prevent horizontal scrolling */
+    font-family: var(--font-system);
+}
+
+#app {
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    margin: 0;
+    padding: 0;
+    width: 100vw;
+}
+
+#notmenu {
+    display: flex;
+    gap: 0;
+    padding: 0;
+    margin: 0;
+    min-height: 100vh;
+    width: 100vw;
+    overflow: hidden;  /* Prevent overflow */
+}
+
+.center-column {
+    flex: 0 0 auto;
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+    align-items: center;
+    background-color: var(--cell-bg);
+    margin: 0;
+}
+
+#crossword-container {
+    flex: 0 0 auto;
+    display: flex;
+    align-items: center;
+    padding: 0 0.5rem;
+}
+
+#menu {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.75rem;
+    justify-content: center;
+    padding: 0.75rem;
+    max-width: fit-content;
+    align-items: center;
+}
+
+#menu button {
+    font-size: 0.9rem;
+    padding: 0.4rem 0.6rem;
+    border-radius: 4px;
+    border: 2px solid var(--cell-border);
+    background-color: var(--cell-bg);
+    color: var(--cell-text);
+    cursor: pointer;
+    font-weight: bold;
+    transition: all 0.2s ease;
+    min-width: 3.5rem;
+}
+
+#menu button:hover {
+    background-color: var(--cell-focus-bg);
+}
+
+/* Remove all the weekday-specific styles */
+#monday, #tuesday, #wednesday, #thursday, #friday {
+    /* Use the same style as other buttons */
+    background-color: var(--cell-bg);
+    border-color: var(--cell-border);
+    color: var(--cell-text);
+}
+
+#monday:hover, #tuesday:hover, #wednesday:hover, #thursday:hover, #friday:hover {
+    background-color: var(--cell-focus-bg);
+}
+
+#check-all {
+    background-color: #ffffff;
+    border-color: #cccccc;
+    color: #333333;
+}
+
+#check-all:hover {
+    background-color: #f0f0f0;
+}
+
+#menu button {
+    font-size: 0.9rem;
+    padding: 0.5rem 1rem;  /* Made slightly larger */
+    border-radius: 6px;    /* More rounded corners */
+    border: 2px solid;     /* Slightly thicker border */
+    cursor: pointer;
+    font-weight: bold;     /* Make text bold */
+    transition: all 0.2s ease; /* Smooth transition for hover effects */
+}
+
+#menu button:hover {
+    transform: translateY(-1px); /* Slight lift effect on hover */
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1); /* Add shadow on hover */
+}
+
+.grid {
+    display: grid;
+    width: fit-content;
+    border: none;
+    padding-right: 1px;
+    padding-bottom: 1px;
+}
+
+.grid-row {
+    display: grid;
+}
+
+.grid-cell {
+    position: relative;
+    width: var(--cell-size);
+    height: var(--cell-size);
+    border: var(--border-width) solid var(--cell-border);
+    margin-right: -1px;
+    margin-bottom: -1px;
+    background-color: var(--cell-bg);
+}
+
+.grid-cell:last-child {
+    border-right: var(--border-width) solid var(--cell-border);
+}
+
+.grid-row:last-child .grid-cell {
+    border-bottom: var(--border-width) solid var(--cell-border);
+}
+
+.grid-cell input {
+    width: 100%;
+    height: 100%;
+    border: none;
+    background: none;
+    text-align: center;
+    font-size: 1.5rem;
+    font-weight: 500;
+    color: var(--cell-text);
+    text-transform: uppercase;
+    padding: 0;
+}
+
+.grid-cell input:focus {
+    outline: none;
+    background-color: var(--cell-focus-bg);
+}
+
+.black-cell {
+    background-color: black;
+}
+
+.clue-index {
+    position: absolute;
+    top: 2px;
+    left: 2px;
+    font-size: 0.75rem;
+    color: var(--cell-text);
+    opacity: 0.7;
+}
+
+/* Hint container styles */
+#hint-container {
+    flex: 1;
+    display: flex;
+    gap: 2rem;
+    height: 100%;
+}
+
+#across, #down {
+    flex: 1;
+    margin: 0;
+    padding: 0;
+    border: none;
+    border-radius: 0;
+    overflow-y: visible;
+}
+
+.state {
+    font-family: var(--font-system);
+    width: 1.5rem;
+    height: 1.5rem;
+    border: var(--border-width) solid var(--cell-border);
+    display: inline-flex;
+    justify-content: center;
+    align-items: center;
+    margin: 0;
+    text-align: center;
+    line-height: 1;
+    padding: 0;
+    font-size: 1rem;
+    font-weight: 500;
+    vertical-align: middle;
+    color: var(--cell-text);
+    background-color: rgba(255, 255, 255, 0.6);
+}
+
+/* Style for the clue list items */
+#across li, #down li {
+    display: flex;
+    flex-direction: row;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    margin-bottom: 0.5rem;
+    font-size: 1.15rem;
+    line-height: 1.3;
+    align-items: center;
+    padding: 0.25rem;
+}
+
+/* Style for the clue text */
+#across li span:first-child, #down li span:first-child {
+    margin-bottom: 0;
+    flex: 1 1;
+    font-weight: 450;
+}
+
+/* Container for the state boxes */
+#across li > span:not(:first-child), #down li > span:not(:first-child) {
+    display: inline-flex;
+    flex-wrap: nowrap;
+    align-items: center;
+    gap: 0.15rem;
+    flex: 0 0 auto;
+    font-size: 1rem;
+}
+
+/* Add hover effect for clues */
+#across li:hover, #down li:hover {
+    background-color: var(--cell-focus-bg);
+    border-radius: 4px;
+}
+
+/* Style for clue headers */
+#hint-container h2, .clue-column h2 {
+    display: none;
+}
+
+/* Wrap each list in a container */
+.clue-column {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    height: 100vh;
+    margin: 0;
+    padding: 0;
+    overflow-y: auto;
+    position: relative;
+    isolation: isolate;
+}
+
+/* Add scrollbar styling for a cleaner look */
+#across, #down {
+    scrollbar-width: thin;
+    scrollbar-color: var(--cell-border) transparent;
+}
+
+#across::-webkit-scrollbar, #down::-webkit-scrollbar {
+    width: 6px;
+}
+
+#across::-webkit-scrollbar-thumb, #down::-webkit-scrollbar-thumb {
+    background-color: var(--cell-border);
+    border-radius: 3px;
+}
+
+.clue-column::-webkit-scrollbar {
+    width: 8px;
+}
+
+.clue-column::-webkit-scrollbar-thumb {
+    background-color: var(--cell-border);
+    border-radius: 4px;
+}
+
+/* Add these styles for the state container */
+.state-container {
+    display: inline-flex;
+    flex-wrap: nowrap;
+    align-items: center;
+    gap: 0.15rem;
+    flex: 0 0 auto;
+    line-height: 1.5rem;
+}
+
+/* Add styles for check states */
+.state.red {
+    color: #cc0000;
+    border-color: #ff4444;
+    background-color: rgba(255, 200, 200, 0.7);
+}
+
+.state.green {
+    color: #006600;
+    border-color: #00cc00;
+    background-color: rgba(200, 255, 200, 0.7);
+}
+
+/* Revise background labels */
+.clue-column::before {
+    content: attr(data-label);
+    position: sticky;  /* Change back to absolute */
+    inset: 0;           /* Cover the entire column */
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: clamp(6rem, 15vw, 12rem);
+    font-weight: 900;
+    opacity: 0.09;
+    color: currentColor;
+    pointer-events: none;
+    white-space: nowrap;
+    letter-spacing: 0.2em;
+    font-family: var(--font-system);
+    z-index: -1;
+    writing-mode: vertical-lr;
+    text-orientation: mixed;
+    transform: rotate(180deg);
+}
+.clue-column
+/* Ensure content stays above the background */
+#across, #down {
+    position: absolute;
+    z-index: 1;
+}
+
+/* Theme switch styles */
+.theme-switch {
+    display: flex;
+    align-items: center;
+}
+
+.switch {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    cursor: pointer;
+}
+
+.switch input {
+    opacity: 0;
+    width: 0;
+    height: 0;
+}
+
+.slider {
+    position: relative;
+    display: inline-block;
+    width: 2.6rem;
+    height: 1.4rem;
+    background-color: var(--cell-border);
+    border-radius: 1.4rem;
+    transition: 0.4s;
+}
+
+.slider:before {
+    position: absolute;
+    content: "";
+    height: 1rem;
+    width: 1rem;
+    left: 0.2rem;
+    bottom: 0.2rem;
+    background-color: var(--cell-bg);
+    border-radius: 50%;
+    transition: 0.4s;
+}
+
+input:checked + .slider {
+    background-color: var(--cell-text);
+}
+
+input:checked + .slider:before {
+    transform: translateX(1.2rem);
+    background-color: var(--cell-bg);
+}
+
+.switch-label {
+    font-size: 0.9rem;
+    user-select: none;
+    color: var(--cell-text);
+}
+
+/* Add these styles for the input cell states */
+.grid-cell input.red {
+    color: var(--incorrect-color);
+    background-color: var(--incorrect-bg);
+    font-weight: 600;
+    border-color: #ff4444;
+}
+
+.grid-cell input.green {
+    background-color: var(--correct-bg);
+    color: var(--correct-color);
+    border-color: var(--correct-color);
+}
+
+.cache-count {
+    font-size: 0.75em;  /* Slightly smaller font */
+    color: #666;
+    margin-left: 2px;  /* Reduced margin */
+}
+
+.status-indicators {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    margin: 10px 0;
+    font-size: 0.9em;
+}
+
+.offline-indicator {
+    background-color: #ff9800;
+    color: white;
+    padding: 4px 8px;
+    border-radius: 4px;
+    margin-bottom: 5px;
+}
+
+.cache-status {
+    color: #666;
+    font-style: italic;
+}
+
+.weekday-buttons {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;  /* Reduced gap */
+    justify-content: center;
+    margin: 8px 0;  /* Slightly reduced margin */
+}
+
+#menu button {
+    position: relative;
+    padding: 8px 16px;
+}

@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Crossword Puzzle</title>
+    <script src="{{ url_for('static', filename='lib/vue.js') }}"></script>
+    <script src="{{ url_for('static', filename='lib/axios.min.js') }}"></script>
+
+    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
+</head>
+
+<body>
+    <div id="app">
+        <div id="notmenu">
+            <div class="clue-column" data-label="ACROSS">
+                <ul id="across">
+                    <li v-for="word in crossword" v-if="word.direction === 'across' && !completedWords.has(word.clue)">
+                        <span @click="handle_clue_click($event,word)">[[ word.index ]]. [[ word.clue ]]</span>
+                        <div class="state-container">
+                            <span v-for="(char, index) in getCurrentAnswer(word)" 
+                                  :key="index"
+                                  class="state"
+                                  :class="{
+                                      'red': isChecking && char.toLowerCase() !== word.answer[index].toLowerCase() && char !== ' ',
+                                      'green': isChecking && char.toLowerCase() === word.answer[index].toLowerCase() && char !== ' '
+                                  }">[[char]]</span>
+                        </div>
+                    </li>
+                </ul>
+            </div>
+            
+            <div class="center-column">
+                <div id="crossword-container">
+                    <div class="grid" :style="{
+                        'grid-template-rows': `repeat(${grid.length}, var(--cell-size))`
+                    }">
+                        <div class="grid-row" v-for="(row, rowIndex) in grid" :key="rowIndex" 
+                             :style="{
+                                 'grid-template-columns': `repeat(${row.length}, var(--cell-size))`
+                             }">
+                            <div v-for="(cell, cellIndex) in row" :key="cellIndex" 
+                                 class="grid-cell"
+                                 :class="{'black-cell': cell === null}">
+                                <span class="clue-index" v-if="find_index(rowIndex, cellIndex)">[[find_index(rowIndex, cellIndex)]]</span>
+                                <template v-if="cell !== null">
+                                    <input ref="inputCells" 
+                                           :ref="'input-' + rowIndex + '-' + cellIndex"
+                                           type="text" 
+                                           maxlength="1" 
+                                           v-model="grid[rowIndex][cellIndex]"
+                                           @keydown="handle_crossword_cell_keydown($event, rowIndex, cellIndex)"
+                                           :data-row="rowIndex" 
+                                           :data-cell="cellIndex"
+                                           :data-solution="find_solution(rowIndex,cellIndex)"
+                                           :aria-label="'grid cell ' + rowIndex + '-' + cellIndex">
+                                </template>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div id="menu">
+                    <button @click="check_all()" id="check-all">Check all</button>
+                    <div class="weekday-buttons">
+                        <button @click="handleWeekdayClick('monday')" id="monday">
+                            Mon
+                            <span class="cache-count" v-if="cachedCrosswordsCount.monday > 0">([[cachedCrosswordsCount.monday]])</span>
+                        </button>
+                        <button @click="handleWeekdayClick('tuesday')" id="tuesday">
+                            Tue
+                            <span class="cache-count" v-if="cachedCrosswordsCount.tuesday > 0">([[cachedCrosswordsCount.tuesday]])</span>
+                        </button>
+                        <button @click="handleWeekdayClick('wednesday')" id="wednesday">
+                            Wed
+                            <span class="cache-count" v-if="cachedCrosswordsCount.wednesday > 0">([[cachedCrosswordsCount.wednesday]])</span>
+                        </button>
+                        <button @click="handleWeekdayClick('thursday')" id="thursday">
+                            Thu
+                            <span class="cache-count" v-if="cachedCrosswordsCount.thursday > 0">([[cachedCrosswordsCount.thursday]])</span>
+                        </button>
+                        <button @click="handleWeekdayClick('friday')" id="friday">
+                            Fri
+                            <span class="cache-count" v-if="cachedCrosswordsCount.friday > 0">([[cachedCrosswordsCount.friday]])</span>
+                        </button>
+                    </div>
+                    <div class="status-indicators">
+                        <div class="offline-indicator" v-if="isOffline">Offline Mode</div>
+                    </div>
+                    <div class="theme-switch">
+                        <label class="switch">
+                            <input type="checkbox" v-model="isDarkMode" @change="toggle_night_mode">
+                            <span class="slider"></span>
+                            <span class="switch-label">Night Mode</span>
+                        </label>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="clue-column" data-label="DOWN">
+                <ul id="down">
+                    <li v-for="word in crossword" :key="word" v-if="word.direction ==='down' && !completedWords.has(word.clue)">
+                        <span @click="handle_clue_click($event,word)">[[ word.index ]]. [[ word.clue ]]</span>
+                        <div class="state-container">
+                            <span v-for="(char, index) in getCurrentAnswer(word)" 
+                                  :key="index"
+                                  class="state"
+                                  :class="{
+                                      'red': isChecking && char.toLowerCase() !== word.answer[index].toLowerCase() && char !== ' ',
+                                      'green': isChecking && char.toLowerCase() === word.answer[index].toLowerCase() && char !== ' '
+                                  }">[[char]]</span>
+                        </div>
+                    </li>
+                </ul>
+            </div>
+        </div>
+    </div>
+
+    <script src="{{ url_for('static', filename='main.js') }}"></script>
+</body>
+
+</html>
