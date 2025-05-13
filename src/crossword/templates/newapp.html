@@ -84,6 +84,7 @@
                             <span class="cache-count" v-if="cachedCrosswordsCount.friday > 0">([[cachedCrosswordsCount.friday]])</span>
                         </button>
                     </div>
+                    <button @click="openSolvedModal()" id="overview-button">Overview</button>
                     <div class="status-indicators">
                         <div class="offline-indicator" v-if="isOffline">Offline Mode</div>
                     </div>
@@ -112,6 +113,36 @@
                         </div>
                     </li>
                 </ul>
+            </div>
+        </div>
+
+        <!-- Solved Puzzles Modal -->
+        <div v-if="showSolvedModal" class="modal-overlay" @click.self="closeSolvedModal">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h2>Solved Puzzles</h2>
+                    <button @click="closeSolvedModal" class="modal-close-button">&times;</button>
+                </div>
+                <div class="modal-body">
+                    <div v-for="(solvedEntries, dayKey) in solvedPuzzlesList" :key="dayKey" class="solved-day-section">
+                        <h3 v-if="solvedEntries.length > 0">[[ dayKey.charAt(0).toUpperCase() + dayKey.slice(1) ]]</h3>
+                        <ul v-if="solvedEntries.length > 0">
+                            <li v-for="(puzzle, index) in solvedEntries" :key="(typeof puzzle === 'object' ? puzzle.id : puzzle) + '-' + index">
+                                <template v-if="typeof puzzle === 'object' && puzzle.id">
+                                    <strong>Title:</strong> [[ puzzle.title || 'N/A' ]] <br>
+                                    <strong>Original Date:</strong> [[ puzzle.id ]] <br>
+                                    <strong>Authors:</strong> [[ puzzle.authors ? puzzle.authors.join(', ') : 'N/A' ]] <br>
+                                    <strong>Solved On:</strong> [[ new Date(puzzle.dateSolved).toLocaleDateString() ]] at [[ new Date(puzzle.dateSolved).toLocaleTimeString() ]]
+                                </template>
+                                <template v-else>
+                                    <strong>Legacy Solved ID:</strong> [[ puzzle ]]
+                                </template>
+                            </li>
+                        </ul>
+                        <p v-if="solvedEntries.length === 0 && dayKey !== 'saturday' && dayKey !== 'sunday'">No puzzles solved for [[ dayKey ]].</p>
+                    </div>
+                    <p v-if="Object.values(solvedPuzzlesList).every(list => list.length === 0)">You haven't solved any puzzles yet!</p>
+                </div>
             </div>
         </div>
     </div>

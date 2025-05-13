@@ -460,3 +460,94 @@ input:checked + .slider:before {
     position: relative;
     padding: 8px 16px;
 }
+
+/* New Modal Styles */
+#overview-button {
+    /* Style like other menu buttons, or add specific styling */
+    /* Re-using existing button styles from #menu button */
+}
+
+.modal-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.6);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 1000; /* Ensure it's on top */
+}
+
+.modal-content {
+    background-color: var(--cell-bg);
+    color: var(--cell-text);
+    padding: 2rem;
+    border-radius: 8px;
+    box-shadow: 0 5px 15px rgba(0,0,0,0.3);
+    width: 80%;
+    max-width: 600px;
+    max-height: 80vh;
+    display: flex;
+    flex-direction: column;
+}
+
+.modal-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-bottom: 1px solid var(--cell-border);
+    padding-bottom: 1rem;
+    margin-bottom: 1rem;
+}
+
+.modal-header h2 {
+    margin: 0;
+    font-size: 1.5rem;
+}
+
+.modal-close-button {
+    background: none;
+    border: none;
+    font-size: 2rem;
+    line-height: 1;
+    color: var(--cell-text);
+    cursor: pointer;
+    opacity: 0.7;
+}
+
+.modal-close-button:hover {
+    opacity: 1;
+}
+
+.modal-body {
+    overflow-y: auto; /* Scroll for long lists */
+    flex-grow: 1;
+}
+
+.solved-day-section h3 {
+    margin-top: 1rem;
+    margin-bottom: 0.5rem;
+    font-size: 1.2rem;
+    color: var(--cell-text);
+}
+
+.solved-day-section ul {
+    list-style-type: none;
+    padding-left: 0;
+}
+
+.solved-day-section li {
+    padding: 0.25rem 0;
+    font-size: 0.9rem;
+    border-bottom: 1px dashed var(--cell-border);
+}
+
+.solved-day-section li:last-child {
+    border-bottom: none;
+}
+
+.modal-body p {
+    font-style: italic;
+}

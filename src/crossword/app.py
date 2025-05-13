@@ -58,13 +58,22 @@ def get_random_crossword(weekday):
     reader = DataReader(base_url=base_url)
     formatted_date = random_date.strftime("%y%m%d")
     print(f"Fetching crossword for {weekday} {formatted_date}")
-    crossword = Crossword.from_api_response(reader._fetch_data(formatted_date))
+    crossword_data = Crossword.from_api_response(reader._fetch_data(formatted_date))
     print(f'Crossword for {formatted_date} fetched')
     #Validate that the crosswords date is the correct weekday
-    assert datetime.strptime(crossword.date, "%y%m%d").weekday() == weekday_map[weekday]
-    entities = build_crossword(crossword)
-    #Do i need to turn the pydantic model to json here?
-    return [entity.dict() for entity in entities]
+    assert datetime.strptime(crossword_data.date, "%y%m%d").weekday() == weekday_map[weekday]
+    
+    entities = build_crossword(crossword_data)
+    
+    response_data = {
+        "metadata": {
+            "date": crossword_data.date,
+            "title": crossword_data.title,
+            "authors": crossword_data.authors
+        },
+        "entries": [entity.dict() for entity in entities]
+    }
+    return response_data
 
 
 @app.route('/grid')

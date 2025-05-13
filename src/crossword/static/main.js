@@ -40,7 +40,11 @@ const CrosswordApp = {
                 thursday: 0,
                 friday: 0
             },
-            isCachingInProgress: false
+            isCachingInProgress: false,
+            isDarkMode: document.documentElement.style.getPropertyValue('color-scheme') === 'dark',
+            showSolvedModal: false, // For the solved puzzles modal
+            solvedPuzzlesList: {},   // To store { day: [id1, id2], ... }
+            currentPuzzleMetadata: null // To store metadata of the currently loaded puzzle
         }
     },
     created() {
@@ -98,24 +102,44 @@ const CrosswordApp = {
             });
         },
         isPuzzleSolved(day, puzzleId) {
-            const solved = JSON.parse(localStorage.getItem(`solved_${day}`) || '[]');
-            return solved.includes(puzzleId);
+            // puzzleId is expected to be metadata.date
+            const solvedPuzzles = JSON.parse(localStorage.getItem(`solved_${day}`) || '[]');
+            return solvedPuzzles.some(p => p.id === puzzleId);
         },
         markPuzzleSolved(day, puzzleId) {
-            const solved = JSON.parse(localStorage.getItem(`solved_${day}`) || '[]');
-            if (!solved.includes(puzzleId)) {
-                solved.push(puzzleId);
-                localStorage.setItem(`solved_${day}`, JSON.stringify(solved));
-                this.updateSolvedCounts();
+            // puzzleId is now the metadata.date from the current puzzle
+            // We need this.currentPuzzleMetadata to get title and authors
+            if (!this.currentPuzzleMetadata || this.currentPuzzleMetadata.date !== puzzleId) {
+                console.error("Mismatch or missing metadata when marking puzzle solved.", puzzleId, this.currentPuzzleMetadata);
+                return; // Safety check
+            }
+
+            const storageKey = `solved_${day}`;
+            let solvedPuzzles = JSON.parse(localStorage.getItem(storageKey) || '[]');
+            
+            // Check if this puzzle ID already exists
+            const existingEntry = solvedPuzzles.find(p => p.id === puzzleId);
+            if (!existingEntry) {
+                const solvedEntry = {
+                    id: puzzleId, // Original puzzle date from NYT
+                    title: this.currentPuzzleMetadata.title,
+                    authors: this.currentPuzzleMetadata.authors,
+                    dayOfWeekSolved: day, // The day category it was solved under (e.g., 'monday')
+                    dateSolved: new Date().toISOString() // When the user solved it
+                };
+                solvedPuzzles.push(solvedEntry);
+                localStorage.setItem(storageKey, JSON.stringify(solvedPuzzles));
+                this.updateSolvedCounts(); // This might need adjustment if it just counts length
             }
         },
-        getPuzzleId(puzzleData) {
-            // Create a unique identifier for a puzzle based on its first two clues
-            if (!puzzleData || puzzleData.length < 2) return null;
-            return `${puzzleData[0].clue}-${puzzleData[0].answer}-${puzzleData[1].clue}`;
+        getPuzzleId(puzzleMetadata) {
+            // Use the unique date from metadata as the puzzle ID
+            if (!puzzleMetadata || !puzzleMetadata.date) return null;
+            return puzzleMetadata.date; // e.g., "231026"
         },
         async loadCrossword(day) {
             day = day.toLowerCase();
+            this.currentPuzzleMetadata = null; // Reset metadata on new load
             
             if (this.isOffline) {
                 this.loadCachedCrossword(day);
@@ -124,18 +148,21 @@ const CrosswordApp = {
 
             try {
                 const response = await axios.get(`${this.baseUrl}/random_crossword/${day}`);
-                this.crossword = response.data;
-                const puzzleId = this.getPuzzleId(response.data);
+                // Assuming response.data is now { metadata: {...}, entries: [...] }
+                this.currentPuzzleMetadata = response.data.metadata;
+                this.crossword = response.data.entries; 
                 
-                // If we've already solved this puzzle, try to get another one
+                // Use the new metadata for puzzle ID generation
+                const puzzleId = this.getPuzzleId(this.currentPuzzleMetadata);
+                
                 if (puzzleId && this.isPuzzleSolved(day, puzzleId)) {
-                    console.log('Already solved this puzzle, trying another one...');
-                    this.loadCrossword(day);
+                    console.log(`Already solved this puzzle (${puzzleId}), trying another one...`);
+                    this.loadCrossword(day); // Try to get another one
                     return;
                 }
                 
-                // Cache the crossword if we have room
-                this.cacheCrossword(day, response.data);
+                // Cache the whole puzzle object (metadata + entries)
+                this.cacheCrossword(day, response.data); 
                 
                 this.init();
             } catch (error) {
@@ -178,7 +205,7 @@ const CrosswordApp = {
                 }
             }
         },
-        loadCachedCrossword(day) {
+        loadCachedCrossword(day, attempt = 1) { // Add attempt counter for safety
             const storageKey = `crosswords_${day}`;
             let puzzles = JSON.parse(localStorage.getItem(storageKey) || '[]');
             
@@ -186,10 +213,35 @@ const CrosswordApp = {
                 alert(`No cached ${day} crosswords available. Please connect to the internet to download new puzzles.`);
                 return;
             }
+
+            if (attempt > puzzles.length + 1 || attempt > 10) { // Safety break for recursion
+                 alert(`Could not find an unsolved ${day} crossword in the cache.`);
+                 return;
+            }
             
-            // Get a random puzzle from cache
+            // Get a random puzzle index
             const randomIndex = Math.floor(Math.random() * puzzles.length);
-            this.crossword = puzzles[randomIndex];
+            const selectedPuzzle = puzzles[randomIndex]; // This is the full {metadata, entries} object
+            
+            // Use metadata for puzzle ID
+            const puzzleId = this.getPuzzleId(selectedPuzzle.metadata); 
+
+            // Check if this puzzle is already solved
+            if (puzzleId && this.isPuzzleSolved(day, puzzleId)) {
+                console.log(`Cached puzzle (${puzzleId}) for ${day} is already solved. Removing and trying another.`);
+                // Remove the solved puzzle from the cached list
+                puzzles.splice(randomIndex, 1);
+                localStorage.setItem(storageKey, JSON.stringify(puzzles));
+                this.updateCachedCounts(); 
+                
+                // Try loading another one from the cache
+                this.loadCachedCrossword(day, attempt + 1); 
+                return; // Stop execution for this attempt
+            }
+            
+            // --- If puzzle is NOT solved, proceed as before ---
+            this.currentPuzzleMetadata = selectedPuzzle.metadata; // Set metadata for the loaded puzzle
+            this.crossword = selectedPuzzle.entries; // Set entries
             
             // Remove the used puzzle from cache
             puzzles.splice(randomIndex, 1);
@@ -591,6 +643,44 @@ const CrosswordApp = {
                 if (this.cachedCrosswordsCount[day] < 50 && this.cachingErrors[day] <= 3) {
                     await this.fillCache(day, 50 - this.cachedCrosswordsCount[day]);
                 }
+            }
+        },
+        // New methods for solved puzzles modal
+        openSolvedModal() {
+            this.populateSolvedPuzzlesList();
+            this.showSolvedModal = true;
+        },
+        closeSolvedModal() {
+            this.showSolvedModal = false;
+        },
+        populateSolvedPuzzlesList() {
+            const days = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'];
+            const allSolvedCleaned = {};
+            let cleanupOccurred = false;
+
+            days.forEach(day => {
+                const storageKey = `solved_${day}`;
+                const solvedForDayRaw = JSON.parse(localStorage.getItem(storageKey) || '[]');
+                
+                // Filter out legacy string IDs, keeping only objects
+                const solvedForDayCleaned = solvedForDayRaw.filter(entry => {
+                    return typeof entry === 'object' && entry !== null && entry.id !== undefined;
+                });
+
+                // If cleanup happened for this day, update localStorage
+                if (solvedForDayCleaned.length !== solvedForDayRaw.length) {
+                    localStorage.setItem(storageKey, JSON.stringify(solvedForDayCleaned));
+                    cleanupOccurred = true;
+                    console.log(`Cleaned up legacy solved puzzle IDs for ${day}.`);
+                }
+                
+                allSolvedCleaned[day] = solvedForDayCleaned;
+            });
+            
+            this.solvedPuzzlesList = allSolvedCleaned;
+
+            if (cleanupOccurred) {
+                this.updateSolvedCounts(); // Update counts if any legacy data was removed
             }
         }
     }
