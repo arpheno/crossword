@@ -551,3 +551,80 @@ input:checked + .slider:before {
 .modal-body p {
     font-style: italic;
 }
+
+/* New Theme Icon Styles */
+.theme-switch .switch {
+    /* Adjust label styles if needed, remove padding if only icon */
+    padding: 0;
+    display: inline-flex; /* Align items horizontally */
+    align-items: center; /* Center vertically */
+    gap: 0; /* Remove gap if label text is gone */
+}
+
+.theme-icon {
+    width: 1.5rem; /* Match height/width */
+    height: 1.5rem;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+    stroke-width: 2;
+    color: var(--cell-text); /* Use text color */
+    opacity: 0.8;
+    transition: transform 0.5s cubic-bezier(0.68, -0.6, 0.32, 1.6); /* Fun transition for overall icon */
+}
+
+.theme-icon:hover {
+    opacity: 1;
+}
+
+.theme-icon .sun-disc { /* Updated class name */
+    fill: currentColor;
+    transition: transform 0.5s cubic-bezier(0.68, -0.6, 0.32, 1.6);
+}
+
+.theme-icon .mask-circle { /* New class for the mask's circle */
+    /* Initial position is cx=25 as per SVG. No transform needed for light mode. */
+    transition: transform 0.5s cubic-bezier(0.68, -0.6, 0.32, 1.6);
+}
+
+.theme-icon .sun-beams {
+    transform-origin: center center;
+    transition: transform 0.5s cubic-bezier(0.68, -0.6, 0.32, 1.6), opacity 0.5s ease;
+    opacity: 1; /* Ensure sun-beams are visible in light mode */
+}
+
+/* Dark Mode Styles (when checkbox is checked) */
+.switch input:checked + .theme-icon .sun-disc {
+    /* No scaling, or very minimal if needed. Defaulting to no scale. */
+    /* transform: scale(1); */ 
+}
+
+.switch input:checked + .theme-icon .mask-circle {
+    /* Sun disc is at cx=12, r=8. Mask circle starts at cx=25, r=8.
+       To make a crescent, move the mask circle from cx=25 to cx=6.
+       This is a change of -19px in X for the transform. */
+    transform: translateX(-19px);
+}
+
+.switch input:checked + .theme-icon .sun-beams {
+    transform: rotate(-90deg); /* Keeps the spinning effect */
+    opacity: 0; /* Fade out sun-beams in dark mode */
+}
+
+.switch input:checked + .theme-icon {
+    transform: rotate(360deg); /* Overall icon rotation for effect */
+}
+
+/* Hide the actual checkbox */
+.switch input[type="checkbox"] {
+    appearance: none;
+    -webkit-appearance: none;
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border-width: 0;
+}

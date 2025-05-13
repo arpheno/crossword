@@ -2,6 +2,13 @@
 const CrosswordApp = {
     delimiters: ['[[', ']]'],
     data() {
+        // Check initial color scheme preference
+        const prefersDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+        // Set initial scheme if not already set (e.g., by server-side rendering or previous visit)
+        if (!document.documentElement.style.getPropertyValue('color-scheme')) {
+            document.documentElement.style.setProperty('color-scheme', prefersDark ? 'dark' : 'light');
+        }
+
         return {
             crossword: [],
             grid: [],
@@ -280,8 +287,10 @@ const CrosswordApp = {
             const currentScheme = document.documentElement.style.getPropertyValue('color-scheme');
             if (currentScheme.includes('dark')) {
                 document.documentElement.style.setProperty('color-scheme', 'light');
+                this.isDarkMode = false;
             } else {
                 document.documentElement.style.setProperty('color-scheme', 'dark');
+                this.isDarkMode = true;
             }
         },
         check_all() {
