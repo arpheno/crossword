@@ -1,5 +1,7 @@
+// import axios from 'axios'; // Remove this import - axios is globally available via script tag
+
 // Vue app configuration
-const CrosswordApp = {
+export const CrosswordApp = {
     delimiters: ['[[', ']]'],
     data() {
         return {
@@ -44,7 +46,11 @@ const CrosswordApp = {
             isDarkMode: document.documentElement.style.getPropertyValue('color-scheme') === 'dark',
             showSolvedModal: false, // For the solved puzzles modal
             solvedPuzzlesList: {},   // To store { day: [id1, id2], ... }
-            currentPuzzleMetadata: null // To store metadata of the currently loaded puzzle
+            currentPuzzleMetadata: null, // To store metadata of the currently loaded puzzle
+            currentPuzzleDayCategory: 'monday',
+            yearlyHeatmapData: {}, // New structure for yearly heatmaps
+            showRawDataModal: false,
+            rawPuzzleData: null // To store the full puzzle object {metadata, entries}
         }
     },
     created() {
@@ -134,12 +140,17 @@ const CrosswordApp = {
         },
         getPuzzleId(puzzleMetadata) {
             // Use the unique date from metadata as the puzzle ID
-            if (!puzzleMetadata || !puzzleMetadata.date) return null;
+            if (!puzzleMetadata || !puzzleMetadata.date) {
+                console.warn('Invalid puzzle metadata - missing date field');
+                return null;
+            }
+            console.debug(`Generated puzzle ID from metadata: ${puzzleMetadata.date}`);
             return puzzleMetadata.date; // e.g., "231026"
         },
         async loadCrossword(day) {
             day = day.toLowerCase();
             this.currentPuzzleMetadata = null; // Reset metadata on new load
+            this.currentPuzzleDayCategory = day; // Store the current day category
             
             if (this.isOffline) {
                 this.loadCachedCrossword(day);
@@ -174,18 +185,19 @@ const CrosswordApp = {
         cacheCrossword(day, puzzleData) {
             const storageKey = `crosswords_${day}`;
             let puzzles = JSON.parse(localStorage.getItem(storageKey) || '[]');
-            const puzzleId = this.getPuzzleId(puzzleData);
+            const puzzleId = this.getPuzzleId(puzzleData.metadata);
             
             // Don't cache if we've already solved it
             if (puzzleId && this.isPuzzleSolved(day, puzzleId)) {
+                console.log(`[Cache] Puzzle ${puzzleId} for day ${day} is already solved. Not caching.`);
                 return;
             }
             
             // Check if we already have this puzzle cached
-            const isDuplicate = puzzles.some(p => this.getPuzzleId(p) === puzzleId);
+            const isDuplicate = puzzles.some(p => this.getPuzzleId(p.metadata) === puzzleId);
             
             if (!isDuplicate) {
-                // Add new puzzle and keep only the latest 50
+                console.log(`[Cache] Caching new puzzle ${puzzleId} for day ${day}. Current cache size before add: ${puzzles.length}`);
                 puzzles.push(puzzleData);
                 if (puzzles.length > 50) {
                     puzzles = puzzles.slice(-50);
@@ -194,15 +206,19 @@ const CrosswordApp = {
                 try {
                     localStorage.setItem(storageKey, JSON.stringify(puzzles));
                     this.updateCachedCounts();
+                    console.log(`[Cache] Successfully cached ${puzzleId}. New count for ${day}: ${this.cachedCrosswordsCount[day]}`);
                 } catch (e) {
-                    console.error('Error caching crossword:', e);
+                    console.error('[Cache] Error caching crossword:', e);
                     // If storage is full, remove the oldest puzzle and try again
                     if (e.name === 'QuotaExceededError') {
-                        puzzles.shift();
+                        puzzles.shift(); // Remove the oldest
                         localStorage.setItem(storageKey, JSON.stringify(puzzles));
                         this.updateCachedCounts();
+                        console.log(`[Cache] QuotaExceededError: Removed oldest, retried caching. New count for ${day}: ${this.cachedCrosswordsCount[day]}`);
                     }
                 }
+            } else {
+                console.log(`[Cache] Puzzle ${puzzleId} for day ${day} is a duplicate. Not caching.`);
             }
         },
         loadCachedCrossword(day, attempt = 1) { // Add attempt counter for safety
@@ -221,6 +237,7 @@ const CrosswordApp = {
             
             // Get a random puzzle index
             const randomIndex = Math.floor(Math.random() * puzzles.length);
+
             const selectedPuzzle = puzzles[randomIndex]; // This is the full {metadata, entries} object
             
             // Use metadata for puzzle ID
@@ -269,6 +286,15 @@ const CrosswordApp = {
 
             this.isChecking = false;
             this.completedWords.clear(); // Clear completed words when loading new puzzle
+            // Clear all input colors when loading new puzzle
+            this.grid.forEach((row, y) => {
+                row.forEach((_, x) => {
+                    const input = this.$refs[`input-${y}-${x}`]?.[0];
+                    if (input) {
+                        input.classList.remove('red', 'green');
+                    }
+                });
+            });
             this.loadCrossword(day);
         },
         init() {
@@ -292,6 +318,8 @@ const CrosswordApp = {
             
             this.isChecking = true;
             let allCorrect = true;
+            let correctWords = 0;
+            let incorrectWords = 0;
             
             this.crossword.forEach(word => {
                 let isWordCorrect = true;  // Track if entire word is correct
@@ -345,34 +373,33 @@ const CrosswordApp = {
                 // If word is completely correct, add it to completedWords
                 if (isWordCorrect) {
                     this.completedWords.add(word.clue);
+                    correctWords++;
                 } else {
                     // If word was previously marked as complete but is now incorrect, remove it
                     this.completedWords.delete(word.clue);
+                    incorrectWords++;
                 }
             });
             
+            console.log(`Check results: ${correctWords} words correct, ${incorrectWords} words incorrect`);
+            
             // If all words are correct, mark the puzzle as solved
             if (allCorrect) {
-                const puzzleId = this.getPuzzleId(this.crossword);
+                const puzzleId = this.getPuzzleId(this.currentPuzzleMetadata);
                 if (puzzleId) {
                     const day = this.getCurrentDay();
+                    console.log(`All words correct! Marking puzzle ${puzzleId} as solved for ${day}`);
                     this.markPuzzleSolved(day, puzzleId);
+                } else {
+                    console.error("Could not get puzzleId from currentPuzzleMetadata in check_all. Puzzle not marked solved.", this.currentPuzzleMetadata);
                 }
+            } else {
+                console.log('Not all words are correct yet. Keep trying!');
             }
         },
         getCurrentDay() {
-            // Helper to get current day from the active puzzle
-            const firstWord = this.crossword[0];
-            if (!firstWord) return 'monday';
-            
-            // Try to determine the day based on the puzzle's properties
-            // This is a simplified example - you might need to adjust based on your data
-            const difficulty = firstWord.answer.length + this.crossword.length;
-            if (difficulty < 20) return 'monday';
-            if (difficulty < 25) return 'tuesday';
-            if (difficulty < 30) return 'wednesday';
-            if (difficulty < 35) return 'thursday';
-            return 'friday';
+            // Return the stored day category for the currently loaded puzzle
+            return this.currentPuzzleDayCategory || 'monday'; // Fallback to monday if undefined for safety
         },
         find_index(rowIndex, cellIndex) {
             for (const word of this.crossword) {
@@ -580,6 +607,23 @@ const CrosswordApp = {
                 }
             }
         },
+        handleCellRightClick(rowIndex, cellIndex) {
+            const solution = this.find_solution(rowIndex, cellIndex);
+            if (solution) {
+                this.grid[rowIndex][cellIndex] = solution.toUpperCase();
+                // Optionally, add a class to mark it as revealed and disable further input
+                const inputEl = this.$refs[`input-${rowIndex}-${cellIndex}`]?.[0];
+                if (inputEl) {
+                    inputEl.classList.add('revealed');
+                    // inputEl.disabled = true; // Or make it readonly
+                }
+                this.$forceUpdate(); // Ensure Vue picks up the grid change for display
+                 // If isChecking is active, clear current checks as a cell was revealed
+                if (this.isChecking) {
+                    this.clearChecks();
+                }
+            }
+        },
         clearChecks() {
             this.isChecking = false;
             document.querySelectorAll('.grid-cell input').forEach(input => {
@@ -648,10 +692,106 @@ const CrosswordApp = {
         // New methods for solved puzzles modal
         openSolvedModal() {
             this.populateSolvedPuzzlesList();
+            this.prepareHeatmapData();
             this.showSolvedModal = true;
         },
         closeSolvedModal() {
             this.showSolvedModal = false;
+        },
+        prepareHeatmapData() {
+            console.log("Preparing heatmap data...");
+            const allSolvedEntries = [];
+            const daysOfWeek = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'];
+            daysOfWeek.forEach(day => {
+                const solvedForDay = JSON.parse(localStorage.getItem(`solved_${day}`) || '[]');
+                allSolvedEntries.push(...solvedForDay);
+            });
+
+            if (allSolvedEntries.length === 0) {
+                this.yearlyHeatmapData = {};
+                console.log("No solved entries found for heatmap.");
+                return;
+            }
+
+            const parsePuzzleIDToDate = (idStr) => {
+                if (!idStr || typeof idStr !== 'string' || idStr.length !== 6) {
+                    console.warn(`Invalid puzzle ID format: ${idStr}`);
+                    return null; 
+                }
+                const year = parseInt("20" + idStr.substring(0, 2)); 
+                const month = parseInt(idStr.substring(2, 4)) - 1; // Month is 0-indexed
+                const day = parseInt(idStr.substring(4, 6));
+                if (isNaN(year) || isNaN(month) || isNaN(day)) {
+                    console.warn(`Could not parse date from ID: ${idStr}`);
+                    return null;
+                }
+                return new Date(year, month, day);
+            };
+
+            const allSolvedOriginalDates = {}; // Store { isoDateString: puzzleDetails }
+            const activeYears = new Set();
+
+            allSolvedEntries.forEach(entry => {
+                console.log("[Heatmap Debug] Entry before processing:", JSON.parse(JSON.stringify(entry))); // Log a clone
+                const originalDateObj = parsePuzzleIDToDate(entry.id); // entry.id is like "220105"
+                if (originalDateObj) {
+                    activeYears.add(originalDateObj.getFullYear());
+                    const isoDateString = originalDateObj.toISOString().split('T')[0];
+                    entry.formattedOriginalDate = originalDateObj.toLocaleDateString('en-US', {
+                        year: 'numeric', month: 'short', day: 'numeric'
+                    });
+                    allSolvedOriginalDates[isoDateString] = entry;
+                    console.log("[Heatmap Debug] Entry after adding formattedOriginalDate:", JSON.parse(JSON.stringify(entry))); // Log a clone
+                } else {
+                    console.log("[Heatmap Debug] Could not parse date for entry ID:", entry.id);
+                }
+            });
+
+            const sortedActiveYears = Array.from(activeYears).sort((a, b) => a - b);
+            const newYearlyData = {};
+
+            const today = new Date();
+
+            sortedActiveYears.forEach(year => {
+                const yearData = {
+                    year: year,
+                    days: [],
+                    monthLabels: [], // Will be static in HTML, but kept for structure if needed later
+                    firstDayOffset: 0
+                };
+
+                const firstDayOfYear = new Date(year, 0, 1);
+                yearData.firstDayOffset = firstDayOfYear.getDay(); // 0 for Sunday, 1 for Monday, etc.
+
+                const daysInYear = (year % 4 === 0 && year % 100 !== 0) || year % 400 === 0 ? 366 : 365;
+
+                for (let i = 0; i < daysInYear; i++) {
+                    const currentDate = new Date(year, 0, i + 1);
+                    const dateString = currentDate.toISOString().split('T')[0];
+                    const isSolved = !!allSolvedOriginalDates[dateString];
+                    let details = null;
+                    if (isSolved) {
+                        details = allSolvedOriginalDates[dateString];
+                        console.log(
+                            `[Heatmap Debug] Details for solved date ${dateString}:`,
+                            JSON.parse(JSON.stringify(details)), // Log a clone
+                            `formattedOriginalDate exists: ${details && details.hasOwnProperty('formattedOriginalDate')}, value: ${details ? details.formattedOriginalDate : 'N/A'}`
+                        );
+                    }
+
+                    yearData.days.push({
+                        date: currentDate,
+                        dateString: dateString,
+                        isSolved: isSolved,
+                        details: details, // This will now include formattedOriginalDate
+                        isFuture: currentDate > today
+                    });
+                }
+                newYearlyData[year] = yearData;
+            });
+
+            this.yearlyHeatmapData = newYearlyData;
+            console.log("Heatmap data prepared:", this.yearlyHeatmapData);
         },
         populateSolvedPuzzlesList() {
             const days = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'];
@@ -682,11 +822,61 @@ const CrosswordApp = {
             if (cleanupOccurred) {
                 this.updateSolvedCounts(); // Update counts if any legacy data was removed
             }
+        },
+        markCurrentPuzzleComplete() {
+            if (!this.currentPuzzleMetadata) {
+                alert("No puzzle loaded to mark as complete.");
+                return;
+            }
+            const puzzleId = this.getPuzzleId(this.currentPuzzleMetadata);
+            const day = this.getCurrentDay();
+
+            if (puzzleId) {
+                this.markPuzzleSolved(day, puzzleId); 
+                alert(`Puzzle "${this.currentPuzzleMetadata.title || puzzleId}" marked as complete.`);
+                // Optionally, load a new puzzle or clear the board
+                // For now, just mark as solved. User can click a day to load next.
+            } else {
+                alert("Could not identify the current puzzle to mark as complete.");
+            }
+        },
+        openRawDataModal() {
+            if (!this.currentPuzzleMetadata || !this.crossword) {
+                alert("No puzzle data loaded to display.");
+                this.rawPuzzleData = null;
+                return;
+            }
+            // Store the full current puzzle data (metadata + entries)
+            this.rawPuzzleData = { 
+                metadata: this.currentPuzzleMetadata, 
+                entries: this.crossword 
+            };
+            this.showRawDataModal = true;
+        },
+        closeRawDataModal() {
+            this.showRawDataModal = false;
+            // this.rawPuzzleData = null; // Clear data when closing if desired
+        }
+    },
+    computed: {
+        rawPuzzleDataString() {
+            if (!this.rawPuzzleData) {
+                return "No data loaded.";
+            }
+            try {
+                return JSON.stringify(this.rawPuzzleData, null, 2);
+            } catch (e) {
+                console.error("Error stringifying raw puzzle data:", e);
+                return "Error displaying data.";
+            }
         }
     }
 };
 
 // Initialize Vue app when DOM is loaded
-document.addEventListener('DOMContentLoaded', () => {
-    new Vue(CrosswordApp).$mount('#app');
-}); 
+// Ensure this only runs in the browser, not during tests
+if (typeof document !== 'undefined') { 
+    document.addEventListener('DOMContentLoaded', () => {
+        new Vue(CrosswordApp).$mount('#app');
+    });
+} 

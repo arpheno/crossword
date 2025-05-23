@@ -51,6 +51,7 @@
                                            maxlength="1" 
                                            v-model="grid[rowIndex][cellIndex]"
                                            @keydown="handle_crossword_cell_keydown($event, rowIndex, cellIndex)"
+                                           @contextmenu.prevent="handleCellRightClick(rowIndex, cellIndex)"
                                            :data-row="rowIndex" 
                                            :data-cell="cellIndex"
                                            :data-solution="find_solution(rowIndex,cellIndex)"
@@ -83,6 +84,10 @@
                             Fri
                             <span class="cache-count" v-if="cachedCrosswordsCount.friday > 0">([[cachedCrosswordsCount.friday]])</span>
                         </button>
+                    </div>
+                    <div class="utility-buttons">
+                        <button @click="markCurrentPuzzleComplete()" id="mark-complete">Mark as Complete</button>
+                        <button @click="openRawDataModal()" id="view-raw-data">View Raw Data</button>
                     </div>
                     <button @click="openSolvedModal()" id="overview-button">Overview</button>
                     <div class="status-indicators">
@@ -120,34 +125,83 @@
         <div v-if="showSolvedModal" class="modal-overlay" @click.self="closeSolvedModal">
             <div class="modal-content">
                 <div class="modal-header">
-                    <h2>Solved Puzzles</h2>
+                    <h2>Solved Puzzles Overview</h2>
                     <button @click="closeSolvedModal" class="modal-close-button">&times;</button>
                 </div>
                 <div class="modal-body">
-                    <div v-for="(solvedEntries, dayKey) in solvedPuzzlesList" :key="dayKey" class="solved-day-section">
-                        <h3 v-if="solvedEntries.length > 0">[[ dayKey.charAt(0).toUpperCase() + dayKey.slice(1) ]]</h3>
-                        <ul v-if="solvedEntries.length > 0">
-                            <li v-for="(puzzle, index) in solvedEntries" :key="(typeof puzzle === 'object' ? puzzle.id : puzzle) + '-' + index">
-                                <template v-if="typeof puzzle === 'object' && puzzle.id">
-                                    <strong>Title:</strong> [[ puzzle.title || 'N/A' ]] <br>
-                                    <strong>Original Date:</strong> [[ puzzle.id ]] <br>
-                                    <strong>Authors:</strong> [[ puzzle.authors ? puzzle.authors.join(', ') : 'N/A' ]] <br>
-                                    <strong>Solved On:</strong> [[ new Date(puzzle.dateSolved).toLocaleDateString() ]] at [[ new Date(puzzle.dateSolved).toLocaleTimeString() ]]
-                                </template>
-                                <template v-else>
-                                    <strong>Legacy Solved ID:</strong> [[ puzzle ]]
-                                </template>
-                            </li>
-                        </ul>
-                        <p v-if="solvedEntries.length === 0 && dayKey !== 'saturday' && dayKey !== 'sunday'">No puzzles solved for [[ dayKey ]].</p>
+                    <!-- Heatmap Section -->
+                    <div class="heatmap-outer-container">
+                        <template v-if="Object.keys(yearlyHeatmapData).length > 0">
+                            <div v-for="(yearData, year) in yearlyHeatmapData" :key="year" class="yearly-heatmap-section">
+                                <h4>[[ year ]] Activity</h4>
+                                <div class="heatmap-months">
+                                    <!-- Statically render 12 month names -->
+                                    <div class="heatmap-month-label">Jan</div>
+                                    <div class="heatmap-month-label">Feb</div>
+                                    <div class="heatmap-month-label">Mar</div>
+                                    <div class="heatmap-month-label">Apr</div>
+                                    <div class="heatmap-month-label">May</div>
+                                    <div class="heatmap-month-label">Jun</div>
+                                    <div class="heatmap-month-label">Jul</div>
+                                    <div class="heatmap-month-label">Aug</div>
+                                    <div class="heatmap-month-label">Sep</div>
+                                    <div class="heatmap-month-label">Oct</div>
+                                    <div class="heatmap-month-label">Nov</div>
+                                    <div class="heatmap-month-label">Dec</div>
+                                </div>
+                                <div class="heatmap-body">
+                                    <div class="heatmap-day-labels">
+                                        <div class="heatmap-day-label">Sun</div>
+                                        <div class="heatmap-day-label">Mon</div>
+                                        <div class="heatmap-day-label">Tue</div>
+                                        <div class="heatmap-day-label">Wed</div>
+                                        <div class="heatmap-day-label">Thu</div>
+                                        <div class="heatmap-day-label">Fri</div>
+                                        <div class="heatmap-day-label">Sat</div>
+                                    </div>
+                                    <div class="heatmap-grid">
+                                        <!-- Render empty offset cells -->
+                                        <div v-for="n in yearData.firstDayOffset" :key="'offset-' + n" class="heatmap-cell empty-offset"></div>
+                                        <!-- Render actual day cells -->
+                                        <div v-for="(day, index) in yearData.days" 
+                                             :key="index" 
+                                             class="heatmap-cell"
+                                             :class="{ 'solved': day.isSolved }"
+                                             :title="day.isSolved ? 
+                                                        `Title: ${day.details.title || 'N/A'}\n Puzzle ID: ${day.details.id}\nPublished: ${day.details.formattedOriginalDate || day.details.id}\nAuthors: ${day.details.authors ? day.details.authors.join(', ') : 'N/A'}\nSolved: ${new Date(day.details.dateSolved).toLocaleDateString()} ${new Date(day.details.dateSolved).toLocaleTimeString()}` 
+                                                        : day.dateString">
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </template>
+                        <template v-else>
+                            <p>No activity to display in heatmap yet.</p>
+                        </template>
+                         <div class="heatmap-legend" v-if="Object.keys(yearlyHeatmapData).length > 0">
+                            Less <div class="heatmap-cell legend-sample-unsolved"></div>
+                            <div class="heatmap-cell legend-sample-solved"></div> More
+                        </div>
                     </div>
-                    <p v-if="Object.values(solvedPuzzlesList).every(list => list.length === 0)">You haven't solved any puzzles yet!</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Raw Data Modal -->
+        <div v-if="showRawDataModal" class="modal-overlay" @click.self="closeRawDataModal">
+            <div class="modal-content raw-data-modal-content">
+                <div class="modal-header">
+                    <h2>Raw Puzzle Data</h2>
+                    <button @click="closeRawDataModal" class="modal-close-button">&times;</button>
+                </div>
+                <div class="modal-body">
+                    <pre id="raw-data-display">[[ rawPuzzleDataString ]]</pre>
                 </div>
             </div>
         </div>
     </div>
 
-    <script src="{{ url_for('static', filename='main.js') }}"></script>
+    <script src="{{ url_for('static', filename='main.js') }}" type="module"></script>
 </body>
 
 </html>

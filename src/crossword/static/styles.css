@@ -12,6 +12,13 @@
     --incorrect-color: #cc0000;
     --correct-bg: rgba(46, 125, 50, 0.3);
     --incorrect-bg: rgba(255, 200, 200, 0.7);
+    --heatmap-cell-size: 12px;
+    --heatmap-gap: 2px;
+    --heatmap-day-label-width: 30px;
+    --heatmap-cell-eff-width: calc(var(--heatmap-cell-size) + var(--heatmap-gap));
+    --heatmap-grid-cols: 53;
+    --heatmap-grid-content-width: calc(var(--heatmap-grid-cols) * var(--heatmap-cell-eff-width));
+    --heatmap-year-content-width: calc(var(--heatmap-day-label-width) + var(--heatmap-grid-content-width) + 5px);
 }
 
 /* Reset body margins and set full viewport coverage */
@@ -44,7 +51,7 @@ body {
 }
 
 .center-column {
-    flex: 0 0 auto;
+    flex: 0 1 auto;
     display: flex;
     flex-direction: column;
     gap: 1rem;
@@ -264,7 +271,7 @@ body {
 
 /* Wrap each list in a container */
 .clue-column {
-    flex: 1;
+    flex: 1 1 40%;
     display: flex;
     flex-direction: column;
     height: 100vh;
@@ -421,6 +428,14 @@ input:checked + .slider:before {
     border-color: var(--correct-color);
 }
 
+.grid-cell input.revealed {
+    background-color: color-mix(in srgb, var(--cell-focus-bg) 70%, yellow);
+    color: color-mix(in srgb, var(--cell-text) 70%, navy);
+    font-weight: bold;
+    /* If you want to make it look obviously different from user input */
+    /* border: 2px dashed orange; */
+}
+
 .cache-count {
     font-size: 0.75em;  /* Slightly smaller font */
     color: #666;
@@ -483,12 +498,12 @@ input:checked + .slider:before {
 .modal-content {
     background-color: var(--cell-bg);
     color: var(--cell-text);
-    padding: 2rem;
+    padding: 1.5rem; /* Adjusted padding */
     border-radius: 8px;
     box-shadow: 0 5px 15px rgba(0,0,0,0.3);
-    width: 80%;
-    max-width: 600px;
-    max-height: 80vh;
+    width: 95vw;    /* Make it wider */
+    max-width: none;  /* Remove max-width if previously set */
+    height: 90vh;   /* Make it taller */
     display: flex;
     flex-direction: column;
 }
@@ -549,5 +564,241 @@ input:checked + .slider:before {
 }
 
 .modal-body p {
-    font-style: italic;
+    text-align: center;
+    color: #666;
+}
+
+/* Heatmap Styles */
+.heatmap-container {
+    margin-top: 2rem;
+    padding-top: 1rem;
+    border-top: 1px solid #eee;
+}
+
+.yearly-heatmap-section {
+    margin-bottom: 2rem; /* Space between yearly heatmaps */
+}
+
+.yearly-heatmap-section h4 {
+    text-align: center;
+    margin-bottom: 1rem;
+    font-size: 1.2rem;
+    color: var(--cell-text);
+}
+
+.heatmap-months {
+    display: grid;
+    /* We have 12 month labels. The grid below has ~53 columns (weeks). */
+    /* This will distribute the 12 labels across the available space. */
+    grid-template-columns: repeat(12, 1fr);
+    margin-left: 30px; /* Space for day labels */
+    margin-bottom: 0.25rem;
+    font-size: 0.7rem;
+    color: var(--cell-text);
+    /* width: calc(53 * (var(--heatmap-cell-size, 12px) + var(--heatmap-gap, 2px))); Remove fixed width to allow 1fr to work*/
+    padding-right: calc(var(--heatmap-cell-size, 12px) + var(--heatmap-gap, 2px)); /* Ensure it aligns with the grid below */
+}
+
+.heatmap-month-label {
+    text-align: left;
+    overflow: visible; /* Allow text to flow a bit if needed */
+    white-space: nowrap;
+    /* Each month label will take up its share of the 12 columns */
+    /* Roughly 53 weeks / 12 months = ~4.4 weeks per month label space */
+}
+
+.heatmap-body {
+    display: flex;
+}
+
+.heatmap-day-labels {
+    display: grid;
+    grid-template-rows: repeat(7, var(--heatmap-cell-size, 12px));
+    grid-auto-flow: row;
+    grid-gap: var(--heatmap-gap, 2px);
+    font-size: 0.7rem;
+    color: var(--cell-text);
+    margin-right: 5px;
+    flex-shrink: 0;
+}
+
+.heatmap-day-label {
+    line-height: var(--heatmap-cell-size, 12px);
+}
+/* Only show Mon, Wed, Fri labels by targeting specific rows (1st, 3rd, 5th visible day from Sunday) */
+.heatmap-day-label:nth-child(2), /* Mon */
+.heatmap-day-label:nth-child(4), /* Wed */
+.heatmap-day-label:nth-child(6)  /* Fri */
+{
+    visibility: visible;
+}
+.heatmap-day-label:nth-child(1),
+.heatmap-day-label:nth-child(3),
+.heatmap-day-label:nth-child(5),
+.heatmap-day-label:nth-child(7) {
+    visibility: hidden;
+}
+
+
+.heatmap-grid {
+    display: grid;
+    grid-template-rows: repeat(7, var(--heatmap-cell-size, 12px));
+    grid-auto-flow: column; /* This is key for the GitHub-style layout */
+    grid-gap: var(--heatmap-gap, 2px);
+}
+
+.heatmap-cell {
+    width: var(--heatmap-cell-size, 12px);
+    height: var(--heatmap-cell-size, 12px);
+    background-color: #ebedf0; /* Default GitHub-like color for empty/unsolved */
+    border-radius: 2px;
+}
+
+.heatmap-cell.solved {
+    background-color: #2e7d32; /* Green for solved */
+}
+
+.heatmap-cell.future {
+    background-color: #f8f9fa; /* Lighter for future dates, if any */
+    /* visibility: hidden; */ /* Optionally hide future cells */
+}
+
+.heatmap-cell.empty-offset {
+    background-color: transparent; /* Or a very light grey like #fdfdfd */
+    visibility: hidden; /* Make them take space but be invisible */
+}
+
+.heatmap-legend {
+    margin-top: 0.5rem;
+    font-size: 0.8rem;
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    color: var(--cell-text);
+}
+
+.heatmap-legend .heatmap-cell {
+    margin: 0 0.25rem;
+    display: inline-block; /* Allow legend cells to sit with text */
+}
+
+.legend-sample-unsolved {
+     background-color: #ebedf0;
+}
+.legend-sample-solved {
+    background-color: #2e7d32;
+}
+
+/* New container for the yearly heatmaps to enable multi-column layout */
+.heatmap-outer-container {
+    display: grid;
+    /* Each column should be able to fit one year's heatmap content + its padding */
+    /* Assuming .yearly-heatmap-section has 1rem (16px) padding on each side: total 32px horizontal padding */
+    grid-template-columns: repeat(auto-fit, minmax(calc(var(--heatmap-year-content-width) + 32px), 1fr));
+    gap: 2rem;
+    width: 100%;
+    padding: 1rem; /* Add some padding to the outer container */
+    box-sizing: border-box;
+}
+
+.yearly-heatmap-section {
+    padding: 1rem;
+    border: 1px solid var(--cell-border);
+    border-radius: 4px;
+    /* Ensure the section itself doesn't try to be wider than its defined content width */
+    width: var(--heatmap-year-content-width);
+    box-sizing: content-box; /* Padding & border are outside this width */
+    margin: 0 auto; /* Center if the grid column is wider */
+}
+
+.yearly-heatmap-section h4 {
+    text-align: center;
+    margin-bottom: 1rem;
+    font-size: 1.2rem;
+    color: var(--cell-text);
+}
+
+.heatmap-months {
+    display: grid;
+    grid-template-columns: repeat(12, 1fr);
+    /* This margin aligns month labels with the start of the day grid */
+    margin-left: calc(var(--heatmap-day-label-width) + 5px); 
+    /* The width should be that of the day grid itself */
+    width: var(--heatmap-grid-content-width);
+    box-sizing: border-box;
+    margin-bottom: 0.25rem;
+    font-size: 0.7rem;
+    color: var(--cell-text);
+}
+
+.heatmap-month-label {
+    text-align: left;
+    overflow: visible;
+    white-space: nowrap;
+}
+
+.heatmap-body {
+    display: flex;
+    /* This body should take up the full defined content width for a year */
+    width: var(--heatmap-year-content-width);
+    box-sizing: border-box;
+}
+
+.heatmap-day-labels {
+    width: var(--heatmap-day-label-width);
+    grid-template-rows: repeat(7, var(--heatmap-cell-size)); /* Use cell-size directly */
+    grid-auto-flow: row;
+    grid-gap: var(--heatmap-gap);
+    font-size: 0.7rem;
+    color: var(--cell-text);
+    margin-right: 5px;
+    flex-shrink: 0;
+    box-sizing: border-box;
+}
+
+.heatmap-day-label {
+    height: var(--heatmap-cell-size); /* Ensure height matches cells */
+    line-height: var(--heatmap-cell-size);
+}
+/* ... existing visibility rules for day labels ... */
+
+.heatmap-grid {
+    display: grid;
+    grid-template-rows: repeat(7, var(--heatmap-cell-size));
+    grid-auto-flow: column;
+    grid-gap: var(--heatmap-gap);
+    width: var(--heatmap-grid-content-width); /* Explicit width */
+    flex-shrink: 0;
+    box-sizing: border-box;
+    /* overflow-x: auto; /* Consider if still needed, explicit width should prevent overflow */
+}
+
+.utility-buttons {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.75rem; /* Same gap as main menu buttons */
+    justify-content: center;
+    margin-top: 0.5rem; /* Space above this row */
+    width: 100%; /* Allow buttons to center properly */
+}
+
+/* Styles for Raw Data Modal */
+.raw-data-modal-content {
+    width: 80vw; /* Or adjust as needed */
+    max-width: 1000px; /* Limit very large screens */
+    height: 70vh;
+}
+
+#raw-data-display {
+    font-family: monospace;
+    white-space: pre-wrap; /* Allows wrapping but preserves formatting */
+    word-break: break-all; /* Break long strings if necessary */
+    background-color: var(--cell-bg); /* Match theme */
+    color: var(--cell-text);
+    padding: 1rem;
+    border-radius: 4px;
+    border: 1px solid var(--cell-border);
+    height: 100%; /* Fill modal body */
+    overflow-y: auto; /* Scroll if content exceeds height */
+    box-sizing: border-box;
 }
