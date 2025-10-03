@@ -691,6 +691,160 @@ const CrosswordApp = {
             if (cleanupOccurred) {
                 this.updateSolvedCounts(); // Update counts if any legacy data was removed
             }
+        },
+        
+        // Export/Import functionality
+        exportUserData() {
+            try {
+                const exportData = {
+                    version: '1.0',
+                    exportDate: new Date().toISOString(),
+                    data: {}
+                };
+
+                // Export cached crosswords
+                const days = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday'];
+                days.forEach(day => {
+                    const cachedCrosswords = localStorage.getItem(`crosswords_${day}`);
+                    if (cachedCrosswords) {
+                        exportData.data[`crosswords_${day}`] = JSON.parse(cachedCrosswords);
+                    }
+                });
+
+                // Export solved puzzles
+                const allDays = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'];
+                allDays.forEach(day => {
+                    const solvedPuzzles = localStorage.getItem(`solved_${day}`);
+                    if (solvedPuzzles) {
+                        exportData.data[`solved_${day}`] = JSON.parse(solvedPuzzles);
+                    }
+                });
+
+                // Export theme preference
+                const colorScheme = document.documentElement.style.getPropertyValue('color-scheme');
+                if (colorScheme) {
+                    exportData.data.colorScheme = colorScheme;
+                }
+
+                // Create and download the file
+                const dataStr = JSON.stringify(exportData, null, 2);
+                const dataBlob = new Blob([dataStr], { type: 'application/json' });
+                const url = URL.createObjectURL(dataBlob);
+                
+                const link = document.createElement('a');
+                link.href = url;
+                link.download = `crossword-data-${new Date().toISOString().split('T')[0]}.json`;
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+                
+                URL.revokeObjectURL(url);
+                
+                alert('Your crossword data has been exported successfully!');
+            } catch (error) {
+                console.error('Error exporting data:', error);
+                alert('Error exporting data. Please try again.');
+            }
+        },
+        
+        importUserData() {
+            const input = document.createElement('input');
+            input.type = 'file';
+            input.accept = '.json';
+            
+            input.onchange = (event) => {
+                const file = event.target.files[0];
+                if (!file) return;
+                
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                    try {
+                        const importData = JSON.parse(e.target.result);
+                        
+                        // Validate the import format
+                        if (!importData.version || !importData.data) {
+                            throw new Error('Invalid file format');
+                        }
+                        
+                        // Confirm import with user
+                        const confirmMessage = `This will replace your current data with data from ${importData.exportDate ? new Date(importData.exportDate).toLocaleDateString() : 'unknown date'}. Are you sure you want to continue?`;
+                        if (!confirm(confirmMessage)) {
+                            return;
+                        }
+                        
+                        // Import the data
+                        Object.keys(importData.data).forEach(key => {
+                            if (key === 'colorScheme') {
+                                // Handle theme preference
+                                document.documentElement.style.setProperty('color-scheme', importData.data[key]);
+                                this.isDarkMode = importData.data[key] === 'dark';
+                            } else {
+                                // Handle localStorage data
+                                localStorage.setItem(key, JSON.stringify(importData.data[key]));
+                            }
+                        });
+                        
+                        // Update counts and UI
+                        this.updateCachedCounts();
+                        this.updateSolvedCounts();
+                        
+                        alert('Your data has been imported successfully!');
+                        
+                        // Optionally reload the current puzzle to reflect any changes
+                        if (this.crossword.length > 0) {
+                            location.reload();
+                        }
+                        
+                    } catch (error) {
+                        console.error('Error importing data:', error);
+                        alert('Error importing data. Please check that you selected a valid crossword export file.');
+                    }
+                };
+                reader.readAsText(file);
+            };
+            
+            input.click();
+        },
+        
+        clearAllData() {
+            const confirmMessage = 'This will permanently delete all your cached puzzles, solved puzzle history, and reset your settings. This action cannot be undone. Are you sure you want to continue?';
+            if (!confirm(confirmMessage)) {
+                return;
+            }
+            
+            const secondConfirm = 'Are you absolutely sure? This will erase everything and cannot be undone.';
+            if (!confirm(secondConfirm)) {
+                return;
+            }
+            
+            try {
+                // Clear all crossword-related localStorage
+                const days = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'];
+                days.forEach(day => {
+                    localStorage.removeItem(`crosswords_${day}`);
+                    localStorage.removeItem(`solved_${day}`);
+                });
+                
+                // Reset theme to default
+                document.documentElement.style.setProperty('color-scheme', 'light');
+                this.isDarkMode = false;
+                
+                // Update counts
+                this.updateCachedCounts();
+                this.updateSolvedCounts();
+                
+                // Clear current puzzle
+                this.crossword = [];
+                this.grid = [];
+                this.completedWords.clear();
+                this.currentPuzzleMetadata = null;
+                
+                alert('All data has been cleared successfully.');
+                
+            } catch (error) {
+                console.error('Error clearing data:', error);
+                alert('Error clearing data. Please try again.');
+            }
         }
     }
 };

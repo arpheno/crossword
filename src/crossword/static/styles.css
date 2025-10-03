@@ -462,10 +462,6 @@ input:checked + .slider:before {
 }
 
 /* New Modal Styles */
-#overview-button {
-    /* Style like other menu buttons, or add specific styling */
-    /* Re-using existing button styles from #menu button */
-}
 
 .modal-overlay {
     position: fixed;
@@ -594,8 +590,7 @@ input:checked + .slider:before {
 
 /* Dark Mode Styles (when checkbox is checked) */
 .switch input:checked + .theme-icon .sun-disc {
-    /* No scaling, or very minimal if needed. Defaulting to no scale. */
-    /* transform: scale(1); */ 
+    /* No scaling needed for dark mode */
 }
 
 .switch input:checked + .theme-icon .mask-circle {
@@ -627,4 +622,76 @@ input:checked + .slider:before {
     clip: rect(0, 0, 0, 0);
     white-space: nowrap;
     border-width: 0;
+}
+
+/* Data Management Buttons */
+.data-management-buttons {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    justify-content: center;
+    margin: 0.5rem 0;
+    align-items: center;
+}
+
+.data-management-buttons button {
+    font-size: 0.85rem;
+    padding: 0.4rem 0.8rem;
+    border-radius: 4px;
+    border: 2px solid var(--cell-border);
+    background-color: var(--cell-bg);
+    color: var(--cell-text);
+    cursor: pointer;
+    font-weight: bold;
+    transition: all 0.2s ease;
+    min-width: fit-content;
+}
+
+.data-management-buttons button:hover {
+    background-color: var(--cell-focus-bg);
+    transform: translateY(-1px);
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+#export-button {
+    background-color: #4caf50;
+    border-color: #45a049;
+    color: white;
+}
+
+#export-button:hover {
+    background-color: #45a049;
+}
+
+#import-button {
+    background-color: #2196f3;
+    border-color: #1976d2;
+    color: white;
+}
+
+#import-button:hover {
+    background-color: #1976d2;
+}
+
+.danger-button {
+    background-color: #f44336 !important;
+    border-color: #d32f2f !important;
+    color: white !important;
+}
+
+.danger-button:hover {
+    background-color: #d32f2f !important;
+}
+
+/* Responsive adjustments for smaller screens */
+@media (max-width: 768px) {
+    .data-management-buttons {
+        flex-direction: column;
+        gap: 0.3rem;
+    }
+    
+    .data-management-buttons button {
+        width: 100%;
+        max-width: 200px;
+    }
 }
