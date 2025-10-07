@@ -61,31 +61,33 @@
                     </div>
                 </div>
                 <div id="menu">
-                    <button @click="check_all()" id="check-all">Check all</button>
-                    <div class="weekday-buttons">
-                        <button @click="handleWeekdayClick('monday')" id="monday">
-                            Mon
-                            <span class="cache-count" v-if="cachedCrosswordsCount.monday > 0">([[cachedCrosswordsCount.monday]])</span>
-                        </button>
-                        <button @click="handleWeekdayClick('tuesday')" id="tuesday">
-                            Tue
-                            <span class="cache-count" v-if="cachedCrosswordsCount.tuesday > 0">([[cachedCrosswordsCount.tuesday]])</span>
-                        </button>
-                        <button @click="handleWeekdayClick('wednesday')" id="wednesday">
-                            Wed
-                            <span class="cache-count" v-if="cachedCrosswordsCount.wednesday > 0">([[cachedCrosswordsCount.wednesday]])</span>
-                        </button>
-                        <button @click="handleWeekdayClick('thursday')" id="thursday">
-                            Thu
-                            <span class="cache-count" v-if="cachedCrosswordsCount.thursday > 0">([[cachedCrosswordsCount.thursday]])</span>
-                        </button>
-                        <button @click="handleWeekdayClick('friday')" id="friday">
-                            Fri
-                            <span class="cache-count" v-if="cachedCrosswordsCount.friday > 0">([[cachedCrosswordsCount.friday]])</span>
-                        </button>
+                    <div class="menu-row">
+                        <button @click="check_all()" id="check-all">Check all</button>
+                        <div class="weekday-buttons">
+                            <button @click="handleWeekdayClick('monday')" id="monday">
+                                Mon
+                                <span class="cache-count" v-if="cachedCrosswordsCount.monday > 0">([[cachedCrosswordsCount.monday]])</span>
+                            </button>
+                            <button @click="handleWeekdayClick('tuesday')" id="tuesday">
+                                Tue
+                                <span class="cache-count" v-if="cachedCrosswordsCount.tuesday > 0">([[cachedCrosswordsCount.tuesday]])</span>
+                            </button>
+                            <button @click="handleWeekdayClick('wednesday')" id="wednesday">
+                                Wed
+                                <span class="cache-count" v-if="cachedCrosswordsCount.wednesday > 0">([[cachedCrosswordsCount.wednesday]])</span>
+                            </button>
+                            <button @click="handleWeekdayClick('thursday')" id="thursday">
+                                Thu
+                                <span class="cache-count" v-if="cachedCrosswordsCount.thursday > 0">([[cachedCrosswordsCount.thursday]])</span>
+                            </button>
+                            <button @click="handleWeekdayClick('friday')" id="friday">
+                                Fri
+                                <span class="cache-count" v-if="cachedCrosswordsCount.friday > 0">([[cachedCrosswordsCount.friday]])</span>
+                            </button>
+                        </div>
+                        <button @click="openSolvedModal()" id="overview-button">Overview</button>
                     </div>
-                    <button @click="openSolvedModal()" id="overview-button">Overview</button>
-                    <div class="data-management-buttons">
+                    <div class="menu-row data-management-buttons">
                         <button @click="exportUserData()" id="export-button" title="Export your data to transfer to another device">Export Data</button>
                         <button @click="importUserData()" id="import-button" title="Import data from another device">Import Data</button>
                         <button @click="clearAllData()" id="clear-button" title="Clear all saved data" class="danger-button">Clear All Data</button>

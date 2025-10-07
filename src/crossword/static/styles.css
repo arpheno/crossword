@@ -62,12 +62,20 @@ body {
 
 #menu {
     display: flex;
-    flex-wrap: wrap;
-    gap: 0.75rem;
+    flex-direction: column;
+    gap: 0.4rem;
     justify-content: center;
-    padding: 0.75rem;
+    padding: 0.5rem;
     max-width: fit-content;
     align-items: center;
+}
+
+.menu-row {
+    display: flex;
+    flex-wrap: nowrap;
+    gap: 0.4rem;
+    align-items: center;
+    justify-content: center;
 }
 
 #menu button {
@@ -450,10 +458,10 @@ input:checked + .slider:before {
 
 .weekday-buttons {
     display: flex;
-    flex-wrap: wrap;
-    gap: 4px;  /* Reduced gap */
+    flex-wrap: nowrap;
+    gap: 4px;
     justify-content: center;
-    margin: 8px 0;  /* Slightly reduced margin */
+    margin: 0;
 }
 
 #menu button {
@@ -589,9 +597,6 @@ input:checked + .slider:before {
 }
 
 /* Dark Mode Styles (when checkbox is checked) */
-.switch input:checked + .theme-icon .sun-disc {
-    /* No scaling needed for dark mode */
-}
 
 .switch input:checked + .theme-icon .mask-circle {
     /* Sun disc is at cx=12, r=8. Mask circle starts at cx=25, r=8.
@@ -627,22 +632,22 @@ input:checked + .slider:before {
 /* Data Management Buttons */
 .data-management-buttons {
     display: flex;
-    flex-wrap: wrap;
-    gap: 0.5rem;
+    flex-wrap: nowrap;
+    gap: 0.3rem;
     justify-content: center;
-    margin: 0.5rem 0;
+    margin: 0;
     align-items: center;
 }
 
 .data-management-buttons button {
-    font-size: 0.85rem;
-    padding: 0.4rem 0.8rem;
-    border-radius: 4px;
-    border: 2px solid var(--cell-border);
+    font-size: 0.75rem;
+    padding: 0.3rem 0.5rem;
+    border-radius: 3px;
+    border: 1px solid var(--cell-border);
     background-color: var(--cell-bg);
     color: var(--cell-text);
     cursor: pointer;
-    font-weight: bold;
+    font-weight: 600;
     transition: all 0.2s ease;
     min-width: fit-content;
 }
@@ -657,6 +662,7 @@ input:checked + .slider:before {
     background-color: #4caf50;
     border-color: #45a049;
     color: white;
+    font-size: 0.7rem;
 }
 
 #export-button:hover {
@@ -667,6 +673,7 @@ input:checked + .slider:before {
     background-color: #2196f3;
     border-color: #1976d2;
     color: white;
+    font-size: 0.7rem;
 }
 
 #import-button:hover {
@@ -677,6 +684,7 @@ input:checked + .slider:before {
     background-color: #f44336 !important;
     border-color: #d32f2f !important;
     color: white !important;
+    font-size: 0.7rem !important;
 }
 
 .danger-button:hover {
