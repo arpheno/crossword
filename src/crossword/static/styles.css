@@ -62,12 +62,20 @@ body {
 
 #menu {
     display: flex;
-    flex-wrap: wrap;
-    gap: 0.75rem;
+    flex-direction: column;
+    gap: 0.4rem;
     justify-content: center;
-    padding: 0.75rem;
+    padding: 0.5rem;
     max-width: fit-content;
     align-items: center;
+}
+
+.menu-row {
+    display: flex;
+    flex-wrap: nowrap;
+    gap: 0.4rem;
+    align-items: center;
+    justify-content: center;
 }
 
 #menu button {
@@ -450,10 +458,10 @@ input:checked + .slider:before {
 
 .weekday-buttons {
     display: flex;
-    flex-wrap: wrap;
-    gap: 4px;  /* Reduced gap */
+    flex-wrap: nowrap;
+    gap: 4px;
     justify-content: center;
-    margin: 8px 0;  /* Slightly reduced margin */
+    margin: 0;
 }
 
 #menu button {
@@ -462,10 +470,6 @@ input:checked + .slider:before {
 }
 
 /* New Modal Styles */
-#overview-button {
-    /* Style like other menu buttons, or add specific styling */
-    /* Re-using existing button styles from #menu button */
-}
 
 .modal-overlay {
     position: fixed;
@@ -593,10 +597,6 @@ input:checked + .slider:before {
 }
 
 /* Dark Mode Styles (when checkbox is checked) */
-.switch input:checked + .theme-icon .sun-disc {
-    /* No scaling, or very minimal if needed. Defaulting to no scale. */
-    /* transform: scale(1); */ 
-}
 
 .switch input:checked + .theme-icon .mask-circle {
     /* Sun disc is at cx=12, r=8. Mask circle starts at cx=25, r=8.
@@ -627,4 +627,79 @@ input:checked + .slider:before {
     clip: rect(0, 0, 0, 0);
     white-space: nowrap;
     border-width: 0;
+}
+
+/* Data Management Buttons */
+.data-management-buttons {
+    display: flex;
+    flex-wrap: nowrap;
+    gap: 0.3rem;
+    justify-content: center;
+    margin: 0;
+    align-items: center;
+}
+
+.data-management-buttons button {
+    font-size: 0.75rem;
+    padding: 0.3rem 0.5rem;
+    border-radius: 3px;
+    border: 1px solid var(--cell-border);
+    background-color: var(--cell-bg);
+    color: var(--cell-text);
+    cursor: pointer;
+    font-weight: 600;
+    transition: all 0.2s ease;
+    min-width: fit-content;
+}
+
+.data-management-buttons button:hover {
+    background-color: var(--cell-focus-bg);
+    transform: translateY(-1px);
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+#export-button {
+    background-color: #4caf50;
+    border-color: #45a049;
+    color: white;
+    font-size: 0.7rem;
+}
+
+#export-button:hover {
+    background-color: #45a049;
+}
+
+#import-button {
+    background-color: #2196f3;
+    border-color: #1976d2;
+    color: white;
+    font-size: 0.7rem;
+}
+
+#import-button:hover {
+    background-color: #1976d2;
+}
+
+.danger-button {
+    background-color: #f44336 !important;
+    border-color: #d32f2f !important;
+    color: white !important;
+    font-size: 0.7rem !important;
+}
+
+.danger-button:hover {
+    background-color: #d32f2f !important;
+}
+
+/* Responsive adjustments for smaller screens */
+@media (max-width: 768px) {
+    .data-management-buttons {
+        flex-direction: column;
+        gap: 0.3rem;
+    }
+    
+    .data-management-buttons button {
+        width: 100%;
+        max-width: 200px;
+    }
 }
