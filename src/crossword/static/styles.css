@@ -6,8 +6,8 @@
     --cell-bg: color-mix(in srgb, Canvas 95%, currentColor);
     --cell-focus-bg: color-mix(in srgb, Canvas 85%, currentColor);
     --cell-text: currentColor;
-    --font-system: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', 
-                   Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+    --font-system: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI',
+        Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
     --correct-color: #2e7d32;
     --incorrect-color: #cc0000;
     --correct-bg: rgba(46, 125, 50, 0.3);
@@ -20,7 +20,8 @@ body {
     padding: 0;
     min-height: 100vh;
     min-width: 100vw;
-    overflow-x: hidden;  /* Prevent horizontal scrolling */
+    overflow-x: hidden;
+    /* Prevent horizontal scrolling */
     font-family: var(--font-system);
 }
 
@@ -40,7 +41,8 @@ body {
     margin: 0;
     min-height: 100vh;
     width: 100vw;
-    overflow: hidden;  /* Prevent overflow */
+    overflow: hidden;
+    /* Prevent overflow */
 }
 
 .center-column {
@@ -96,14 +98,22 @@ body {
 }
 
 /* Remove all the weekday-specific styles */
-#monday, #tuesday, #wednesday, #thursday, #friday {
+#monday,
+#tuesday,
+#wednesday,
+#thursday,
+#friday {
     /* Use the same style as other buttons */
     background-color: var(--cell-bg);
     border-color: var(--cell-border);
     color: var(--cell-text);
 }
 
-#monday:hover, #tuesday:hover, #wednesday:hover, #thursday:hover, #friday:hover {
+#monday:hover,
+#tuesday:hover,
+#wednesday:hover,
+#thursday:hover,
+#friday:hover {
     background-color: var(--cell-focus-bg);
 }
 
@@ -119,17 +129,24 @@ body {
 
 #menu button {
     font-size: 0.9rem;
-    padding: 0.5rem 1rem;  /* Made slightly larger */
-    border-radius: 6px;    /* More rounded corners */
-    border: 2px solid;     /* Slightly thicker border */
+    padding: 0.5rem 1rem;
+    /* Made slightly larger */
+    border-radius: 6px;
+    /* More rounded corners */
+    border: 2px solid;
+    /* Slightly thicker border */
     cursor: pointer;
-    font-weight: bold;     /* Make text bold */
-    transition: all 0.2s ease; /* Smooth transition for hover effects */
+    font-weight: bold;
+    /* Make text bold */
+    transition: all 0.2s ease;
+    /* Smooth transition for hover effects */
 }
 
 #menu button:hover {
-    transform: translateY(-1px); /* Slight lift effect on hover */
-    box-shadow: 0 2px 4px rgba(0,0,0,0.1); /* Add shadow on hover */
+    transform: translateY(-1px);
+    /* Slight lift effect on hover */
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    /* Add shadow on hover */
 }
 
 .grid {
@@ -201,7 +218,8 @@ body {
     height: 100%;
 }
 
-#across, #down {
+#across,
+#down {
     flex: 1;
     margin: 0;
     padding: 0;
@@ -230,7 +248,8 @@ body {
 }
 
 /* Style for the clue list items */
-#across li, #down li {
+#across li,
+#down li {
     display: flex;
     flex-direction: row;
     flex-wrap: wrap;
@@ -243,14 +262,16 @@ body {
 }
 
 /* Style for the clue text */
-#across li span:first-child, #down li span:first-child {
+#across li span:first-child,
+#down li span:first-child {
     margin-bottom: 0;
     flex: 1 1;
     font-weight: 450;
 }
 
 /* Container for the state boxes */
-#across li > span:not(:first-child), #down li > span:not(:first-child) {
+#across li>span:not(:first-child),
+#down li>span:not(:first-child) {
     display: inline-flex;
     flex-wrap: nowrap;
     align-items: center;
@@ -260,13 +281,15 @@ body {
 }
 
 /* Add hover effect for clues */
-#across li:hover, #down li:hover {
+#across li:hover,
+#down li:hover {
     background-color: var(--cell-focus-bg);
     border-radius: 4px;
 }
 
 /* Style for clue headers */
-#hint-container h2, .clue-column h2 {
+#hint-container h2,
+.clue-column h2 {
     display: none;
 }
 
@@ -284,16 +307,19 @@ body {
 }
 
 /* Add scrollbar styling for a cleaner look */
-#across, #down {
+#across,
+#down {
     scrollbar-width: thin;
     scrollbar-color: var(--cell-border) transparent;
 }
 
-#across::-webkit-scrollbar, #down::-webkit-scrollbar {
+#across::-webkit-scrollbar,
+#down::-webkit-scrollbar {
     width: 6px;
 }
 
-#across::-webkit-scrollbar-thumb, #down::-webkit-scrollbar-thumb {
+#across::-webkit-scrollbar-thumb,
+#down::-webkit-scrollbar-thumb {
     background-color: var(--cell-border);
     border-radius: 3px;
 }
@@ -333,8 +359,10 @@ body {
 /* Revise background labels */
 .clue-column::before {
     content: attr(data-label);
-    position: sticky;  /* Change back to absolute */
-    inset: 0;           /* Cover the entire column */
+    position: sticky;
+    /* Change back to absolute */
+    inset: 0;
+    /* Cover the entire column */
     display: flex;
     align-items: center;
     justify-content: center;
@@ -351,9 +379,12 @@ body {
     text-orientation: mixed;
     transform: rotate(180deg);
 }
+
 .clue-column
+
 /* Ensure content stays above the background */
-#across, #down {
+#across,
+#down {
     position: absolute;
     z-index: 1;
 }
@@ -400,11 +431,11 @@ body {
     transition: 0.4s;
 }
 
-input:checked + .slider {
+input:checked+.slider {
     background-color: var(--cell-text);
 }
 
-input:checked + .slider:before {
+input:checked+.slider:before {
     transform: translateX(1.2rem);
     background-color: var(--cell-bg);
 }
@@ -430,9 +461,11 @@ input:checked + .slider:before {
 }
 
 .cache-count {
-    font-size: 0.75em;  /* Slightly smaller font */
+    font-size: 0.75em;
+    /* Slightly smaller font */
     color: #666;
-    margin-left: 2px;  /* Reduced margin */
+    margin-left: 2px;
+    /* Reduced margin */
 }
 
 .status-indicators {
@@ -441,6 +474,7 @@ input:checked + .slider:before {
     align-items: center;
     margin: 10px 0;
     font-size: 0.9em;
+    gap: 5px;
 }
 
 .offline-indicator {
@@ -448,7 +482,27 @@ input:checked + .slider:before {
     color: white;
     padding: 4px 8px;
     border-radius: 4px;
-    margin-bottom: 5px;
+}
+
+.score-display {
+    background-color: #4CAF50;
+    color: white;
+    padding: 6px 12px;
+    border-radius: 4px;
+    font-weight: bold;
+    min-width: 100px;
+    text-align: center;
+}
+
+.timer-display {
+    background-color: #2196F3;
+    color: white;
+    padding: 6px 12px;
+    border-radius: 4px;
+    font-weight: bold;
+    font-family: monospace;
+    min-width: 100px;
+    text-align: center;
 }
 
 .cache-status {
@@ -481,7 +535,8 @@ input:checked + .slider:before {
     display: flex;
     align-items: center;
     justify-content: center;
-    z-index: 1000; /* Ensure it's on top */
+    z-index: 1000;
+    /* Ensure it's on top */
 }
 
 .modal-content {
@@ -489,7 +544,7 @@ input:checked + .slider:before {
     color: var(--cell-text);
     padding: 2rem;
     border-radius: 8px;
-    box-shadow: 0 5px 15px rgba(0,0,0,0.3);
+    box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
     width: 80%;
     max-width: 600px;
     max-height: 80vh;
@@ -526,7 +581,8 @@ input:checked + .slider:before {
 }
 
 .modal-body {
-    overflow-y: auto; /* Scroll for long lists */
+    overflow-y: auto;
+    /* Scroll for long lists */
     flex-grow: 1;
 }
 
@@ -560,32 +616,40 @@ input:checked + .slider:before {
 .theme-switch .switch {
     /* Adjust label styles if needed, remove padding if only icon */
     padding: 0;
-    display: inline-flex; /* Align items horizontally */
-    align-items: center; /* Center vertically */
-    gap: 0; /* Remove gap if label text is gone */
+    display: inline-flex;
+    /* Align items horizontally */
+    align-items: center;
+    /* Center vertically */
+    gap: 0;
+    /* Remove gap if label text is gone */
 }
 
 .theme-icon {
-    width: 1.5rem; /* Match height/width */
+    width: 1.5rem;
+    /* Match height/width */
     height: 1.5rem;
     stroke-linecap: round;
     stroke-linejoin: round;
     stroke-width: 2;
-    color: var(--cell-text); /* Use text color */
+    color: var(--cell-text);
+    /* Use text color */
     opacity: 0.8;
-    transition: transform 0.5s cubic-bezier(0.68, -0.6, 0.32, 1.6); /* Fun transition for overall icon */
+    transition: transform 0.5s cubic-bezier(0.68, -0.6, 0.32, 1.6);
+    /* Fun transition for overall icon */
 }
 
 .theme-icon:hover {
     opacity: 1;
 }
 
-.theme-icon .sun-disc { /* Updated class name */
+.theme-icon .sun-disc {
+    /* Updated class name */
     fill: currentColor;
     transition: transform 0.5s cubic-bezier(0.68, -0.6, 0.32, 1.6);
 }
 
-.theme-icon .mask-circle { /* New class for the mask's circle */
+.theme-icon .mask-circle {
+    /* New class for the mask's circle */
     /* Initial position is cx=25 as per SVG. No transform needed for light mode. */
     transition: transform 0.5s cubic-bezier(0.68, -0.6, 0.32, 1.6);
 }
@@ -593,25 +657,29 @@ input:checked + .slider:before {
 .theme-icon .sun-beams {
     transform-origin: center center;
     transition: transform 0.5s cubic-bezier(0.68, -0.6, 0.32, 1.6), opacity 0.5s ease;
-    opacity: 1; /* Ensure sun-beams are visible in light mode */
+    opacity: 1;
+    /* Ensure sun-beams are visible in light mode */
 }
 
 /* Dark Mode Styles (when checkbox is checked) */
 
-.switch input:checked + .theme-icon .mask-circle {
+.switch input:checked+.theme-icon .mask-circle {
     /* Sun disc is at cx=12, r=8. Mask circle starts at cx=25, r=8.
        To make a crescent, move the mask circle from cx=25 to cx=6.
        This is a change of -19px in X for the transform. */
     transform: translateX(-19px);
 }
 
-.switch input:checked + .theme-icon .sun-beams {
-    transform: rotate(-90deg); /* Keeps the spinning effect */
-    opacity: 0; /* Fade out sun-beams in dark mode */
+.switch input:checked+.theme-icon .sun-beams {
+    transform: rotate(-90deg);
+    /* Keeps the spinning effect */
+    opacity: 0;
+    /* Fade out sun-beams in dark mode */
 }
 
-.switch input:checked + .theme-icon {
-    transform: rotate(360deg); /* Overall icon rotation for effect */
+.switch input:checked+.theme-icon {
+    transform: rotate(360deg);
+    /* Overall icon rotation for effect */
 }
 
 /* Hide the actual checkbox */
@@ -655,7 +723,7 @@ input:checked + .slider:before {
 .data-management-buttons button:hover {
     background-color: var(--cell-focus-bg);
     transform: translateY(-1px);
-    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
 }
 
 #export-button {
@@ -697,9 +765,21 @@ input:checked + .slider:before {
         flex-direction: column;
         gap: 0.3rem;
     }
-    
+
     .data-management-buttons button {
         width: 100%;
         max-width: 200px;
     }
+}
+
+/* Fireworks Canvas */
+#fireworks-canvas {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    pointer-events: none;
+    z-index: 9999;
+    background: transparent;
 }

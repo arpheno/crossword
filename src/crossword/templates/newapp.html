@@ -19,10 +19,7 @@
                     <li v-for="word in crossword" v-if="word.direction === 'across' && !completedWords.has(word.clue)">
                         <span @click="handle_clue_click($event,word)">[[ word.index ]]. [[ word.clue ]]</span>
                         <div class="state-container">
-                            <span v-for="(char, index) in getCurrentAnswer(word)" 
-                                  :key="index"
-                                  class="state"
-                                  :class="{
+                            <span v-for="(char, index) in getCurrentAnswer(word)" :key="index" class="state" :class="{
                                       'red': isChecking && char.toLowerCase() !== word.answer[index].toLowerCase() && char !== ' ',
                                       'green': isChecking && char.toLowerCase() === word.answer[index].toLowerCase() && char !== ' '
                                   }">[[char]]</span>
@@ -30,31 +27,27 @@
                     </li>
                 </ul>
             </div>
-            
+
             <div class="center-column">
                 <div id="crossword-container">
                     <div class="grid" :style="{
                         'grid-template-rows': `repeat(${grid.length}, var(--cell-size))`
                     }">
-                        <div class="grid-row" v-for="(row, rowIndex) in grid" :key="rowIndex" 
-                             :style="{
+                        <div class="grid-row" v-for="(row, rowIndex) in grid" :key="rowIndex" :style="{
                                  'grid-template-columns': `repeat(${row.length}, var(--cell-size))`
                              }">
-                            <div v-for="(cell, cellIndex) in row" :key="cellIndex" 
-                                 class="grid-cell"
-                                 :class="{'black-cell': cell === null}">
-                                <span class="clue-index" v-if="find_index(rowIndex, cellIndex)">[[find_index(rowIndex, cellIndex)]]</span>
+                            <div v-for="(cell, cellIndex) in row" :key="cellIndex" class="grid-cell"
+                                :class="{'black-cell': cell === null}">
+                                <span class="clue-index" v-if="find_index(rowIndex, cellIndex)">[[find_index(rowIndex,
+                                    cellIndex)]]</span>
                                 <template v-if="cell !== null">
-                                    <input ref="inputCells" 
-                                           :ref="'input-' + rowIndex + '-' + cellIndex"
-                                           type="text" 
-                                           maxlength="1" 
-                                           v-model="grid[rowIndex][cellIndex]"
-                                           @keydown="handle_crossword_cell_keydown($event, rowIndex, cellIndex)"
-                                           :data-row="rowIndex" 
-                                           :data-cell="cellIndex"
-                                           :data-solution="find_solution(rowIndex,cellIndex)"
-                                           :aria-label="'grid cell ' + rowIndex + '-' + cellIndex">
+                                    <input ref="inputCells" :ref="'input-' + rowIndex + '-' + cellIndex" type="text"
+                                        maxlength="1" v-model="grid[rowIndex][cellIndex]"
+                                        @keydown="handle_crossword_cell_keydown($event, rowIndex, cellIndex)"
+                                        @contextmenu="handle_crossword_cell_contextmenu($event, rowIndex, cellIndex)"
+                                        :data-row="rowIndex" :data-cell="cellIndex"
+                                        :data-solution="find_solution(rowIndex,cellIndex)"
+                                        :aria-label="'grid cell ' + rowIndex + '-' + cellIndex">
                                 </template>
                             </div>
                         </div>
@@ -66,46 +59,58 @@
                         <div class="weekday-buttons">
                             <button @click="handleWeekdayClick('monday')" id="monday">
                                 Mon
-                                <span class="cache-count" v-if="cachedCrosswordsCount.monday > 0">([[cachedCrosswordsCount.monday]])</span>
+                                <span class="cache-count"
+                                    v-if="cachedCrosswordsCount.monday > 0">([[cachedCrosswordsCount.monday]])</span>
                             </button>
                             <button @click="handleWeekdayClick('tuesday')" id="tuesday">
                                 Tue
-                                <span class="cache-count" v-if="cachedCrosswordsCount.tuesday > 0">([[cachedCrosswordsCount.tuesday]])</span>
+                                <span class="cache-count"
+                                    v-if="cachedCrosswordsCount.tuesday > 0">([[cachedCrosswordsCount.tuesday]])</span>
                             </button>
                             <button @click="handleWeekdayClick('wednesday')" id="wednesday">
                                 Wed
-                                <span class="cache-count" v-if="cachedCrosswordsCount.wednesday > 0">([[cachedCrosswordsCount.wednesday]])</span>
+                                <span class="cache-count"
+                                    v-if="cachedCrosswordsCount.wednesday > 0">([[cachedCrosswordsCount.wednesday]])</span>
                             </button>
                             <button @click="handleWeekdayClick('thursday')" id="thursday">
                                 Thu
-                                <span class="cache-count" v-if="cachedCrosswordsCount.thursday > 0">([[cachedCrosswordsCount.thursday]])</span>
+                                <span class="cache-count"
+                                    v-if="cachedCrosswordsCount.thursday > 0">([[cachedCrosswordsCount.thursday]])</span>
                             </button>
                             <button @click="handleWeekdayClick('friday')" id="friday">
                                 Fri
-                                <span class="cache-count" v-if="cachedCrosswordsCount.friday > 0">([[cachedCrosswordsCount.friday]])</span>
+                                <span class="cache-count"
+                                    v-if="cachedCrosswordsCount.friday > 0">([[cachedCrosswordsCount.friday]])</span>
                             </button>
                         </div>
                         <button @click="openSolvedModal()" id="overview-button">Overview</button>
                     </div>
                     <div class="menu-row data-management-buttons">
-                        <button @click="exportUserData()" id="export-button" title="Export your data to transfer to another device">Export Data</button>
-                        <button @click="importUserData()" id="import-button" title="Import data from another device">Import Data</button>
-                        <button @click="clearAllData()" id="clear-button" title="Clear all saved data" class="danger-button">Clear All Data</button>
+                        <button @click="exportUserData()" id="export-button"
+                            title="Export your data to transfer to another device">Export Data</button>
+                        <button @click="importUserData()" id="import-button"
+                            title="Import data from another device">Import Data</button>
+                        <button @click="clearAllData()" id="clear-button" title="Clear all saved data"
+                            class="danger-button">Clear All Data</button>
                     </div>
                     <div class="status-indicators">
                         <div class="offline-indicator" v-if="isOffline">Offline Mode</div>
+                        <div class="score-display">Score: [[score]]</div>
+                        <div class="timer-display">Time: [[formatTime(timer)]]</div>
                     </div>
                     <div class="theme-switch">
                         <label class="switch">
-                            <input type="checkbox" v-model="isDarkMode" @change="toggle_night_mode" aria-label="Toggle dark mode">
+                            <input type="checkbox" v-model="isDarkMode" @change="toggle_night_mode"
+                                aria-label="Toggle dark mode">
                             <svg class="theme-icon" aria-hidden="true" width="24" height="24" viewBox="0 0 24 24">
                                 <mask id="moon-mask">
-                                    <rect x="0" y="0" width="100%" height="100%" fill="white"/>
+                                    <rect x="0" y="0" width="100%" height="100%" fill="white" />
                                     <!-- Mask circle initially positioned off-screen (cx=25) -->
-                                    <circle class="mask-circle" cx="25" cy="12" r="8" fill="black"/>
+                                    <circle class="mask-circle" cx="25" cy="12" r="8" fill="black" />
                                 </mask>
                                 <!-- Sun disc (r=8), masked -->
-                                <circle class="sun-disc" cx="12" cy="12" r="8" mask="url(#moon-mask)" fill="currentColor"/>
+                                <circle class="sun-disc" cx="12" cy="12" r="8" mask="url(#moon-mask)"
+                                    fill="currentColor" />
                                 <!-- Sun beams (unchanged) -->
                                 <g class="sun-beams" stroke="currentColor">
                                     <line x1="12" y1="1" x2="12" y2="3" />
@@ -122,16 +127,14 @@
                     </div>
                 </div>
             </div>
-            
+
             <div class="clue-column" data-label="DOWN">
                 <ul id="down">
-                    <li v-for="word in crossword" :key="word" v-if="word.direction ==='down' && !completedWords.has(word.clue)">
+                    <li v-for="word in crossword" :key="word"
+                        v-if="word.direction ==='down' && !completedWords.has(word.clue)">
                         <span @click="handle_clue_click($event,word)">[[ word.index ]]. [[ word.clue ]]</span>
                         <div class="state-container">
-                            <span v-for="(char, index) in getCurrentAnswer(word)" 
-                                  :key="index"
-                                  class="state"
-                                  :class="{
+                            <span v-for="(char, index) in getCurrentAnswer(word)" :key="index" class="state" :class="{
                                       'red': isChecking && char.toLowerCase() !== word.answer[index].toLowerCase() && char !== ' ',
                                       'green': isChecking && char.toLowerCase() === word.answer[index].toLowerCase() && char !== ' '
                                   }">[[char]]</span>
@@ -152,24 +155,32 @@
                     <div v-for="(solvedEntries, dayKey) in solvedPuzzlesList" :key="dayKey" class="solved-day-section">
                         <h3 v-if="solvedEntries.length > 0">[[ dayKey.charAt(0).toUpperCase() + dayKey.slice(1) ]]</h3>
                         <ul v-if="solvedEntries.length > 0">
-                            <li v-for="(puzzle, index) in solvedEntries" :key="(typeof puzzle === 'object' ? puzzle.id : puzzle) + '-' + index">
+                            <li v-for="(puzzle, index) in solvedEntries"
+                                :key="(typeof puzzle === 'object' ? puzzle.id : puzzle) + '-' + index">
                                 <template v-if="typeof puzzle === 'object' && puzzle.id">
                                     <strong>Title:</strong> [[ puzzle.title || 'N/A' ]] <br>
                                     <strong>Original Date:</strong> [[ puzzle.id ]] <br>
-                                    <strong>Authors:</strong> [[ puzzle.authors ? puzzle.authors.join(', ') : 'N/A' ]] <br>
-                                    <strong>Solved On:</strong> [[ new Date(puzzle.dateSolved).toLocaleDateString() ]] at [[ new Date(puzzle.dateSolved).toLocaleTimeString() ]]
+                                    <strong>Authors:</strong> [[ puzzle.authors ? puzzle.authors.join(', ') : 'N/A' ]]
+                                    <br>
+                                    <strong>Solved On:</strong> [[ new Date(puzzle.dateSolved).toLocaleDateString() ]]
+                                    at [[ new Date(puzzle.dateSolved).toLocaleTimeString() ]]
                                 </template>
                                 <template v-else>
                                     <strong>Legacy Solved ID:</strong> [[ puzzle ]]
                                 </template>
                             </li>
                         </ul>
-                        <p v-if="solvedEntries.length === 0 && dayKey !== 'saturday' && dayKey !== 'sunday'">No puzzles solved for [[ dayKey ]].</p>
+                        <p v-if="solvedEntries.length === 0 && dayKey !== 'saturday' && dayKey !== 'sunday'">No puzzles
+                            solved for [[ dayKey ]].</p>
                     </div>
-                    <p v-if="Object.values(solvedPuzzlesList).every(list => list.length === 0)">You haven't solved any puzzles yet!</p>
+                    <p v-if="Object.values(solvedPuzzlesList).every(list => list.length === 0)">You haven't solved any
+                        puzzles yet!</p>
                 </div>
             </div>
         </div>
+
+        <!-- Fireworks Canvas Overlay -->
+        <canvas id="fireworks-canvas" v-show="showFireworks"></canvas>
     </div>
 
     <script src="{{ url_for('static', filename='main.js') }}"></script>
