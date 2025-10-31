@@ -5,8 +5,7 @@ from .entity import CrosswordEntry, Crossword
 
 def build_crossword(crossword: Crossword) -> List[CrosswordEntry]:
     """Process crossword into list of entities."""
-    processed_grid, rebus_map = process_rebus_grid(crossword.grid)
-    crossword_raw = "\n".join(processed_grid)
+    crossword_raw = "\n".join(crossword.grid)
     across_hints = [clue.hint for clue in crossword.across]
     down_hints = [clue.hint for clue in crossword.down]
 
@@ -26,8 +25,8 @@ def build_crossword(crossword: Crossword) -> List[CrosswordEntry]:
 
     # Create entities
     entities = []
-    entities.extend(_create_across_entities(across, grid, rebus_map))
-    entities.extend(_create_down_entities(down, grid, rebus_map))
+    entities.extend(_create_across_entities(across, grid))
+    entities.extend(_create_down_entities(down, grid))
 
     return entities
 
@@ -158,7 +157,7 @@ def _apply_grid_chain(crossword: str) -> List[Tuple[int, int]]:
 
 
 def _create_across_entities(
-    across: List[Tuple], grid: List[List[str]], rebus_map: Dict[Tuple[int, int], str]
+    across: List[Tuple], grid: List[List[str]]
 ) -> List[CrosswordEntry]:
     """Create entities for across clues."""
     entities = []
@@ -167,10 +166,7 @@ def _create_across_entities(
         answer = ""
         current_x = x
         while current_x < len(grid[0]) and grid[y][current_x] != "#":
-            if grid[y][current_x] == '+':
-                answer += rebus_map.get((current_x, y), '+')
-            else:
-                answer += grid[y][current_x]
+            answer += grid[y][current_x]
             current_x += 1
         entities.append(
             CrosswordEntry(
@@ -181,7 +177,7 @@ def _create_across_entities(
 
 
 def _create_down_entities(
-    down: List[Tuple], grid: List[List[str]], rebus_map: Dict[Tuple[int, int], str]
+    down: List[Tuple], grid: List[List[str]]
 ) -> List[CrosswordEntry]:
     """Create entities for down clues."""
     entities = []
@@ -190,10 +186,7 @@ def _create_down_entities(
         answer = ""
         current_y = y
         while current_y < len(grid) and grid[current_y][x] != "#":
-            if grid[current_y][x] == '+':
-                answer += rebus_map.get((x, current_y), '+')
-            else:
-                answer += grid[current_y][x]
+            answer += grid[current_y][x]
             current_y += 1
         entities.append(
             CrosswordEntry(
@@ -201,31 +194,3 @@ def _create_down_entities(
             )
         )
     return entities
-
-
-def process_rebus_grid(grid: List[str]) -> Tuple[List[str], Dict[Tuple[int, int], str]]:
-    """Process grid and extract rebus entries."""
-    processed_grid = []
-    rebus_map = {}
-    
-    for y, row in enumerate(grid):
-        processed_row = []
-        current_rebus = ''
-        
-        for x, char in enumerate(row):
-            if char == ',':
-                continue
-            elif current_rebus:
-                current_rebus += char
-                if x == len(row) - 1 or row[x + 1] != ',':
-                    processed_row.append('+')
-                    rebus_map[(len(processed_row) - 1, y)] = current_rebus
-                    current_rebus = ''
-            elif x < len(row) - 1 and row[x + 1] == ',':
-                current_rebus = char
-            else:
-                processed_row.append(char)
-                
-        processed_grid.append(''.join(processed_row))
-    
-    return processed_grid, rebus_map
