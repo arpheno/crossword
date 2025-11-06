@@ -1,4 +1,5 @@
-// Vue app configuration
+// Vue app configuration - V2 with Cell object support
+// This version handles cells with formatting: shaded (^), circled (%), rebus (,)
 const CrosswordApp = {
     delimiters: ['[[', ']]'],
     data() {
@@ -12,6 +13,7 @@ const CrosswordApp = {
         return {
             crossword: [],
             grid: [],
+            cellMap: new Map(),  // V2: Map of (x,y) -> cell object with formatting
             direction: 'across',
             isChecking: false,
             baseUrl: window.location.origin,
@@ -57,7 +59,13 @@ const CrosswordApp = {
             timerInterval: null, // Timer interval reference
             showFireworks: false, // Display fireworks overlay
             fireworks: [], // Array of active fireworks
-            fireworksAnimationId: null // Animation frame ID
+            fireworksAnimationId: null, // Animation frame ID
+            specificDate: '', // For loading specific puzzle by date
+            // Rebus context menu
+            showRebusMenu: false,
+            rebusMenuPosition: { x: 0, y: 0 },
+            rebusMenuCell: { row: -1, col: -1 },
+            rebusInputValue: ''
         }
     },
     created() {
@@ -75,10 +83,15 @@ const CrosswordApp = {
         }
 
         this.loadCrossword('monday');
+
+        // Add click listener to close rebus menu when clicking outside
+        document.addEventListener('click', this.handleDocumentClick);
     },
     beforeUnmount() {
         // Clean up timer when component is destroyed
         this.stopTimer();
+        // Remove click listener
+        document.removeEventListener('click', this.handleDocumentClick);
     },
     methods: {
         async checkAndStartCaching() {
@@ -123,7 +136,17 @@ const CrosswordApp = {
             const solvedPuzzles = JSON.parse(localStorage.getItem(`solved_${day}`) || '[]');
             return solvedPuzzles.some(p => p.id === puzzleId);
         },
-        markPuzzleSolved(day, puzzleId) {
+        async isPuzzleSolvedBackend(puzzleId) {
+            // Check backend database for completion status
+            try {
+                const response = await axios.get(`${this.baseUrl}/api/completed_puzzles/${puzzleId}`);
+                return response.data.completed === true;
+            } catch (error) {
+                console.error('Error checking backend for puzzle completion:', error);
+                return false; // If backend unavailable, rely on localStorage
+            }
+        },
+        async markPuzzleSolved(day, puzzleId) {
             // puzzleId is now the metadata.date from the current puzzle
             // We need this.currentPuzzleMetadata to get title and authors
             if (!this.currentPuzzleMetadata || this.currentPuzzleMetadata.date !== puzzleId) {
@@ -147,6 +170,22 @@ const CrosswordApp = {
                 solvedPuzzles.push(solvedEntry);
                 localStorage.setItem(storageKey, JSON.stringify(solvedPuzzles));
                 this.updateSolvedCounts(); // This might need adjustment if it just counts length
+            }
+
+            // Also save to backend database
+            try {
+                await axios.post(`${this.baseUrl}/api/completed_puzzles`, {
+                    puzzle_date: puzzleId,
+                    title: this.currentPuzzleMetadata.title,
+                    authors: this.currentPuzzleMetadata.authors,
+                    weekday: day,
+                    time_taken: this.timer,
+                    score: this.score
+                });
+                console.log('Puzzle completion saved to backend');
+            } catch (error) {
+                console.error('Error saving puzzle completion to backend:', error);
+                // Don't fail if backend is unavailable - localStorage already has it
             }
         },
         getPuzzleId(puzzleMetadata) {
@@ -179,18 +218,21 @@ const CrosswordApp = {
                 return false;
             }
 
-            // Validate that entries have required fields
+            // Validate that entries have required fields (new model)
             const hasValidEntries = puzzleData.entries.every(entry => {
-                return entry.hasOwnProperty('clue') &&
-                    entry.hasOwnProperty('answer') &&
-                    entry.hasOwnProperty('x') &&
-                    entry.hasOwnProperty('y') &&
+                return entry.hasOwnProperty('clue_text') &&
+                    entry.hasOwnProperty('clue_number') &&
+                    entry.hasOwnProperty('characters') &&
+                    entry.hasOwnProperty('start_x') &&
+                    entry.hasOwnProperty('start_y') &&
                     entry.hasOwnProperty('direction') &&
-                    entry.answer && entry.answer.length > 0;
+                    Array.isArray(entry.characters) &&
+                    entry.characters.length > 0 &&
+                    entry.characters.every(char => char.hasOwnProperty('letters'));
             });
 
             if (!hasValidEntries) {
-                console.error('Puzzle has invalid entries (missing required fields)');
+                console.error('Puzzle has invalid entries (missing required fields for new model)');
                 return false;
             }
 
@@ -213,7 +255,7 @@ const CrosswordApp = {
 
             try {
                 const response = await axios.get(`${this.baseUrl}/random_crossword/${day}`);
-                // Assuming response.data is now { metadata: {...}, entries: [...] }
+                // Response includes entries with characters array
                 this.currentPuzzleMetadata = response.data.metadata;
                 this.crossword = response.data.entries;
 
@@ -227,7 +269,8 @@ const CrosswordApp = {
                 // Use the new metadata for puzzle ID generation
                 const puzzleId = this.getPuzzleId(this.currentPuzzleMetadata);
 
-                if (puzzleId && this.isPuzzleSolved(day, puzzleId)) {
+                // Check both localStorage and backend for completion status
+                if (puzzleId && (this.isPuzzleSolved(day, puzzleId) || await this.isPuzzleSolvedBackend(puzzleId))) {
                     console.log(`Already solved this puzzle (${puzzleId}), trying another one...`);
                     await this.loadCrossword(day, attempt + 1); // Try to get another one
                     return;
@@ -362,12 +405,94 @@ const CrosswordApp = {
             this.completedWords.clear(); // Clear completed words when loading new puzzle
             this.loadCrossword(day);
         },
+        async loadSpecificDate() {
+            // Validate date format (6 digits)
+            if (!this.specificDate || this.specificDate.length !== 6) {
+                alert('Please enter a date in YYMMDD format (e.g., 230403)');
+                return;
+            }
+
+            // Check if there's any progress in the current puzzle
+            const hasProgress = this.grid.some(row =>
+                row.some(cell => cell !== null && cell !== '')
+            );
+
+            if (hasProgress) {
+                if (!confirm('Loading a new puzzle will erase your current progress. Are you sure you want to continue?')) {
+                    return;
+                }
+            }
+
+            try {
+                const response = await axios.get(`${this.baseUrl}/crossword_by_date/${this.specificDate}`);
+
+                // Set metadata and entries
+                this.currentPuzzleMetadata = response.data.metadata;
+                this.crossword = response.data.entries;
+
+                // Validate puzzle data
+                if (!this.isValidPuzzle(response.data)) {
+                    alert('Invalid puzzle data received. Please try a different date.');
+                    return;
+                }
+
+                // Reset state
+                this.isChecking = false;
+                this.completedWords.clear();
+
+                // Initialize the puzzle
+                this.init();
+
+                // Clear the input
+                this.specificDate = '';
+            } catch (error) {
+                console.error(`Error loading crossword for date ${this.specificDate}:`, error);
+                alert(`Failed to load puzzle for date ${this.specificDate}. Please check the date and try again.`);
+            }
+        },
         init() {
+            this.buildCellMap();  // Build cell map from crossword entries with new Character model
             this.calculateGridSize();
-            this.generateGrid();
-            this.placeWords();
+            this.generateGrid();  // Now creates full grid of black squares
+            this.placeWords();    // Replaces black squares with actual cells
             this.startTimer();
             this.score = 100; // Reset score for new puzzle
+        },
+        buildCellMap() {
+            // Build a map of (x,y) -> cell object from clean Character model
+            this.cellMap.clear();
+
+            this.crossword.forEach(entry => {
+                // New model: entries have clue_number, start_x, start_y, characters array
+                entry.characters.forEach((character, i) => {
+                    const x = entry.direction === 'across' ? entry.start_x + i : entry.start_x;
+                    const y = entry.direction === 'across' ? entry.start_y : entry.start_y + i;
+                    const key = `${x},${y}`;
+
+                    if (!this.cellMap.has(key)) {
+                        // Create cell from Character model
+                        // Character has: letters (string), is_circled (bool), is_shaded (bool)
+                        // In the new model, rebus is detected by len(letters) > 1, not commas
+                        this.cellMap.set(key, {
+                            letters: character.letters,
+                            is_circled: character.is_circled,
+                            is_shaded: character.is_shaded,
+                            is_rebus: character.letters.length > 1,  // Rebus if more than one letter
+                            x, y,
+                            userInput: '',
+                            words: []
+                        });
+                    }
+
+                    // Track which words use this cell
+                    this.cellMap.get(key).words.push({
+                        clue_number: entry.clue_number,
+                        direction: entry.direction,
+                        positionInWord: i
+                    });
+                });
+            });
+            console.log(`CellMap built with ${this.cellMap.size} cells`);
         },
         startTimer() {
             // Clear existing timer if any
@@ -412,64 +537,40 @@ const CrosswordApp = {
             let allCorrect = true;
             let hasErrors = false; // Track if any incorrect letters found
 
-            this.crossword.forEach(word => {
+            this.crossword.forEach(entry => {
                 let isWordCorrect = true;  // Track if entire word is correct
-                const cleanAnswer = this.cleanAnswer(word.answer);
 
-                if (word.direction === 'across') {
-                    for (let i = 0; i < cleanAnswer.length; i++) {
-                        const input = this.$refs[`input-${word.y}-${word.x + i}`]?.[0];
-                        if (!input) continue;
+                for (let i = 0; i < entry.characters.length; i++) {
+                    const x = entry.direction === 'across' ? entry.start_x + i : entry.start_x;
+                    const y = entry.direction === 'across' ? entry.start_y : entry.start_y + i;
+                    const input = this.$refs[`input-${y}-${x}`]?.[0];
+                    if (!input) continue;
 
-                        const value = input.value.toLowerCase();
-                        const correct = cleanAnswer[i].toLowerCase();
+                    const value = input.value.toLowerCase();
+                    const correct = entry.characters[i].letters.toLowerCase();
 
-                        if (value === '') {
-                            input.classList.remove('red', 'green');
-                            isWordCorrect = false;
-                            allCorrect = false;
-                        } else if (value === correct) {
-                            input.classList.add('green');
-                            input.classList.remove('red');
-                        } else {
-                            input.classList.add('red');
-                            input.classList.remove('green');
-                            isWordCorrect = false;
-                            allCorrect = false;
-                            hasErrors = true;
-                        }
-                    }
-                } else {
-                    for (let i = 0; i < cleanAnswer.length; i++) {
-                        const input = this.$refs[`input-${word.y + i}-${word.x}`]?.[0];
-                        if (!input) continue;
-
-                        const value = input.value.toLowerCase();
-                        const correct = cleanAnswer[i].toLowerCase();
-
-                        if (value === '') {
-                            input.classList.remove('red', 'green');
-                            isWordCorrect = false;
-                            allCorrect = false;
-                        } else if (value === correct) {
-                            input.classList.add('green');
-                            input.classList.remove('red');
-                        } else {
-                            input.classList.add('red');
-                            input.classList.remove('green');
-                            isWordCorrect = false;
-                            allCorrect = false;
-                            hasErrors = true;
-                        }
+                    if (value === '') {
+                        input.classList.remove('red', 'green');
+                        isWordCorrect = false;
+                        allCorrect = false;
+                    } else if (value === correct) {
+                        input.classList.add('green');
+                        input.classList.remove('red');
+                    } else {
+                        input.classList.add('red');
+                        input.classList.remove('green');
+                        isWordCorrect = false;
+                        allCorrect = false;
+                        hasErrors = true;
                     }
                 }
 
-                // If word is completely correct, add it to completedWords
+                // If entry is completely correct, add it to completedWords
                 if (isWordCorrect) {
-                    this.completedWords.add(word.clue);
+                    this.completedWords.add(entry.clue_text);
                 } else {
-                    // If word was previously marked as complete but is now incorrect, remove it
-                    this.completedWords.delete(word.clue);
+                    // If entry was previously marked as complete but is now incorrect, remove it
+                    this.completedWords.delete(entry.clue_text);
                 }
             });
 
@@ -485,7 +586,7 @@ const CrosswordApp = {
                 // Celebrate with fireworks and sounds!
                 this.celebrateCompletion();
 
-                const puzzleId = this.getPuzzleId(this.crossword);
+                const puzzleId = this.getPuzzleId(this.currentPuzzleMetadata);
                 if (puzzleId) {
                     const day = this.getCurrentDay();
                     this.markPuzzleSolved(day, puzzleId);
@@ -493,155 +594,179 @@ const CrosswordApp = {
             }
         },
         getCurrentDay() {
-            // Helper to get current day from the active puzzle
-            const firstWord = this.crossword[0];
-            if (!firstWord) return 'monday';
+            // Get the day of week from the puzzle metadata date
+            if (!this.currentPuzzleMetadata || !this.currentPuzzleMetadata.date) {
+                return 'monday';  // Fallback
+            }
 
-            // Try to determine the day based on the puzzle's properties
-            // This is a simplified example - you might need to adjust based on your data
-            const difficulty = firstWord.answer.length + this.crossword.length;
-            if (difficulty < 20) return 'monday';
-            if (difficulty < 25) return 'tuesday';
-            if (difficulty < 30) return 'wednesday';
-            if (difficulty < 35) return 'thursday';
-            return 'friday';
+            // Parse date in YYMMDD format
+            const dateStr = this.currentPuzzleMetadata.date;
+            const year = parseInt('20' + dateStr.substring(0, 2));
+            const month = parseInt(dateStr.substring(2, 4)) - 1;  // JS months are 0-indexed
+            const day = parseInt(dateStr.substring(4, 6));
+
+            const date = new Date(year, month, day);
+            const dayOfWeek = date.getDay();  // 0 = Sunday, 1 = Monday, etc.
+
+            const days = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
+            return days[dayOfWeek];
         },
         find_index(rowIndex, cellIndex) {
-            for (const word of this.crossword) {
-                if (word.y === rowIndex && cellIndex === word.x) {
-                    return word.index;
+            // Find the clue number for a cell if it's the start of an entry
+            for (const entry of this.crossword) {
+                if (entry.start_y === rowIndex && entry.start_x === cellIndex) {
+                    return entry.clue_number;
                 }
             }
             return null;
         },
-        calculateGridSize() {
-            // Calculate grid dimensions based on word positions
-            // This naturally excludes trailing black squares (# or .) from the API
-            let maxX = 0;
-            let maxY = 0;
-            this.crossword.forEach(word => {
-                // Clean answer in case backend sends special characters
-                const cleanAnswer = this.cleanAnswer(word.answer);
-
-                if (word.direction === 'across') {
-                    maxX = Math.max(maxX, word.x + cleanAnswer.length);
-                    maxY = Math.max(maxY, word.y + 1);
-                } else {
-                    maxX = Math.max(maxX, word.x + 1);
-                    maxY = Math.max(maxY, word.y + cleanAnswer.length);
-                }
-            });
-            this.grid = Array(maxY).fill().map(() => Array(maxX).fill(''));
-            console.assert(this.grid.length === maxY, 'Grid height is incorrect');
-            console.assert(this.grid[0].length === maxX, 'Grid width is incorrect');
+        // V2: Cell helper methods
+        getCell(x, y) {
+            return this.cellMap.get(`${x},${y}`);
         },
-        cleanAnswer(answer) {
-            // Remove special characters from answers
-            // # and . are black squares
-            // ^ are shaded square markers
-            // , are rebus square separators
-            // % are circled letter markers
-            if (typeof answer !== 'string') return answer;
-            return answer.replace(/[#.^,%]/g, '');
+        getCellClasses(rowIndex, cellIndex) {
+            const cell = this.getCell(cellIndex, rowIndex);
+            if (!cell) return 'black-cell';
+
+            const classes = [];
+            if (cell.is_shaded) classes.push('shaded');
+            if (cell.is_circled) classes.push('circled');
+            if (cell.is_rebus) classes.push('rebus');
+
+            return classes.join(' ');
+        },
+        isRebus(x, y) {
+            const cell = this.getCell(x, y);
+            return cell && cell.is_rebus;
+        },
+        getRebusCount(x, y) {
+            const cell = this.getCell(x, y);
+            if (!cell || !cell.is_rebus) return '';
+            // Return the number of letters in the rebus
+            return cell.letters.length;
+        },
+        calculateGridSize() {
+            // Use metadata dimensions if available, otherwise calculate from entries
+            if (this.currentPuzzleMetadata && this.currentPuzzleMetadata.width && this.currentPuzzleMetadata.height) {
+                const width = this.currentPuzzleMetadata.width;
+                const height = this.currentPuzzleMetadata.height;
+                this.grid = Array(height).fill().map(() => Array(width).fill(null));  // null = black square
+                console.log(`Grid size from metadata: ${width} x ${height}`);
+            } else {
+                // Fallback: Calculate grid dimensions from entries
+                let maxX = 0;
+                let maxY = 0;
+
+                this.crossword.forEach(entry => {
+                    const length = entry.characters.length;
+
+                    if (entry.direction === 'across') {
+                        maxX = Math.max(maxX, entry.start_x + length);
+                        maxY = Math.max(maxY, entry.start_y + 1);
+                    } else {
+                        maxX = Math.max(maxX, entry.start_x + 1);
+                        maxY = Math.max(maxY, entry.start_y + length);
+                    }
+                });
+
+                this.grid = Array(maxY).fill().map(() => Array(maxX).fill(null));  // null = black square
+                console.log(`Grid size calculated: ${maxX} x ${maxY}`);
+            }
         },
         generateGrid() {
-            this.grid = this.grid.map(row => row.map(() => null));
+            // Grid is already initialized as full black squares (null values) in calculateGridSize
+            // This method now just ensures the grid structure is ready
+            console.log(`Grid initialized with ${this.grid.length} rows and ${this.grid[0]?.length || 0} columns`);
         },
         placeWords() {
-            this.crossword.forEach(word => {
-                const cleanAnswer = this.cleanAnswer(word.answer);
+            // Replace black squares with actual cells based on entries
+            this.crossword.forEach(entry => {
+                const wordLength = entry.characters.length;
 
-                if (word.direction === 'across') {
-                    for (let i = 0; i < cleanAnswer.length; i++) {
-                        this.grid[word.y][word.x + i] = '';
+                if (entry.direction === 'across') {
+                    for (let i = 0; i < wordLength; i++) {
+                        this.grid[entry.start_y][entry.start_x + i] = '';  // Empty string for user input
                     }
-                } else {
-                    for (let i = 0; i < cleanAnswer.length; i++) {
-                        this.grid[word.y + i][word.x] = '';
+                } else {  // down
+                    for (let i = 0; i < wordLength; i++) {
+                        this.grid[entry.start_y + i][entry.start_x] = '';  // Empty string for user input
                     }
                 }
             });
+            console.log(`Placed ${this.crossword.length} entries in grid`);
         },
-        handle_clue_click(event, word) {
-            this.direction = word.direction;
+        handle_clue_click(event, entry) {
+            this.direction = entry.direction;
             this.$nextTick(() => {
-                const input = this.$refs[`input-${word.y}-${word.x}`];
+                const input = this.$refs[`input-${entry.start_y}-${entry.start_x}`];
                 if (input) {
                     input[0].focus();
                 }
             });
         },
-        getCurrentAnswer(word) {
-            let answer = '';
-            const cleanAnswer = this.cleanAnswer(word.answer);
+        getCurrentAnswer(entry) {
+            // Get current user input for an entry
+            const answer = [];
 
-            if (word.direction === 'across') {
-                for (let i = 0; i < cleanAnswer.length; i++) {
-                    const value = this.grid[word.y][word.x + i];
-                    answer += (value === null || value === undefined || value === '') ? ' ' : value;
-                }
-            } else {
-                for (let i = 0; i < cleanAnswer.length; i++) {
-                    const value = this.grid[word.y + i][word.x];
-                    answer += (value === null || value === undefined || value === '') ? ' ' : value;
-                }
+            for (let i = 0; i < entry.characters.length; i++) {
+                const x = entry.direction === 'across' ? entry.start_x + i : entry.start_x;
+                const y = entry.direction === 'across' ? entry.start_y : entry.start_y + i;
+                const value = this.grid[y]?.[x];
+                answer.push((value === null || value === undefined || value === '') ? ' ' : value);
             }
-            return answer.split('');  // Convert string to array of characters
+
+            return answer;  // Array of characters
         },
         find_solution(rowIndex, cellIndex) {
-            for (const word of this.crossword) {
-                if (word.direction === 'across' && word.y === rowIndex &&
-                    cellIndex >= word.x && cellIndex < word.x + word.answer.length) {
-                    return word.answer[cellIndex - word.x];
-                }
-            }
-            return null;
+            // Find the correct answer for a cell
+            const cell = this.getCell(cellIndex, rowIndex);
+            if (!cell) return null;
+
+            // Return the letters from the Character model
+            return cell.letters;
         },
         findCurrentWord(rowIndex, cellIndex) {
-            for (const word of this.crossword) {
-                if (word.direction === this.direction) {
-                    if (word.direction === 'across') {
-                        if (word.y === rowIndex &&
-                            cellIndex >= word.x &&
-                            cellIndex < word.x + word.answer.length) {
-                            return word;
+            // Find the entry that contains this cell in the current direction
+            for (const entry of this.crossword) {
+                if (entry.direction === this.direction) {
+                    const length = entry.characters.length;
+                    if (entry.direction === 'across') {
+                        if (entry.start_y === rowIndex &&
+                            cellIndex >= entry.start_x &&
+                            cellIndex < entry.start_x + length) {
+                            return entry;
                         }
-                    } else {
-                        if (word.x === cellIndex &&
-                            rowIndex >= word.y &&
-                            rowIndex < word.y + word.answer.length) {
-                            return word;
+                    } else {  // down
+                        if (entry.start_x === cellIndex &&
+                            rowIndex >= entry.start_y &&
+                            rowIndex < entry.start_y + length) {
+                            return entry;
                         }
                     }
                 }
             }
             return null;
         },
-        findNextWord(currentWord) {
-            if (!currentWord) return null;
+        findNextWord(currentEntry) {
+            if (!currentEntry) return null;
 
-            // Sort words by clue number for the current direction
-            const directionWords = this.crossword
-                .filter(w => w.direction === currentWord.direction)
-                .sort((a, b) => {
-                    // Extract numeric part from clue text
-                    const aNum = parseInt(a.clue.split('.')[0]);
-                    const bNum = parseInt(b.clue.split('.')[0]);
-                    return aNum - bNum;
-                });
+            // Sort entries by clue number for the current direction
+            const directionEntries = this.crossword
+                .filter(e => e.direction === currentEntry.direction)
+                .sort((a, b) => a.clue_number - b.clue_number);
 
-            // Find the next word
-            const currentIndex = directionWords.findIndex(w => w.clue.split('.')[0] === currentWord.clue.split('.')[0]);
-            if (currentIndex < directionWords.length - 1) {
-                return directionWords[currentIndex + 1];
+            // Find the next entry
+            const currentIndex = directionEntries.findIndex(e => e.clue_number === currentEntry.clue_number);
+            if (currentIndex < directionEntries.length - 1) {
+                return directionEntries[currentIndex + 1];
             }
             return null;
         },
-        isWordComplete(word) {
-            if (!word) return false;
-            const answer = this.getCurrentAnswer(word).join('');
-            const cleanAnswer = this.cleanAnswer(word.answer);
-            return answer.trim().length === cleanAnswer.length;
+        isWordComplete(entry) {
+            if (!entry) return false;
+            const answer = this.getCurrentAnswer(entry).join('');
+            // Word is complete if all cells have letters (no spaces)
+            return answer.trim().length === entry.characters.length && !answer.includes(' ');
         },
         move(rowIndex, cellIndex, direction) {
             const sign = direction === 'forward' ? 1 : -1;
@@ -654,9 +779,9 @@ const CrosswordApp = {
                     this.grid[rowIndex + 1]?.[cellIndex];
 
                 const isLastCell = (this.direction === 'across' &&
-                    cellIndex === currentWord.x + currentWord.answer.length - 1) ||
+                    cellIndex === currentWord.start_x + currentWord.characters.length - 1) ||
                     (this.direction === 'down' &&
-                        rowIndex === currentWord.y + currentWord.answer.length - 1);
+                        rowIndex === currentWord.start_y + currentWord.characters.length - 1);
 
                 const isBlackSquareNext = nextCell === null;
 
@@ -664,7 +789,7 @@ const CrosswordApp = {
                     const nextWord = this.findNextWord(currentWord);
                     if (nextWord) {
                         this.$nextTick(() => {
-                            const nextInput = this.$refs[`input-${nextWord.y}-${nextWord.x}`];
+                            const nextInput = this.$refs[`input-${nextWord.start_y}-${nextWord.start_x}`];
                             if (nextInput) {
                                 nextInput[0].focus();
                                 return;
@@ -675,15 +800,18 @@ const CrosswordApp = {
                 }
             }
 
-            // Existing movement logic
+            // Check bounds
             if (this.direction === 'across' && (cellIndex + 1 * sign < 0 || cellIndex + 1 * sign >= this.grid[0].length)) {
                 return;
             } else if (this.direction === 'down' && (rowIndex + 1 * sign < 0 || rowIndex + 1 * sign >= this.grid.length)) {
                 return;
             }
+
             let targetX = cellIndex + sign * (this.direction === 'across');
             let targetY = rowIndex + sign * (this.direction === 'down');
             let targetCell = this.grid[targetY][targetX];
+
+            // If target is a valid cell (not black square), move there
             if (targetCell !== null) {
                 this.$nextTick(() => {
                     const nextInput = this.$refs[`input-${targetY}-${targetX}`];
@@ -692,10 +820,19 @@ const CrosswordApp = {
                     }
                 });
             } else {
+                // Target is a black square, skip over it recursively
                 this.move(targetY, targetX, direction);
             }
         },
         handle_crossword_cell_keydown(event, rowIndex, cellIndex) {
+            // Check if this is a rebus cell and Space is pressed
+            const isRebusCell = this.isRebus(cellIndex, rowIndex);
+            if (isRebusCell && event.key === ' ') {
+                event.preventDefault();
+                this.openRebusMenu(event, rowIndex, cellIndex);
+                return;
+            }
+
             if (event.key === "ArrowRight") {
                 if (this.direction === 'across')
                     this.move(rowIndex, cellIndex, 'forward');
@@ -722,6 +859,12 @@ const CrosswordApp = {
                 event.preventDefault();
                 this.move(rowIndex, cellIndex, 'backward');
             } else if (event.key.length === 1 && /^[a-zA-Z]$/.test(event.key)) {
+                // For rebus cells, only allow single-letter input via context menu
+                if (isRebusCell) {
+                    event.preventDefault();
+                    this.openRebusMenu(event, rowIndex, cellIndex);
+                    return;
+                }
                 this.grid[rowIndex][cellIndex] = event.key.toUpperCase();
                 this.$forceUpdate();
                 event.preventDefault();
@@ -734,22 +877,95 @@ const CrosswordApp = {
         handle_crossword_cell_contextmenu(event, rowIndex, cellIndex) {
             event.preventDefault(); // Prevent the default context menu from appearing
 
-            // Only reveal if the cell is empty
-            const currentValue = this.grid[rowIndex][cellIndex];
-            if (currentValue === '' || currentValue === null || currentValue === undefined) {
-                // Find the correct letter for this cell
-                const correctLetter = this.find_solution(rowIndex, cellIndex);
-                if (correctLetter) {
-                    this.grid[rowIndex][cellIndex] = correctLetter.toUpperCase();
-                    this.$forceUpdate();
+            // Check if this is a rebus cell
+            const isRebusCell = this.isRebus(cellIndex, rowIndex);
 
-                    // Deduct points for revealing a letter (but keep score >= 0)
-                    this.score = Math.max(0, this.score - 20);
+            if (isRebusCell) {
+                // Show rebus context menu
+                this.openRebusMenu(event, rowIndex, cellIndex);
+            } else {
+                // Only reveal if the cell is empty
+                const currentValue = this.grid[rowIndex][cellIndex];
+                if (currentValue === '' || currentValue === null || currentValue === undefined) {
+                    // Find the correct letter for this cell
+                    const correctLetter = this.find_solution(rowIndex, cellIndex);
+                    if (correctLetter) {
+                        this.grid[rowIndex][cellIndex] = correctLetter.toUpperCase();
+                        this.$forceUpdate();
 
-                    // Clear any check marks if they're showing
-                    if (this.isChecking) {
-                        this.clearChecks();
+                        // Deduct points for revealing a letter (but keep score >= 0)
+                        this.score = Math.max(0, this.score - 20);
+
+                        // Clear any check marks if they're showing
+                        if (this.isChecking) {
+                            this.clearChecks();
+                        }
                     }
+                }
+            }
+        },
+        openRebusMenu(event, rowIndex, cellIndex) {
+            // Get current value or empty string
+            const currentValue = this.grid[rowIndex][cellIndex] || '';
+            this.rebusInputValue = currentValue;
+            this.rebusMenuCell = { row: rowIndex, col: cellIndex };
+
+            // Position the menu near the cell
+            const cellElement = event.target.closest('.grid-cell');
+            if (cellElement) {
+                const rect = cellElement.getBoundingClientRect();
+                this.rebusMenuPosition = {
+                    x: rect.left + rect.width / 2,
+                    y: rect.bottom + 10
+                };
+            } else {
+                this.rebusMenuPosition = { x: event.clientX, y: event.clientY };
+            }
+
+            this.showRebusMenu = true;
+
+            // Focus the input after menu is shown
+            this.$nextTick(() => {
+                const input = document.querySelector('.rebus-context-menu-input');
+                if (input) {
+                    input.focus();
+                    input.select();
+                }
+            });
+        },
+        closeRebusMenu() {
+            this.showRebusMenu = false;
+            this.rebusInputValue = '';
+            this.rebusMenuCell = { row: -1, col: -1 };
+        },
+        saveRebusValue() {
+            if (this.rebusMenuCell.row >= 0 && this.rebusMenuCell.col >= 0) {
+                const value = this.rebusInputValue.toUpperCase().trim();
+                this.grid[this.rebusMenuCell.row][this.rebusMenuCell.col] = value;
+                this.$forceUpdate();
+
+                // Clear any check marks if they're showing
+                if (this.isChecking) {
+                    this.clearChecks();
+                }
+            }
+            this.closeRebusMenu();
+        },
+        handleRebusMenuKeydown(event) {
+            if (event.key === 'Enter') {
+                event.preventDefault();
+                this.saveRebusValue();
+            } else if (event.key === 'Escape') {
+                event.preventDefault();
+                this.closeRebusMenu();
+            }
+        },
+        handleDocumentClick(event) {
+            // Close rebus menu if clicking outside of it
+            if (this.showRebusMenu) {
+                const menu = document.querySelector('.rebus-context-menu');
+                if (menu && !menu.contains(event.target)) {
+                    this.closeRebusMenu();
                 }
             }
         },
@@ -819,42 +1035,54 @@ const CrosswordApp = {
             }
         },
         // New methods for solved puzzles modal
-        openSolvedModal() {
-            this.populateSolvedPuzzlesList();
+        async openSolvedModal() {
+            await this.populateSolvedPuzzlesList();
             this.showSolvedModal = true;
         },
         closeSolvedModal() {
             this.showSolvedModal = false;
         },
-        populateSolvedPuzzlesList() {
+        async populateSolvedPuzzlesList() {
             const days = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'];
-            const allSolvedCleaned = {};
-            let cleanupOccurred = false;
+            const allSolved = {};
 
+            // Initialize empty arrays for each day
             days.forEach(day => {
-                const storageKey = `solved_${day}`;
-                const solvedForDayRaw = JSON.parse(localStorage.getItem(storageKey) || '[]');
-
-                // Filter out legacy string IDs, keeping only objects
-                const solvedForDayCleaned = solvedForDayRaw.filter(entry => {
-                    return typeof entry === 'object' && entry !== null && entry.id !== undefined;
-                });
-
-                // If cleanup happened for this day, update localStorage
-                if (solvedForDayCleaned.length !== solvedForDayRaw.length) {
-                    localStorage.setItem(storageKey, JSON.stringify(solvedForDayCleaned));
-                    cleanupOccurred = true;
-                    console.log(`Cleaned up legacy solved puzzle IDs for ${day}.`);
-                }
-
-                allSolvedCleaned[day] = solvedForDayCleaned;
+                allSolved[day] = [];
             });
 
-            this.solvedPuzzlesList = allSolvedCleaned;
+            // Fetch from backend database
+            try {
+                const response = await axios.get(`${this.baseUrl}/api/completed_puzzles`);
+                const backendPuzzles = response.data;
 
-            if (cleanupOccurred) {
-                this.updateSolvedCounts(); // Update counts if any legacy data was removed
+                // Group backend puzzles by weekday
+                backendPuzzles.forEach(puzzle => {
+                    const day = puzzle.weekday;
+                    if (allSolved[day]) {
+                        allSolved[day].push({
+                            id: puzzle.puzzle_date,
+                            title: puzzle.title,
+                            authors: puzzle.authors,
+                            dayOfWeekSolved: day,
+                            dateSolved: puzzle.completed_at,
+                            timeTaken: puzzle.time_taken,
+                            score: puzzle.score
+                        });
+                    }
+                });
+
+                // Sort puzzles by completion date (most recent first)
+                days.forEach(day => {
+                    allSolved[day].sort((a, b) => new Date(b.dateSolved) - new Date(a.dateSolved));
+                });
+
+            } catch (error) {
+                console.error('Error fetching completed puzzles from backend:', error);
+                alert('Unable to load completed puzzles. Please make sure the server is running.');
             }
+
+            this.solvedPuzzlesList = allSolved;
         },
 
         // Export/Import functionality

@@ -16,12 +16,14 @@
         <div id="notmenu">
             <div class="clue-column" data-label="ACROSS">
                 <ul id="across">
-                    <li v-for="word in crossword" v-if="word.direction === 'across' && !completedWords.has(word.clue)">
-                        <span @click="handle_clue_click($event,word)">[[ word.index ]]. [[ word.clue ]]</span>
+                    <li v-for="entry in crossword" :key="'across-' + entry.clue_number"
+                        v-if="entry.direction === 'across' && !completedWords.has(entry.clue_text)">
+                        <span @click="handle_clue_click($event,entry)">[[ entry.clue_number ]]. [[ entry.clue_text
+                            ]]</span>
                         <div class="state-container">
-                            <span v-for="(char, index) in getCurrentAnswer(word)" :key="index" class="state" :class="{
-                                      'red': isChecking && char.toLowerCase() !== word.answer[index].toLowerCase() && char !== ' ',
-                                      'green': isChecking && char.toLowerCase() === word.answer[index].toLowerCase() && char !== ' '
+                            <span v-for="(char, index) in getCurrentAnswer(entry)" :key="index" class="state" :class="{
+                                      'red': isChecking && char.toLowerCase() !== entry.characters[index].letters.toLowerCase() && char !== ' ',
+                                      'green': isChecking && char.toLowerCase() === entry.characters[index].letters.toLowerCase() && char !== ' '
                                   }">[[char]]</span>
                         </div>
                     </li>
@@ -37,17 +39,20 @@
                                  'grid-template-columns': `repeat(${row.length}, var(--cell-size))`
                              }">
                             <div v-for="(cell, cellIndex) in row" :key="cellIndex" class="grid-cell"
-                                :class="{'black-cell': cell === null}">
+                                :class="[getCellClasses(rowIndex, cellIndex), {'black-cell': cell === null}]">
                                 <span class="clue-index" v-if="find_index(rowIndex, cellIndex)">[[find_index(rowIndex,
                                     cellIndex)]]</span>
                                 <template v-if="cell !== null">
                                     <input ref="inputCells" :ref="'input-' + rowIndex + '-' + cellIndex" type="text"
-                                        maxlength="1" v-model="grid[rowIndex][cellIndex]"
+                                        :maxlength="isRebus(cellIndex, rowIndex) ? 10 : 1"
+                                        v-model="grid[rowIndex][cellIndex]"
                                         @keydown="handle_crossword_cell_keydown($event, rowIndex, cellIndex)"
                                         @contextmenu="handle_crossword_cell_contextmenu($event, rowIndex, cellIndex)"
                                         :data-row="rowIndex" :data-cell="cellIndex"
                                         :data-solution="find_solution(rowIndex,cellIndex)"
                                         :aria-label="'grid cell ' + rowIndex + '-' + cellIndex">
+                                    <span v-if="isRebus(cellIndex, rowIndex)"
+                                        class="rebus-indicator">[[getRebusCount(cellIndex, rowIndex)]]</span>
                                 </template>
                             </div>
                         </div>
@@ -84,6 +89,11 @@
                             </button>
                         </div>
                         <button @click="openSolvedModal()" id="overview-button">Overview</button>
+                    </div>
+                    <div class="menu-row date-input-row">
+                        <input type="text" v-model="specificDate" placeholder="YYMMDD (e.g., 230403)" maxlength="6"
+                            @keyup.enter="loadSpecificDate()" id="date-input">
+                        <button @click="loadSpecificDate()" id="load-date-button">Load Date</button>
                     </div>
                     <div class="menu-row data-management-buttons">
                         <button @click="exportUserData()" id="export-button"
@@ -130,13 +140,14 @@
 
             <div class="clue-column" data-label="DOWN">
                 <ul id="down">
-                    <li v-for="word in crossword" :key="word"
-                        v-if="word.direction ==='down' && !completedWords.has(word.clue)">
-                        <span @click="handle_clue_click($event,word)">[[ word.index ]]. [[ word.clue ]]</span>
+                    <li v-for="entry in crossword" :key="'down-' + entry.clue_number"
+                        v-if="entry.direction ==='down' && !completedWords.has(entry.clue_text)">
+                        <span @click="handle_clue_click($event,entry)">[[ entry.clue_number ]]. [[ entry.clue_text
+                            ]]</span>
                         <div class="state-container">
-                            <span v-for="(char, index) in getCurrentAnswer(word)" :key="index" class="state" :class="{
-                                      'red': isChecking && char.toLowerCase() !== word.answer[index].toLowerCase() && char !== ' ',
-                                      'green': isChecking && char.toLowerCase() === word.answer[index].toLowerCase() && char !== ' '
+                            <span v-for="(char, index) in getCurrentAnswer(entry)" :key="index" class="state" :class="{
+                                      'red': isChecking && char.toLowerCase() !== entry.characters[index].letters.toLowerCase() && char !== ' ',
+                                      'green': isChecking && char.toLowerCase() === entry.characters[index].letters.toLowerCase() && char !== ' '
                                   }">[[char]]</span>
                         </div>
                     </li>
@@ -153,21 +164,33 @@
                 </div>
                 <div class="modal-body">
                     <div v-for="(solvedEntries, dayKey) in solvedPuzzlesList" :key="dayKey" class="solved-day-section">
-                        <h3 v-if="solvedEntries.length > 0">[[ dayKey.charAt(0).toUpperCase() + dayKey.slice(1) ]]</h3>
-                        <ul v-if="solvedEntries.length > 0">
-                            <li v-for="(puzzle, index) in solvedEntries"
-                                :key="(typeof puzzle === 'object' ? puzzle.id : puzzle) + '-' + index">
-                                <template v-if="typeof puzzle === 'object' && puzzle.id">
-                                    <strong>Title:</strong> [[ puzzle.title || 'N/A' ]] <br>
-                                    <strong>Original Date:</strong> [[ puzzle.id ]] <br>
-                                    <strong>Authors:</strong> [[ puzzle.authors ? puzzle.authors.join(', ') : 'N/A' ]]
-                                    <br>
-                                    <strong>Solved On:</strong> [[ new Date(puzzle.dateSolved).toLocaleDateString() ]]
-                                    at [[ new Date(puzzle.dateSolved).toLocaleTimeString() ]]
-                                </template>
-                                <template v-else>
-                                    <strong>Legacy Solved ID:</strong> [[ puzzle ]]
-                                </template>
+                        <h3 v-if="solvedEntries.length > 0">[[ dayKey.charAt(0).toUpperCase() + dayKey.slice(1) ]] ([[
+                            solvedEntries.length ]])</h3>
+                        <ul v-if="solvedEntries.length > 0" class="solved-puzzles-list">
+                            <li v-for="(puzzle, index) in solvedEntries" :key="puzzle.id + '-' + index"
+                                class="solved-puzzle-item">
+                                <div class="puzzle-info">
+                                    <div class="puzzle-header">
+                                        <strong class="puzzle-title">[[ puzzle.title || 'Untitled Puzzle' ]]</strong>
+                                        <span class="puzzle-date">[[ puzzle.id ]]</span>
+                                    </div>
+                                    <div class="puzzle-authors">
+                                        <em>[[ puzzle.authors && puzzle.authors.length > 0 ? puzzle.authors.join(', ') :
+                                            'Unknown Author' ]]</em>
+                                    </div>
+                                    <div class="puzzle-stats">
+                                        <span class="stat" v-if="puzzle.score !== null && puzzle.score !== undefined">
+                                            <strong>Score:</strong> [[ puzzle.score ]]
+                                        </span>
+                                        <span class="stat" v-if="puzzle.timeTaken">
+                                            <strong>Time:</strong> [[ formatTime(puzzle.timeTaken) ]]
+                                        </span>
+                                        <span class="stat">
+                                            <strong>Completed:</strong> [[ new
+                                            Date(puzzle.dateSolved).toLocaleDateString() ]]
+                                        </span>
+                                    </div>
+                                </div>
                             </li>
                         </ul>
                         <p v-if="solvedEntries.length === 0 && dayKey !== 'saturday' && dayKey !== 'sunday'">No puzzles
@@ -176,6 +199,22 @@
                     <p v-if="Object.values(solvedPuzzlesList).every(list => list.length === 0)">You haven't solved any
                         puzzles yet!</p>
                 </div>
+            </div>
+        </div>
+
+        <!-- Rebus Context Menu -->
+        <div v-if="showRebusMenu" class="rebus-context-menu" :style="{
+            left: rebusMenuPosition.x + 'px',
+            top: rebusMenuPosition.y + 'px',
+            transform: 'translateX(-50%)'
+        }" @click.stop>
+            <div class="rebus-context-menu-header">Enter Rebus Answer</div>
+            <input type="text" class="rebus-context-menu-input" v-model="rebusInputValue"
+                @keydown="handleRebusMenuKeydown($event)" placeholder="Type letters..." maxlength="10" />
+            <div class="rebus-context-menu-hint">Press Enter to save, Esc to cancel</div>
+            <div class="rebus-context-menu-buttons">
+                <button class="rebus-context-menu-button cancel" @click="closeRebusMenu()">Cancel</button>
+                <button class="rebus-context-menu-button" @click="saveRebusValue()">Save</button>
             </div>
         </div>
 

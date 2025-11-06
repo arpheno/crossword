@@ -1,0 +1,45 @@
+"""Quick integration test for the new API endpoint."""
+from src.crossword.parser import NYTFormatParser
+from src.crossword.data_reader import DataReader
+
+# Test with puzzle 250520
+base_url = "https://nytsyn.pzzl.com/nytsyn-crossword-mh/nytsyncrossword"
+reader = DataReader(base_url=base_url)
+
+print("Fetching puzzle 250520...")
+api_text = reader._fetch_data("250520")
+
+print("Parsing with NYTFormatParser...")
+crossword = NYTFormatParser.parse(api_text)
+
+print(f"\n=== Metadata ===")
+print(f"Date: {crossword.metadata.date}")
+print(f"Title: {crossword.metadata.title}")
+print(f"Authors: {crossword.metadata.authors}")
+print(f"Size: {crossword.metadata.width}x{crossword.metadata.height}")
+
+print(f"\n=== Entries ===")
+print(f"Total entries: {len(crossword.entries)}")
+print(f"Across: {len(crossword.across_entries)}")
+print(f"Down: {len(crossword.down_entries)}")
+
+# Test serialization
+response_data = {
+    "metadata": crossword.metadata.model_dump(),
+    "entries": [entry.model_dump() for entry in crossword.entries]
+}
+
+print(f"\n=== Serialization ===")
+print(f"Response keys: {list(response_data.keys())}")
+print(f"Metadata keys: {list(response_data['metadata'].keys())}")
+print(f"First entry keys: {list(response_data['entries'][0].keys())}")
+
+# Check first entry structure
+first_entry = response_data['entries'][0]
+print(f"\n=== First Entry (#{first_entry['clue_number']} {first_entry['direction']}) ===")
+print(f"Clue: {first_entry['clue_text']}")
+print(f"Position: ({first_entry['start_x']}, {first_entry['start_y']})")
+print(f"Characters: {len(first_entry['characters'])}")
+print(f"First character: {first_entry['characters'][0]}")
+
+print("\n✓ Integration test passed!")

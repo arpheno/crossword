@@ -80,6 +80,46 @@ body {
     justify-content: center;
 }
 
+.date-input-row {
+    margin-top: 0.5rem;
+}
+
+#date-input {
+    font-size: 0.9rem;
+    padding: 0.4rem 0.6rem;
+    border-radius: 4px;
+    border: 2px solid var(--cell-border);
+    background-color: var(--cell-bg);
+    color: var(--cell-text);
+    font-family: var(--font-system);
+    width: 120px;
+    text-align: center;
+}
+
+#date-input:focus {
+    outline: none;
+    background-color: var(--cell-focus-bg);
+    border-color: var(--cell-text);
+}
+
+#load-date-button {
+    font-size: 0.9rem;
+    padding: 0.4rem 0.8rem;
+    border-radius: 4px;
+    border: 2px solid var(--cell-border);
+    background-color: #2196f3;
+    color: white;
+    cursor: pointer;
+    font-weight: bold;
+    transition: all 0.2s ease;
+}
+
+#load-date-button:hover {
+    background-color: #1976d2;
+    transform: translateY(-1px);
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
 #menu button {
     font-size: 0.9rem;
     padding: 0.4rem 0.6rem;
@@ -587,29 +627,89 @@ input:checked+.slider:before {
 }
 
 .solved-day-section h3 {
-    margin-top: 1rem;
-    margin-bottom: 0.5rem;
+    margin-top: 1.5rem;
+    margin-bottom: 0.75rem;
     font-size: 1.2rem;
     color: var(--cell-text);
+    border-bottom: 2px solid var(--cell-border);
+    padding-bottom: 0.5rem;
 }
 
-.solved-day-section ul {
+.solved-puzzles-list {
     list-style-type: none;
     padding-left: 0;
 }
 
-.solved-day-section li {
-    padding: 0.25rem 0;
-    font-size: 0.9rem;
-    border-bottom: 1px dashed var(--cell-border);
+.solved-puzzle-item {
+    padding: 1rem;
+    margin-bottom: 0.75rem;
+    background: var(--cell-bg);
+    border: 1px solid var(--cell-border);
+    border-radius: 8px;
+    transition: transform 0.2s, box-shadow 0.2s;
 }
 
-.solved-day-section li:last-child {
-    border-bottom: none;
+.solved-puzzle-item:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+}
+
+.puzzle-info {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.puzzle-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+}
+
+.puzzle-title {
+    font-size: 1.1rem;
+    color: var(--cell-text);
+}
+
+.puzzle-date {
+    font-size: 0.85rem;
+    color: var(--cell-text);
+    opacity: 0.7;
+    font-family: monospace;
+}
+
+.puzzle-authors {
+    font-size: 0.9rem;
+    color: var(--cell-text);
+    opacity: 0.8;
+}
+
+.puzzle-stats {
+    display: flex;
+    gap: 1rem;
+    flex-wrap: wrap;
+    font-size: 0.85rem;
+    margin-top: 0.25rem;
+}
+
+.puzzle-stats .stat {
+    color: var(--cell-text);
+    opacity: 0.9;
+}
+
+.puzzle-stats .stat strong {
+    color: var(--cell-text);
+    opacity: 1;
 }
 
 .modal-body p {
     font-style: italic;
+    text-align: center;
+    padding: 2rem;
+    color: var(--cell-text);
+    opacity: 0.7;
 }
 
 /* New Theme Icon Styles */
@@ -788,7 +888,7 @@ input:checked+.slider:before {
 
 /* Shaded cells - light gray background */
 .grid-cell.shaded {
-    background-color: #d3d3d3;
+    background-color: #e8e8e8;
 }
 
 .grid-cell.shaded input {
@@ -817,39 +917,156 @@ input:checked+.slider:before {
 }
 
 /* Rebus cells - smaller font for multiple letters */
+.grid-cell.rebus {
+    background-color: color-mix(in srgb, #6b9bd1 15%, var(--cell-bg));
+    border: 2px solid #5a8dc4;
+    position: relative;
+}
+
 .grid-cell.rebus input {
-    font-size: 0.9rem;
-    letter-spacing: -0.05em;
+    font-size: 0.75rem;
+    letter-spacing: -0.08em;
+    font-weight: 600;
+    padding: 0 2px;
+}
+
+.grid-cell.rebus input:focus {
+    background-color: color-mix(in srgb, #6b9bd1 25%, var(--cell-focus-bg));
 }
 
 /* Rebus indicator - show letter count */
 .grid-cell .rebus-indicator {
     position: absolute;
-    bottom: 2px;
-    right: 3px;
-    font-size: 0.6rem;
-    color: #666;
+    bottom: 1px;
+    right: 2px;
+    font-size: 0.55rem;
+    color: #5a8dc4;
     font-weight: bold;
     pointer-events: none;
     z-index: 2;
+    background-color: rgba(255, 255, 255, 0.8);
+    padding: 1px 3px;
+    border-radius: 2px;
 }
 
 /* Combination: shaded + circled */
 .grid-cell.shaded.circled {
-    background-color: #d3d3d3;
+    background-color: #e8e8e8;
 }
 
 /* Combination: rebus + shaded */
+.grid-cell.rebus.shaded {
+    background-color: color-mix(in srgb, #6b9bd1 15%, #e8e8e8);
+}
+
 .grid-cell.rebus.shaded input {
     background-color: transparent;
 }
 
 /* Combination: rebus + circled */
 .grid-cell.rebus.circled input {
-    font-size: 0.9rem;
+    font-size: 0.75rem;
 }
 
 /* Black cells remain unchanged */
 .grid-cell.black {
     background-color: #000;
+}
+
+/* Dark mode adjustments for rebus cells */
+@media (prefers-color-scheme: dark) {
+    .grid-cell.rebus {
+        background-color: color-mix(in srgb, #7ba5d8 20%, var(--cell-bg));
+        border-color: #7ba5d8;
+    }
+
+    .grid-cell.rebus input:focus {
+        background-color: color-mix(in srgb, #7ba5d8 30%, var(--cell-focus-bg));
+    }
+
+    .grid-cell .rebus-indicator {
+        color: #9bc2ea;
+        background-color: rgba(0, 0, 0, 0.6);
+    }
+
+    .grid-cell.rebus.shaded {
+        background-color: color-mix(in srgb, #7ba5d8 20%, #3a3a3a);
+    }
+}
+
+/* Rebus context menu */
+.rebus-context-menu {
+    position: fixed;
+    background-color: var(--cell-bg);
+    border: 2px solid var(--cell-border);
+    border-radius: 6px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+    padding: 0.8rem;
+    z-index: 1000;
+    min-width: 200px;
+}
+
+.rebus-context-menu-header {
+    font-weight: bold;
+    font-size: 0.9rem;
+    margin-bottom: 0.5rem;
+    color: var(--cell-text);
+}
+
+.rebus-context-menu-input {
+    width: 100%;
+    padding: 0.5rem;
+    font-size: 1rem;
+    border: 2px solid #5a8dc4;
+    border-radius: 4px;
+    background-color: var(--cell-bg);
+    color: var(--cell-text);
+    text-transform: uppercase;
+    font-weight: 600;
+    text-align: center;
+}
+
+.rebus-context-menu-input:focus {
+    outline: none;
+    background-color: var(--cell-focus-bg);
+    border-color: #4a7db4;
+}
+
+.rebus-context-menu-hint {
+    font-size: 0.75rem;
+    color: #666;
+    margin-top: 0.3rem;
+    text-align: center;
+}
+
+.rebus-context-menu-buttons {
+    display: flex;
+    gap: 0.5rem;
+    margin-top: 0.8rem;
+}
+
+.rebus-context-menu-button {
+    flex: 1;
+    padding: 0.4rem 0.8rem;
+    border-radius: 4px;
+    border: 2px solid var(--cell-border);
+    background-color: #5a8dc4;
+    color: white;
+    cursor: pointer;
+    font-weight: bold;
+    font-size: 0.85rem;
+    transition: all 0.2s ease;
+}
+
+.rebus-context-menu-button:hover {
+    background-color: #4a7db4;
+    transform: translateY(-1px);
+}
+
+.rebus-context-menu-button.cancel {
+    background-color: #999;
+}
+
+.rebus-context-menu-button.cancel:hover {
+    background-color: #777;
 }
