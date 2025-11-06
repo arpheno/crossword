@@ -1,4 +1,5 @@
-// Vue app configuration
+// Vue app configuration - V2 with Cell object support
+// This version handles cells with formatting: shaded (^), circled (%), rebus (,)
 const CrosswordApp = {
     delimiters: ['[[', ']]'],
     data() {
@@ -12,6 +13,7 @@ const CrosswordApp = {
         return {
             crossword: [],
             grid: [],
+            cellMap: new Map(),  // V2: Map of (x,y) -> cell object with formatting
             direction: 'across',
             isChecking: false,
             baseUrl: window.location.origin,
@@ -212,8 +214,8 @@ const CrosswordApp = {
             }
 
             try {
-                const response = await axios.get(`${this.baseUrl}/random_crossword/${day}`);
-                // Assuming response.data is now { metadata: {...}, entries: [...] }
+                const response = await axios.get(`${this.baseUrl}/new/random_crossword/${day}`);
+                // Response includes cells array with formatting
                 this.currentPuzzleMetadata = response.data.metadata;
                 this.crossword = response.data.entries;
 
@@ -363,11 +365,64 @@ const CrosswordApp = {
             this.loadCrossword(day);
         },
         init() {
+            this.buildCellMap();  // V2: Build cell map from crossword entries
             this.calculateGridSize();
             this.generateGrid();
             this.placeWords();
             this.startTimer();
             this.score = 100; // Reset score for new puzzle
+        },
+        buildCellMap() {
+            // V2: Build a map of (x,y) -> cell object with formatting info
+            this.cellMap.clear();
+
+            this.crossword.forEach(word => {
+                // If word has cells array, use it; otherwise create simple cells
+                let cells;
+                if (word.cells && word.cells.length > 0) {
+                    cells = word.cells;
+                } else if (word.clean_answer) {
+                    cells = this.createSimpleCells(word.clean_answer);
+                } else {
+                    cells = this.createSimpleCells(this.cleanAnswer(word.answer));
+                }
+
+                cells.forEach((cell, i) => {
+                    if (cell.is_black) return;  // Skip black squares
+
+                    const x = word.direction === 'across' ? word.x + i : word.x;
+                    const y = word.direction === 'across' ? word.y : word.y + i;
+                    const key = `${x},${y}`;
+
+                    if (!this.cellMap.has(key)) {
+                        this.cellMap.set(key, {
+                            ...cell,
+                            x, y,
+                            userInput: '',
+                            words: []
+                        });
+                    }
+
+                    // Track which words use this cell
+                    this.cellMap.get(key).words.push({
+                        wordIndex: word.index,
+                        direction: word.direction,
+                        positionInWord: i
+                    });
+                });
+            });
+            console.log(`CellMap built with ${this.cellMap.size} cells`);
+        },
+        createSimpleCells(answer) {
+            // Helper: create simple cells from answer string (backward compatibility)
+            // This should only receive clean answers without special characters
+            return answer.split('').map(letter => ({
+                letter: letter.toUpperCase(),
+                is_circled: false,
+                is_shaded: false,
+                rebus: null,
+                is_black: false  // Should never be black since we pass clean answers
+            }));
         },
         startTimer() {
             // Clear existing timer if any
@@ -514,26 +569,59 @@ const CrosswordApp = {
             }
             return null;
         },
+        // V2: Cell helper methods
+        getCell(x, y) {
+            return this.cellMap.get(`${x},${y}`);
+        },
+        getCellClasses(rowIndex, cellIndex) {
+            const cell = this.getCell(cellIndex, rowIndex);
+            if (!cell) return 'black-cell';
+
+            const classes = [];
+            if (cell.is_black) classes.push('black-cell');
+            if (cell.is_shaded) classes.push('shaded');
+            if (cell.is_circled) classes.push('circled');
+            if (cell.rebus && cell.rebus.length > 0) classes.push('rebus');
+
+            return classes.join(' ');
+        },
+        isRebus(x, y) {
+            const cell = this.getCell(x, y);
+            return cell && cell.rebus && cell.rebus.length > 0;
+        },
+        getRebusCount(x, y) {
+            const cell = this.getCell(x, y);
+            if (!cell || !cell.rebus) return '';
+            return cell.rebus.length + 1;  // +1 for primary letter
+        },
         calculateGridSize() {
             // Calculate grid dimensions based on word positions
-            // This naturally excludes trailing black squares (# or .) from the API
+            // V2: Use clean_answer or answer_length from backend, or count non-black cells
             let maxX = 0;
             let maxY = 0;
             this.crossword.forEach(word => {
-                // Clean answer in case backend sends special characters
-                const cleanAnswer = this.cleanAnswer(word.answer);
+                // Use backend's clean_answer or answer_length if available, otherwise clean manually
+                let wordLength;
+                if (word.answer_length) {
+                    wordLength = word.answer_length;
+                } else if (word.clean_answer) {
+                    wordLength = word.clean_answer.length;
+                } else if (word.cells) {
+                    wordLength = word.cells.filter(c => !c.is_black).length;
+                } else {
+                    wordLength = this.cleanAnswer(word.answer).length;
+                }
 
                 if (word.direction === 'across') {
-                    maxX = Math.max(maxX, word.x + cleanAnswer.length);
+                    maxX = Math.max(maxX, word.x + wordLength);
                     maxY = Math.max(maxY, word.y + 1);
                 } else {
                     maxX = Math.max(maxX, word.x + 1);
-                    maxY = Math.max(maxY, word.y + cleanAnswer.length);
+                    maxY = Math.max(maxY, word.y + wordLength);
                 }
             });
             this.grid = Array(maxY).fill().map(() => Array(maxX).fill(''));
-            console.assert(this.grid.length === maxY, 'Grid height is incorrect');
-            console.assert(this.grid[0].length === maxX, 'Grid width is incorrect');
+            console.log(`Grid size calculated: ${maxX} x ${maxY}`);
         },
         cleanAnswer(answer) {
             // Remove special characters from answers
@@ -549,14 +637,22 @@ const CrosswordApp = {
         },
         placeWords() {
             this.crossword.forEach(word => {
-                const cleanAnswer = this.cleanAnswer(word.answer);
+                // V2: Use cells to get actual length, excluding black squares
+                let wordLength;
+                if (word.answer_length) {
+                    wordLength = word.answer_length;
+                } else if (word.cells) {
+                    wordLength = word.cells.filter(c => !c.is_black).length;
+                } else {
+                    wordLength = this.cleanAnswer(word.answer).length;
+                }
 
                 if (word.direction === 'across') {
-                    for (let i = 0; i < cleanAnswer.length; i++) {
+                    for (let i = 0; i < wordLength; i++) {
                         this.grid[word.y][word.x + i] = '';
                     }
                 } else {
-                    for (let i = 0; i < cleanAnswer.length; i++) {
+                    for (let i = 0; i < wordLength; i++) {
                         this.grid[word.y + i][word.x] = '';
                     }
                 }
@@ -772,7 +868,7 @@ const CrosswordApp = {
             try {
                 for (let i = 0; i < count && this.cachedCrosswordsCount[day] < 50; i++) {
                     try {
-                        const response = await axios.get(`${this.baseUrl}/random_crossword/${day}`);
+                        const response = await axios.get(`${this.baseUrl}/new/random_crossword/${day}`);
                         await this.cacheCrossword(day, response.data);
                         successfulCaches++;
                         this.cachingErrors[day] = 0;

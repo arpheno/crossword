@@ -22,6 +22,13 @@ app = Flask(__name__,
 def index():  # return the static content at static/app.html
     html = render_template('newapp.html')
     return html
+
+
+@app.route('/new')
+def new_index():
+    """New interface with Cell object support."""
+    html = render_template('newapp_v2.html')
+    return html
 @app.route('/crossword/<date>')
 def get_crossword(date):
     content = requests.get(f'https://nytsyn.pzzl.com/nytsyn-crossword-mh/nytsyncrossword?date={date}').text
@@ -72,6 +79,46 @@ def get_random_crossword(weekday):
             "authors": crossword_data.authors
         },
         "entries": [entity.dict() for entity in entities]
+    }
+    return response_data
+
+
+@app.route('/new/random_crossword/<weekday>')
+def get_random_crossword_v2(weekday):
+    """New endpoint with Cell object support."""
+    begin = datetime(2010, 1, 1)
+    end = datetime.today()
+    weekday = weekday.lower()
+    weekday_map = {
+        'monday': 0,
+        'tuesday': 1,
+        'wednesday': 2,
+        'thursday': 3,
+        'friday': 4,
+        'saturday': 5,
+        'sunday': 6
+    }
+    if weekday not in weekday_map:
+        return 'Invalid weekday'
+    random_date = random.choice([date for date in daterange(begin, end) if date.weekday() == weekday_map[weekday]])
+    reader = DataReader(base_url=base_url)
+    formatted_date = random_date.strftime("%y%m%d")
+    print(f"Fetching crossword for {weekday} {formatted_date} (v2 with cells)")
+    crossword_data = Crossword.from_api_response(reader._fetch_data(formatted_date))
+    print(f'Crossword for {formatted_date} fetched')
+    #Validate that the crosswords date is the correct weekday
+    assert datetime.strptime(crossword_data.date, "%y%m%d").weekday() == weekday_map[weekday]
+    
+    # Build with parse_cells=True to populate Cell objects
+    entities = build_crossword(crossword_data, parse_cells=True)
+    
+    response_data = {
+        "metadata": {
+            "date": crossword_data.date,
+            "title": crossword_data.title,
+            "authors": crossword_data.authors
+        },
+        "entries": [entity.model_dump() for entity in entities]
     }
     return response_data
 

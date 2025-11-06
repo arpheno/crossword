@@ -783,3 +783,73 @@ input:checked+.slider:before {
     z-index: 9999;
     background: transparent;
 }
+
+/* Cell Formatting Styles for v2 */
+
+/* Shaded cells - light gray background */
+.grid-cell.shaded {
+    background-color: #d3d3d3;
+}
+
+.grid-cell.shaded input {
+    background-color: transparent;
+}
+
+/* Circled cells - circle overlay */
+.grid-cell.circled::after {
+    content: '';
+    position: absolute;
+    top: 3px;
+    left: 3px;
+    right: 3px;
+    bottom: 3px;
+    border: 2px solid #333;
+    border-radius: 50%;
+    pointer-events: none;
+    z-index: 1;
+}
+
+/* Dark mode circled cells */
+@media (prefers-color-scheme: dark) {
+    .grid-cell.circled::after {
+        border-color: #ddd;
+    }
+}
+
+/* Rebus cells - smaller font for multiple letters */
+.grid-cell.rebus input {
+    font-size: 0.9rem;
+    letter-spacing: -0.05em;
+}
+
+/* Rebus indicator - show letter count */
+.grid-cell .rebus-indicator {
+    position: absolute;
+    bottom: 2px;
+    right: 3px;
+    font-size: 0.6rem;
+    color: #666;
+    font-weight: bold;
+    pointer-events: none;
+    z-index: 2;
+}
+
+/* Combination: shaded + circled */
+.grid-cell.shaded.circled {
+    background-color: #d3d3d3;
+}
+
+/* Combination: rebus + shaded */
+.grid-cell.rebus.shaded input {
+    background-color: transparent;
+}
+
+/* Combination: rebus + circled */
+.grid-cell.rebus.circled input {
+    font-size: 0.9rem;
+}
+
+/* Black cells remain unchanged */
+.grid-cell.black {
+    background-color: #000;
+}
