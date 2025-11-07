@@ -65,7 +65,20 @@ const CrosswordApp = {
             showRebusMenu: false,
             rebusMenuPosition: { x: 0, y: 0 },
             rebusMenuCell: { row: -1, col: -1 },
-            rebusInputValue: ''
+            rebusInputValue: '',
+            selectedWeekday: 'monday',
+            lastLoadedWeekday: 'monday'
+        }
+    },
+    computed: {
+        weekdayOptions() {
+            return [
+                { value: 'monday', label: 'Monday' },
+                { value: 'tuesday', label: 'Tuesday' },
+                { value: 'wednesday', label: 'Wednesday' },
+                { value: 'thursday', label: 'Thursday' },
+                { value: 'friday', label: 'Friday' }
+            ];
         }
     },
     created() {
@@ -240,6 +253,7 @@ const CrosswordApp = {
         },
         async loadCrossword(day, attempt = 1) {
             day = day.toLowerCase();
+            this.selectedWeekday = day;
             this.currentPuzzleMetadata = null; // Reset metadata on new load
 
             if (this.isOffline) {
@@ -280,6 +294,7 @@ const CrosswordApp = {
                 this.cacheCrossword(day, response.data);
 
                 this.init();
+                this.lastLoadedWeekday = day;
             } catch (error) {
                 console.error(`Error loading ${day} crossword:`, error);
                 // If fetch fails, try to load from cache
@@ -388,8 +403,22 @@ const CrosswordApp = {
             }
 
             this.init();
+            this.lastLoadedWeekday = day;
         },
         handleWeekdayClick(day) {
+            this.attemptLoadDay(day);
+        },
+        handleWeekdaySelect(event) {
+            const day = event.target.value;
+            const didLoad = this.attemptLoadDay(day);
+            if (!didLoad) {
+                // Revert the select to the previously loaded weekday if user cancelled
+                this.selectedWeekday = this.lastLoadedWeekday;
+            }
+        },
+        attemptLoadDay(day) {
+            const normalizedDay = (day || '').toLowerCase();
+
             // Check if there's any progress in the current puzzle
             const hasProgress = this.grid.some(row =>
                 row.some(cell => cell !== null && cell !== '')
@@ -397,13 +426,15 @@ const CrosswordApp = {
 
             if (hasProgress) {
                 if (!confirm('Loading a new puzzle will erase your current progress. Are you sure you want to continue?')) {
-                    return; // User clicked Cancel, so don't load new puzzle
+                    return false; // User clicked Cancel, so don't load new puzzle
                 }
             }
 
             this.isChecking = false;
             this.completedWords.clear(); // Clear completed words when loading new puzzle
-            this.loadCrossword(day);
+            this.selectedWeekday = normalizedDay;
+            this.loadCrossword(normalizedDay);
+            return true;
         },
         async loadSpecificDate() {
             // Validate date format (6 digits)

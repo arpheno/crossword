@@ -59,82 +59,82 @@
                     </div>
                 </div>
                 <div id="menu">
-                    <div class="menu-row">
+                    <div class="menu-row primary-actions">
                         <button @click="check_all()" id="check-all">Check all</button>
-                        <div class="weekday-buttons">
-                            <button @click="handleWeekdayClick('monday')" id="monday">
-                                Mon
-                                <span class="cache-count"
-                                    v-if="cachedCrosswordsCount.monday > 0">([[cachedCrosswordsCount.monday]])</span>
-                            </button>
-                            <button @click="handleWeekdayClick('tuesday')" id="tuesday">
-                                Tue
-                                <span class="cache-count"
-                                    v-if="cachedCrosswordsCount.tuesday > 0">([[cachedCrosswordsCount.tuesday]])</span>
-                            </button>
-                            <button @click="handleWeekdayClick('wednesday')" id="wednesday">
-                                Wed
-                                <span class="cache-count"
-                                    v-if="cachedCrosswordsCount.wednesday > 0">([[cachedCrosswordsCount.wednesday]])</span>
-                            </button>
-                            <button @click="handleWeekdayClick('thursday')" id="thursday">
-                                Thu
-                                <span class="cache-count"
-                                    v-if="cachedCrosswordsCount.thursday > 0">([[cachedCrosswordsCount.thursday]])</span>
-                            </button>
-                            <button @click="handleWeekdayClick('friday')" id="friday">
-                                Fri
-                                <span class="cache-count"
-                                    v-if="cachedCrosswordsCount.friday > 0">([[cachedCrosswordsCount.friday]])</span>
-                            </button>
-                        </div>
                         <button @click="openSolvedModal()" id="overview-button">Overview</button>
+                        <div class="menu-spacer"></div>
+                        <div class="theme-switch">
+                            <label class="switch">
+                                <input type="checkbox" v-model="isDarkMode" @change="toggle_night_mode"
+                                    aria-label="Toggle dark mode">
+                                <svg class="theme-icon" aria-hidden="true" width="24" height="24" viewBox="0 0 24 24">
+                                    <mask id="moon-mask">
+                                        <rect x="0" y="0" width="100%" height="100%" fill="white" />
+                                        <!-- Mask circle initially positioned off-screen (cx=25) -->
+                                        <circle class="mask-circle" cx="25" cy="12" r="8" fill="black" />
+                                    </mask>
+                                    <!-- Sun disc (r=8), masked -->
+                                    <circle class="sun-disc" cx="12" cy="12" r="8" mask="url(#moon-mask)"
+                                        fill="currentColor" />
+                                    <!-- Sun beams (unchanged) -->
+                                    <g class="sun-beams" stroke="currentColor">
+                                        <line x1="12" y1="1" x2="12" y2="3" />
+                                        <line x1="12" y1="21" x2="12" y2="23" />
+                                        <line x1="4.22" y1="4.22" x2="5.64" y2="5.64" />
+                                        <line x1="18.36" y1="18.36" x2="19.78" y2="19.78" />
+                                        <line x1="1" y1="12" x2="3" y2="12" />
+                                        <line x1="21" y1="12" x2="23" y2="12" />
+                                        <line x1="4.22" y1="19.78" x2="5.64" y2="18.36" />
+                                        <line x1="18.36" y1="5.64" x2="19.78" y2="4.22" />
+                                    </g>
+                                </svg>
+                            </label>
+                        </div>
                     </div>
-                    <div class="menu-row date-input-row">
-                        <input type="text" v-model="specificDate" placeholder="YYMMDD (e.g., 230403)" maxlength="6"
-                            @keyup.enter="loadSpecificDate()" id="date-input">
-                        <button @click="loadSpecificDate()" id="load-date-button">Load Date</button>
+
+                    <div class="menu-row status-row">
+                        <div class="status-indicators">
+                            <div class="status-cards">
+                                <div class="score-display">Score: [[score]]</div>
+                                <div class="timer-display">Time: [[formatTime(timer)]]</div>
+                            </div>
+                            <div class="offline-indicator" v-if="isOffline">Offline Mode</div>
+                        </div>
                     </div>
-                    <div class="menu-row data-management-buttons">
-                        <button @click="exportUserData()" id="export-button"
-                            title="Export your data to transfer to another device">Export Data</button>
-                        <button @click="importUserData()" id="import-button"
-                            title="Import data from another device">Import Data</button>
-                        <button @click="clearAllData()" id="clear-button" title="Clear all saved data"
-                            class="danger-button">Clear All Data</button>
+
+                    <div class="menu-row selection-row">
+                        <div class="field-group weekday-group">
+                            <label class="field-label" for="weekday-select">Weekday</label>
+                            <div class="select-wrapper">
+                                <select id="weekday-select" v-model="selectedWeekday" @change="handleWeekdaySelect">
+                                    <option v-for="option in weekdayOptions" :key="option.value" :value="option.value">
+                                        [[ option.label ]] ([[ cachedCrosswordsCount[option.value] ]])
+                                    </option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="field-group date-group">
+                            <label class="field-label" for="date-input">Specific Date</label>
+                            <div class="date-input-wrap">
+                                <input type="text" v-model="specificDate" placeholder="YYMMDD" maxlength="6"
+                                    @keyup.enter="loadSpecificDate()" id="date-input">
+                                <button @click="loadSpecificDate()" id="load-date-button">Load</button>
+                            </div>
+                            <small class="field-hint">Format: YYMMDD</small>
+                        </div>
                     </div>
-                    <div class="status-indicators">
-                        <div class="offline-indicator" v-if="isOffline">Offline Mode</div>
-                        <div class="score-display">Score: [[score]]</div>
-                        <div class="timer-display">Time: [[formatTime(timer)]]</div>
-                    </div>
-                    <div class="theme-switch">
-                        <label class="switch">
-                            <input type="checkbox" v-model="isDarkMode" @change="toggle_night_mode"
-                                aria-label="Toggle dark mode">
-                            <svg class="theme-icon" aria-hidden="true" width="24" height="24" viewBox="0 0 24 24">
-                                <mask id="moon-mask">
-                                    <rect x="0" y="0" width="100%" height="100%" fill="white" />
-                                    <!-- Mask circle initially positioned off-screen (cx=25) -->
-                                    <circle class="mask-circle" cx="25" cy="12" r="8" fill="black" />
-                                </mask>
-                                <!-- Sun disc (r=8), masked -->
-                                <circle class="sun-disc" cx="12" cy="12" r="8" mask="url(#moon-mask)"
-                                    fill="currentColor" />
-                                <!-- Sun beams (unchanged) -->
-                                <g class="sun-beams" stroke="currentColor">
-                                    <line x1="12" y1="1" x2="12" y2="3" />
-                                    <line x1="12" y1="21" x2="12" y2="23" />
-                                    <line x1="4.22" y1="4.22" x2="5.64" y2="5.64" />
-                                    <line x1="18.36" y1="18.36" x2="19.78" y2="19.78" />
-                                    <line x1="1" y1="12" x2="3" y2="12" />
-                                    <line x1="21" y1="12" x2="23" y2="12" />
-                                    <line x1="4.22" y1="19.78" x2="5.64" y2="18.36" />
-                                    <line x1="18.36" y1="5.64" x2="19.78" y2="4.22" />
-                                </g>
-                            </svg>
-                        </label>
-                    </div>
+
+                    <details class="advanced-controls">
+                        <summary>Data tools</summary>
+                        <div class="data-management-buttons">
+                            <button @click="exportUserData()" id="export-button"
+                                title="Export your data to transfer to another device">Export Data</button>
+                            <button @click="importUserData()" id="import-button"
+                                title="Import data from another device">Import Data</button>
+                            <button @click="clearAllData()" id="clear-button" title="Clear all saved data"
+                                class="danger-button">Clear All Data</button>
+                        </div>
+                    </details>
                 </div>
             </div>
 
