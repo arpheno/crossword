@@ -1,5 +1,5 @@
 # Crossword Puzzle App - GitHub Copilot Instructions
-
+Always use makefile to run tests and other operations like server running
 ## Project Overview
 This is a Flask-based web application for solving NYT-style crossword puzzles with offline support. The app fetches puzzles from the NYT syndication API, parses them into clean domain models using Pydantic, and provides an interactive Vue.js frontend.
 
