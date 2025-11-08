@@ -18,6 +18,8 @@ const CrosswordApp = {
             isChecking: false,
             baseUrl: window.location.origin,
             completedWords: new Set(),  // Track completed words
+            activeClueNumber: null,  // Track which clue is active for highlighting
+            activeDirection: null,   // Track active clue's direction
             isOffline: false,
             cachedCrosswordsCount: {
                 monday: 0,
@@ -60,17 +62,17 @@ const CrosswordApp = {
             showFireworks: false, // Display fireworks overlay
             fireworks: [], // Array of active fireworks
             fireworksAnimationId: null, // Animation frame ID
-            specificDate: '', // For loading specific puzzle by date
-            // Rebus context menu
-            showRebusMenu: false,
-            rebusMenuPosition: { x: 0, y: 0 },
-            rebusMenuCell: { row: -1, col: -1 },
-            rebusInputValue: '',
             selectedWeekday: 'monday',
             lastLoadedWeekday: 'monday'
         }
     },
     computed: {
+        isHalfCompleted() {
+            if (!this.crossword || this.crossword.length === 0) {
+                return false;
+            }
+            return (this.completedWords.size / this.crossword.length) > 0.5;
+        },
         weekdayOptions() {
             return [
                 { value: 'monday', label: 'Monday' },
@@ -81,7 +83,15 @@ const CrosswordApp = {
             ];
         }
     },
+    watch: {
+        selectedWeekday(newDay) {
+            localStorage.setItem('selectedWeekday', newDay);
+        }
+    },
     created() {
+        // Load saved weekday
+        this.selectedWeekday = localStorage.getItem('selectedWeekday') || 'monday';
+
         // Check online status
         window.addEventListener('online', this.handleOnlineStatus);
         window.addEventListener('offline', this.handleOnlineStatus);
@@ -95,7 +105,7 @@ const CrosswordApp = {
             this.checkAndStartCaching();
         }
 
-        this.loadCrossword('monday');
+        this.loadCrossword(this.selectedWeekday);
 
         // Add click listener to close rebus menu when clicking outside
         document.addEventListener('click', this.handleDocumentClick);
@@ -408,13 +418,8 @@ const CrosswordApp = {
         handleWeekdayClick(day) {
             this.attemptLoadDay(day);
         },
-        handleWeekdaySelect(event) {
-            const day = event.target.value;
-            const didLoad = this.attemptLoadDay(day);
-            if (!didLoad) {
-                // Revert the select to the previously loaded weekday if user cancelled
-                this.selectedWeekday = this.lastLoadedWeekday;
-            }
+        loadSelectedWeekday() {
+            this.attemptLoadDay(this.selectedWeekday);
         },
         attemptLoadDay(day) {
             const normalizedDay = (day || '').toLowerCase();
@@ -435,51 +440,6 @@ const CrosswordApp = {
             this.selectedWeekday = normalizedDay;
             this.loadCrossword(normalizedDay);
             return true;
-        },
-        async loadSpecificDate() {
-            // Validate date format (6 digits)
-            if (!this.specificDate || this.specificDate.length !== 6) {
-                alert('Please enter a date in YYMMDD format (e.g., 230403)');
-                return;
-            }
-
-            // Check if there's any progress in the current puzzle
-            const hasProgress = this.grid.some(row =>
-                row.some(cell => cell !== null && cell !== '')
-            );
-
-            if (hasProgress) {
-                if (!confirm('Loading a new puzzle will erase your current progress. Are you sure you want to continue?')) {
-                    return;
-                }
-            }
-
-            try {
-                const response = await axios.get(`${this.baseUrl}/crossword_by_date/${this.specificDate}`);
-
-                // Set metadata and entries
-                this.currentPuzzleMetadata = response.data.metadata;
-                this.crossword = response.data.entries;
-
-                // Validate puzzle data
-                if (!this.isValidPuzzle(response.data)) {
-                    alert('Invalid puzzle data received. Please try a different date.');
-                    return;
-                }
-
-                // Reset state
-                this.isChecking = false;
-                this.completedWords.clear();
-
-                // Initialize the puzzle
-                this.init();
-
-                // Clear the input
-                this.specificDate = '';
-            } catch (error) {
-                console.error(`Error loading crossword for date ${this.specificDate}:`, error);
-                alert(`Failed to load puzzle for date ${this.specificDate}. Please check the date and try again.`);
-            }
         },
         init() {
             this.buildCellMap();  // Build cell map from crossword entries with new Character model
@@ -547,6 +507,39 @@ const CrosswordApp = {
             const mins = Math.floor(seconds / 60);
             const secs = seconds % 60;
             return `${mins}:${secs.toString().padStart(2, '0')}`;
+        },
+        formatDate(dateStr) {
+            // Convert YYMMDD to readable format
+            if (!dateStr || dateStr.length !== 6) return '';
+            const year = parseInt('20' + dateStr.substring(0, 2));
+            const month = parseInt(dateStr.substring(2, 4)) - 1;
+            const day = parseInt(dateStr.substring(4, 6));
+            const date = new Date(year, month, day);
+            return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+        },
+        getCurrentDayName() {
+            // Get the day name from the puzzle metadata date
+            if (!this.currentPuzzleMetadata || !this.currentPuzzleMetadata.date) {
+                return '';
+            }
+            const dateStr = this.currentPuzzleMetadata.date;
+            const year = parseInt('20' + dateStr.substring(0, 2));
+            const month = parseInt(dateStr.substring(2, 4)) - 1;
+            const day = parseInt(dateStr.substring(4, 6));
+            const date = new Date(year, month, day);
+            const days = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+            return days[date.getDay()];
+        },
+        getXWordInfoLink() {
+            // Convert YYMMDD to M/D/YYYY format for xwordinfo.com
+            if (!this.currentPuzzleMetadata || !this.currentPuzzleMetadata.date) {
+                return '#';
+            }
+            const dateStr = this.currentPuzzleMetadata.date;
+            const year = parseInt('20' + dateStr.substring(0, 2));
+            const month = parseInt(dateStr.substring(2, 4));
+            const day = parseInt(dateStr.substring(4, 6));
+            return `https://www.xwordinfo.com/Crossword?date=${month}/${day}/${year}`;
         },
         toggle_night_mode() {
             const currentScheme = document.documentElement.style.getPropertyValue('color-scheme');
@@ -676,6 +669,93 @@ const CrosswordApp = {
             // Return the number of letters in the rebus
             return cell.letters.length;
         },
+        getEntryByClueNumber(clueNumber, direction) {
+            // Find an entry by its clue number and direction
+            return this.crossword.find(entry =>
+                entry.clue_number === clueNumber && entry.direction === direction
+            );
+        },
+        getCellsForEntry(entry) {
+            // Get all (x, y) coordinates for cells in an entry
+            if (!entry) return [];
+
+            const cells = [];
+            for (let i = 0; i < entry.characters.length; i++) {
+                const x = entry.direction === 'across' ? entry.start_x + i : entry.start_x;
+                const y = entry.direction === 'across' ? entry.start_y : entry.start_y + i;
+                cells.push({ x, y });
+            }
+            return cells;
+        },
+        getIntersectingClues(clueNumber, direction) {
+            // Find all clues in the opposite direction that intersect with this clue
+            const entry = this.getEntryByClueNumber(clueNumber, direction);
+            if (!entry) return [];
+
+            const entryCells = this.getCellsForEntry(entry);
+            const oppositeDirection = direction === 'across' ? 'down' : 'across';
+            const intersectingClues = [];
+
+            // For each cell in the entry, find which opposite-direction clues contain it
+            entryCells.forEach(({ x, y }) => {
+                this.crossword.forEach(otherEntry => {
+                    if (otherEntry.direction === oppositeDirection) {
+                        const otherCells = this.getCellsForEntry(otherEntry);
+                        const hasIntersection = otherCells.some(cell => cell.x === x && cell.y === y);
+
+                        if (hasIntersection && !intersectingClues.some(c =>
+                            c.clue_number === otherEntry.clue_number && c.direction === otherEntry.direction
+                        )) {
+                            intersectingClues.push(otherEntry);
+                        }
+                    }
+                });
+            });
+
+            return intersectingClues;
+        },
+        isCellInActiveEntry(rowIndex, cellIndex) {
+            // Check if a cell is part of the currently active entry
+            if (!this.activeClueNumber || !this.activeDirection) return false;
+
+            const entry = this.getEntryByClueNumber(this.activeClueNumber, this.activeDirection);
+            if (!entry) return false;
+
+            const cells = this.getCellsForEntry(entry);
+            return cells.some(cell => cell.x === cellIndex && cell.y === rowIndex);
+        },
+        isClueAffected(entry) {
+            // Check if a clue intersects with the currently active clue
+            if (!this.activeClueNumber || !this.activeDirection) return false;
+            if (entry.direction === this.activeDirection) return false;
+
+            const intersectingClues = this.getIntersectingClues(this.activeClueNumber, this.activeDirection);
+            return intersectingClues.some(c =>
+                c.clue_number === entry.clue_number && c.direction === entry.direction
+            );
+        },
+        isActiveClue(entry) {
+            // Check if this is the currently active clue
+            return this.activeClueNumber === entry.clue_number &&
+                this.activeDirection === entry.direction;
+        },
+        isCellInAffectedClue(entry, cellIndex) {
+            // Check if a specific cell in an affected clue intersects with the active clue
+            if (!this.activeClueNumber || !this.activeDirection) return false;
+            if (entry.direction === this.activeDirection) return false;
+
+            // Get the active entry
+            const activeEntry = this.getEntryByClueNumber(this.activeClueNumber, this.activeDirection);
+            if (!activeEntry) return false;
+
+            // Get the position of this cell in the affected entry
+            const x = entry.direction === 'across' ? entry.start_x + cellIndex : entry.start_x;
+            const y = entry.direction === 'across' ? entry.start_y : entry.start_y + cellIndex;
+
+            // Check if this position is in the active entry
+            const activeCells = this.getCellsForEntry(activeEntry);
+            return activeCells.some(cell => cell.x === x && cell.y === y);
+        },
         calculateGridSize() {
             // Use metadata dimensions if available, otherwise calculate from entries
             if (this.currentPuzzleMetadata && this.currentPuzzleMetadata.width && this.currentPuzzleMetadata.height) {
@@ -727,9 +807,35 @@ const CrosswordApp = {
             console.log(`Placed ${this.crossword.length} entries in grid`);
         },
         handle_clue_click(event, entry) {
+            // Set the direction to match the entry
             this.direction = entry.direction;
+
+            // Set active clue for highlighting
+            this.activeClueNumber = entry.clue_number;
+            this.activeDirection = entry.direction;
+
+            // Focus on the first cell of this entry
             this.$nextTick(() => {
                 const input = this.$refs[`input-${entry.start_y}-${entry.start_x}`];
+                if (input) {
+                    input[0].focus();
+                }
+            });
+        },
+        handle_cell_click(event, entry, cellIndex) {
+            // Stop event propagation so it doesn't trigger the clue wrapper click
+            event.stopPropagation();
+
+            // Set the direction to match the entry
+            this.direction = entry.direction;
+
+            // Calculate the actual cell position based on direction and index
+            const x = entry.direction === 'across' ? entry.start_x + cellIndex : entry.start_x;
+            const y = entry.direction === 'across' ? entry.start_y : entry.start_y + cellIndex;
+
+            // Focus on the specific cell
+            this.$nextTick(() => {
+                const input = this.$refs[`input-${y}-${x}`];
                 if (input) {
                     input[0].focus();
                 }
@@ -1116,157 +1222,20 @@ const CrosswordApp = {
             this.solvedPuzzlesList = allSolved;
         },
 
-        // Export/Import functionality
-        exportUserData() {
-            try {
-                const exportData = {
-                    version: '1.0',
-                    exportDate: new Date().toISOString(),
-                    data: {}
-                };
+        async markCurrentPuzzleAsComplete() {
+            if (!this.currentPuzzleMetadata) {
+                alert("No puzzle loaded to mark as complete.");
+                return;
+            }
 
-                // Export cached crosswords
-                const days = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday'];
-                days.forEach(day => {
-                    const cachedCrosswords = localStorage.getItem(`crosswords_${day}`);
-                    if (cachedCrosswords) {
-                        exportData.data[`crosswords_${day}`] = JSON.parse(cachedCrosswords);
-                    }
-                });
-
-                // Export solved puzzles
-                const allDays = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'];
-                allDays.forEach(day => {
-                    const solvedPuzzles = localStorage.getItem(`solved_${day}`);
-                    if (solvedPuzzles) {
-                        exportData.data[`solved_${day}`] = JSON.parse(solvedPuzzles);
-                    }
-                });
-
-                // Export theme preference
-                const colorScheme = document.documentElement.style.getPropertyValue('color-scheme');
-                if (colorScheme) {
-                    exportData.data.colorScheme = colorScheme;
+            if (confirm("Are you sure you want to mark this puzzle as complete? You won't see it again.")) {
+                const puzzleId = this.getPuzzleId(this.currentPuzzleMetadata);
+                if (puzzleId) {
+                    const day = this.getCurrentDay();
+                    await this.markPuzzleSolved(day, puzzleId);
+                    alert("Puzzle marked as complete. Loading a new one.");
+                    this.loadCrossword(this.selectedWeekday);
                 }
-
-                // Create and download the file
-                const dataStr = JSON.stringify(exportData, null, 2);
-                const dataBlob = new Blob([dataStr], { type: 'application/json' });
-                const url = URL.createObjectURL(dataBlob);
-
-                const link = document.createElement('a');
-                link.href = url;
-                link.download = `crossword-data-${new Date().toISOString().split('T')[0]}.json`;
-                document.body.appendChild(link);
-                link.click();
-                document.body.removeChild(link);
-
-                URL.revokeObjectURL(url);
-
-                alert('Your crossword data has been exported successfully!');
-            } catch (error) {
-                console.error('Error exporting data:', error);
-                alert('Error exporting data. Please try again.');
-            }
-        },
-
-        importUserData() {
-            const input = document.createElement('input');
-            input.type = 'file';
-            input.accept = '.json';
-
-            input.onchange = (event) => {
-                const file = event.target.files[0];
-                if (!file) return;
-
-                const reader = new FileReader();
-                reader.onload = (e) => {
-                    try {
-                        const importData = JSON.parse(e.target.result);
-
-                        // Validate the import format
-                        if (!importData.version || !importData.data) {
-                            throw new Error('Invalid file format');
-                        }
-
-                        // Confirm import with user
-                        const confirmMessage = `This will replace your current data with data from ${importData.exportDate ? new Date(importData.exportDate).toLocaleDateString() : 'unknown date'}. Are you sure you want to continue?`;
-                        if (!confirm(confirmMessage)) {
-                            return;
-                        }
-
-                        // Import the data
-                        Object.keys(importData.data).forEach(key => {
-                            if (key === 'colorScheme') {
-                                // Handle theme preference
-                                document.documentElement.style.setProperty('color-scheme', importData.data[key]);
-                                this.isDarkMode = importData.data[key] === 'dark';
-                            } else {
-                                // Handle localStorage data
-                                localStorage.setItem(key, JSON.stringify(importData.data[key]));
-                            }
-                        });
-
-                        // Update counts and UI
-                        this.updateCachedCounts();
-                        this.updateSolvedCounts();
-
-                        alert('Your data has been imported successfully!');
-
-                        // Optionally reload the current puzzle to reflect any changes
-                        if (this.crossword.length > 0) {
-                            location.reload();
-                        }
-
-                    } catch (error) {
-                        console.error('Error importing data:', error);
-                        alert('Error importing data. Please check that you selected a valid crossword export file.');
-                    }
-                };
-                reader.readAsText(file);
-            };
-
-            input.click();
-        },
-
-        clearAllData() {
-            const confirmMessage = 'This will permanently delete all your cached puzzles, solved puzzle history, and reset your settings. This action cannot be undone. Are you sure you want to continue?';
-            if (!confirm(confirmMessage)) {
-                return;
-            }
-
-            const secondConfirm = 'Are you absolutely sure? This will erase everything and cannot be undone.';
-            if (!confirm(secondConfirm)) {
-                return;
-            }
-
-            try {
-                // Clear all crossword-related localStorage
-                const days = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'];
-                days.forEach(day => {
-                    localStorage.removeItem(`crosswords_${day}`);
-                    localStorage.removeItem(`solved_${day}`);
-                });
-
-                // Reset theme to default
-                document.documentElement.style.setProperty('color-scheme', 'light');
-                this.isDarkMode = false;
-
-                // Update counts
-                this.updateCachedCounts();
-                this.updateSolvedCounts();
-
-                // Clear current puzzle
-                this.crossword = [];
-                this.grid = [];
-                this.completedWords.clear();
-                this.currentPuzzleMetadata = null;
-
-                alert('All data has been cleared successfully.');
-
-            } catch (error) {
-                console.error('Error clearing data:', error);
-                alert('Error clearing data. Please try again.');
             }
         },
 
