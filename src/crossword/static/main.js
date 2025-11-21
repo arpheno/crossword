@@ -54,6 +54,7 @@ const CrosswordApp = {
             isCachingInProgress: false,
             isDarkMode: document.documentElement.style.getPropertyValue('color-scheme') === 'dark',
             showSolvedModal: false, // For the solved puzzles modal
+            showCacheModal: false, // For the cache status modal
             solvedPuzzlesList: {},   // To store { day: [id1, id2], ... }
             currentPuzzleMetadata: null, // To store metadata of the currently loaded puzzle
             score: 100, // Starting score
@@ -63,7 +64,13 @@ const CrosswordApp = {
             fireworks: [], // Array of active fireworks
             fireworksAnimationId: null, // Animation frame ID
             selectedWeekday: 'monday',
-            lastLoadedWeekday: 'monday'
+            lastLoadedWeekday: 'monday',
+            checksUsed: 0, // Track number of times check_all was used
+            revealsUsed: 0, // Track number of individual cells revealed
+            showRebusMenu: false, // Show rebus context menu
+            rebusInputValue: '', // Value in rebus input
+            rebusMenuCell: { row: -1, col: -1 }, // Current rebus cell being edited
+            rebusMenuPosition: { x: 0, y: 0 } // Position of rebus menu
         }
     },
     computed: {
@@ -86,6 +93,14 @@ const CrosswordApp = {
     watch: {
         selectedWeekday(newDay) {
             localStorage.setItem('selectedWeekday', newDay);
+        },
+        activeDirection(newDirection) {
+            // Update body data attribute for CSS styling
+            if (newDirection) {
+                document.body.setAttribute('data-active-direction', newDirection);
+            } else {
+                document.body.removeAttribute('data-active-direction');
+            }
         }
     },
     created() {
@@ -100,10 +115,10 @@ const CrosswordApp = {
         // Initialize cached counts
         this.updateCachedCounts();
 
-        // Only start caching if we're online and any day needs more puzzles
-        if (!this.isOffline) {
-            this.checkAndStartCaching();
-        }
+        // Don't start aggressive caching on page load
+        // It will only happen when:
+        // 1. User comes online after being offline
+        // 2. User loads a puzzle and cache is low (< 10 puzzles)
 
         this.loadCrossword(this.selectedWeekday);
 
@@ -118,10 +133,24 @@ const CrosswordApp = {
     },
     methods: {
         async checkAndStartCaching() {
-            const needsMore = Object.values(this.cachedCrosswordsCount).some(count => count < 50);
+            // Only cache if any day has fewer than 10 puzzles (low threshold)
+            const needsMore = Object.values(this.cachedCrosswordsCount).some(count => count < 10);
             if (!needsMore || this.isCachingInProgress) return;
 
+            // Check if caching ran recently (within last hour)
+            const lastCachingTime = localStorage.getItem('lastCachingTime');
+            if (lastCachingTime) {
+                const timeSinceLastCaching = Date.now() - parseInt(lastCachingTime);
+                const oneHour = 60 * 60 * 1000;
+                if (timeSinceLastCaching < oneHour) {
+                    console.log('Caching ran recently, skipping...');
+                    return;
+                }
+            }
+
             this.isCachingInProgress = true;
+            localStorage.setItem('lastCachingTime', Date.now().toString());
+
             try {
                 await this.ensureCachesFilled();
             } finally {
@@ -448,6 +477,8 @@ const CrosswordApp = {
             this.placeWords();    // Replaces black squares with actual cells
             this.startTimer();
             this.score = 100; // Reset score for new puzzle
+            this.checksUsed = 0; // Reset checks counter
+            this.revealsUsed = 0; // Reset reveals counter
         },
         buildCellMap() {
             // Build a map of (x,y) -> cell object from clean Character model
@@ -558,6 +589,7 @@ const CrosswordApp = {
             }
 
             this.isChecking = true;
+            this.checksUsed++; // Increment checks counter
             let allCorrect = true;
             let hasErrors = false; // Track if any incorrect letters found
 
@@ -1030,6 +1062,9 @@ const CrosswordApp = {
                         this.grid[rowIndex][cellIndex] = correctLetter.toUpperCase();
                         this.$forceUpdate();
 
+                        // Increment reveals counter
+                        this.revealsUsed++;
+
                         // Deduct points for revealing a letter (but keep score >= 0)
                         this.score = Math.max(0, this.score - 20);
 
@@ -1112,6 +1147,44 @@ const CrosswordApp = {
                 input.classList.remove('red', 'green');
             });
         },
+        revealAll() {
+            if (!confirm('Are you sure you want to reveal all answers? This will complete the puzzle but reduce your score.')) {
+                return;
+            }
+
+            // Reveal all cells
+            this.crossword.forEach(entry => {
+                for (let i = 0; i < entry.characters.length; i++) {
+                    const x = entry.direction === 'across' ? entry.start_x + i : entry.start_x;
+                    const y = entry.direction === 'across' ? entry.start_y : entry.start_y + i;
+
+                    // Only count as a reveal if the cell was empty
+                    if (!this.grid[y][x] || this.grid[y][x] === '') {
+                        this.revealsUsed++;
+                    }
+
+                    this.grid[y][x] = entry.characters[i].letters.toUpperCase();
+                }
+            });
+
+            this.$forceUpdate();
+
+            // Heavy score penalty for revealing all
+            this.score = Math.max(0, this.score - 50);
+
+            // Clear any check marks if they're showing
+            if (this.isChecking) {
+                this.clearChecks();
+            }
+
+            // Mark puzzle as complete
+            this.stopTimer();
+            const puzzleId = this.getPuzzleId(this.currentPuzzleMetadata);
+            if (puzzleId) {
+                const day = this.getCurrentDay();
+                this.markPuzzleSolved(day, puzzleId);
+            }
+        },
         async fillCache(day, count) {
             // Don't start caching if we already have 50 puzzles
             const currentCount = this.cachedCrosswordsCount[day];
@@ -1178,6 +1251,28 @@ const CrosswordApp = {
         },
         closeSolvedModal() {
             this.showSolvedModal = false;
+        },
+        openCacheModal() {
+            this.updateCachedCounts(); // Refresh counts before showing
+            this.showCacheModal = true;
+        },
+        closeCacheModal() {
+            this.showCacheModal = false;
+        },
+        async manuallyStartCaching() {
+            if (this.isCachingInProgress) {
+                alert('Caching is already in progress!');
+                return;
+            }
+
+            // Clear the timestamp to allow immediate caching
+            localStorage.removeItem('lastCachingTime');
+
+            // Start caching
+            await this.checkAndStartCaching();
+
+            // Update the display
+            this.updateCachedCounts();
         },
         async populateSolvedPuzzlesList() {
             const days = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'];

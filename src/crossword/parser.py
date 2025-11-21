@@ -37,7 +37,28 @@ class NYTFormatParser:
         # Extract metadata
         date = lines[1].strip()
         title = lines[2].strip()
-        authors = [author.strip() for author in lines[3].split('/')]
+        
+        # Authors line may contain notepad: <NOTEPAD>text<, NOTEPAD>Author1, Author2
+        authors_line = lines[3].strip()
+        notepad = None
+        authors = []
+        
+        # Check for notepad in authors line
+        if '<NOTEPAD>' in authors_line and '<' in authors_line:
+            # Extract notepad text
+            notepad_start = authors_line.index('<NOTEPAD>') + len('<NOTEPAD>')
+            notepad_end = authors_line.index('<', notepad_start)
+            notepad = authors_line[notepad_start:notepad_end].strip()
+            
+            # Extract authors (everything after ", NOTEPAD>")
+            notepad_marker_end = authors_line.index('>', notepad_end) + 1
+            authors_text = authors_line[notepad_marker_end:].strip()
+            if authors_text:
+                authors = [author.strip() for author in authors_text.split('/')]
+        else:
+            # No notepad, just parse authors normally
+            authors = [author.strip() for author in authors_line.split('/')]
+        
         width = int(lines[4].strip())
         height = int(lines[5].strip())
         
@@ -55,7 +76,8 @@ class NYTFormatParser:
             title=title,
             authors=authors,
             width=actual_width,
-            height=actual_height
+            height=actual_height,
+            notepad=notepad
         )
         
         # Get clues - they come after the grid

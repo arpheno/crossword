@@ -13,6 +13,10 @@
     --incorrect-color: #cc0000;
     --correct-bg: rgba(46, 125, 50, 0.3);
     --incorrect-bg: rgba(255, 200, 200, 0.7);
+    --orange-primary: #ff9800;
+    --orange-secondary: #ff6d00;
+    --blue-primary: #2196f3;
+    --blue-secondary: #0d47a1;
 }
 
 html {
@@ -97,14 +101,282 @@ body {
 }
 
 .menu-section {
-    width: min(420px, 95vw);
-    padding: 1rem 1.5rem;
+    width: min(600px, 95vw);
+    padding: 0.75rem 1.25rem;
     background: linear-gradient(145deg, rgba(255, 255, 255, 0.18), rgba(255, 255, 255, 0.04));
-    backdrop-filter: blur(18px) saturate(120%);
     border-radius: 16px;
     border: 1px solid rgba(255, 255, 255, 0.3);
     box-shadow: 0 8px 24px rgba(0, 0, 0, 0.25);
 }
+
+/* Bar 1: Info Bar - Centered, single line, compact */
+.info-bar {
+    justify-content: center;
+    text-align: center;
+    padding-bottom: 0.5rem;
+    border-bottom: 1px solid var(--cell-border);
+    display: flex;
+    flex-direction: row;
+    flex-wrap: wrap;
+    gap: 0.35rem;
+    align-items: center;
+}
+
+.info-bar>* {
+    display: inline-flex;
+    align-items: center;
+    line-height: 1;
+}
+
+.info-bar .puzzle-date {
+    font-size: 0.8rem;
+    font-weight: 700;
+    letter-spacing: 0.02em;
+    white-space: nowrap;
+    line-height: 1;
+}
+
+.info-bar .puzzle-weekday {
+    font-size: 0.7rem;
+    font-weight: 600;
+    opacity: 0.85;
+    white-space: nowrap;
+    line-height: 1;
+}
+
+.info-bar .puzzle-authors {
+    font-size: 0.7rem;
+    font-style: italic;
+    opacity: 0.75;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 180px;
+    line-height: 1;
+    position: relative;
+    cursor: help;
+}
+
+.info-bar .puzzle-authors:hover::after {
+    content: attr(data-full-text);
+    position: absolute;
+    left: 50%;
+    top: 100%;
+    transform: translateX(-50%);
+    margin-top: 0.5rem;
+    padding: 0.4rem 0.6rem;
+    background: linear-gradient(145deg, rgba(40, 40, 40, 0.98), rgba(20, 20, 20, 0.98));
+    border: 1px solid rgba(255, 255, 255, 0.3);
+    border-radius: 6px;
+    color: white;
+    font-size: 0.7rem;
+    white-space: nowrap;
+    z-index: 1000;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+    pointer-events: none;
+}
+
+.info-bar .puzzle-separator {
+    opacity: 0.5;
+    font-size: 0.7rem;
+    line-height: 1;
+}
+
+.info-bar .puzzle-notepad {
+    font-size: 0.65rem;
+    font-style: italic;
+    opacity: 0.8;
+    color: var(--cell-text);
+    padding: 0.4rem 0.6rem;
+    background: linear-gradient(135deg, rgba(255, 152, 0, 0.1), rgba(33, 150, 243, 0.1));
+    border-radius: 4px;
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    text-align: center;
+    width: 100%;
+    flex-basis: 100%;
+    line-height: 1.3;
+    white-space: normal;
+    word-wrap: break-word;
+    overflow-wrap: break-word;
+    margin-top: 0.35rem;
+}
+
+/* Bar 2: Indicator Bar - Stats with gradient split */
+.indicator-bar {
+    display: flex;
+    justify-content: space-between;
+    align-items: stretch;
+    gap: 0.4rem;
+    padding: 0.5rem 0;
+    border-bottom: 1px solid var(--cell-border);
+    position: relative;
+}
+
+.stat-item {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.15rem;
+    flex: 1;
+    padding: 0.35rem 0.5rem;
+    border-radius: 8px;
+    position: relative;
+    background: linear-gradient(145deg, rgba(255, 255, 255, 0.08), rgba(255, 255, 255, 0.02));
+}
+
+.stat-label {
+    font-size: 0.6rem;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    font-weight: 600;
+    opacity: 0.75;
+    line-height: 1;
+}
+
+.stat-value {
+    font-size: 0.95rem;
+    font-weight: 700;
+    letter-spacing: 0.02em;
+    line-height: 1;
+}
+
+/* Blue stats (left side) */
+.blue-stat {
+    background: linear-gradient(145deg, rgba(33, 150, 243, 0.25), rgba(13, 71, 161, 0.15));
+    border: 1px solid rgba(33, 150, 243, 0.4);
+    box-shadow: 0 2px 8px rgba(33, 150, 243, 0.15);
+}
+
+.blue-stat .stat-label {
+    color: rgba(121, 183, 255, 0.9);
+}
+
+.blue-stat .stat-value {
+    color: rgba(121, 183, 255, 1);
+}
+
+.blue-stat:hover {
+    background: linear-gradient(145deg, rgba(33, 150, 243, 0.35), rgba(13, 71, 161, 0.2));
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(33, 150, 243, 0.25);
+}
+
+/* Orange stats (right side) */
+.orange-stat {
+    background: linear-gradient(145deg, rgba(255, 152, 0, 0.25), rgba(255, 109, 0, 0.15));
+    border: 1px solid rgba(255, 152, 0, 0.4);
+    box-shadow: 0 2px 8px rgba(255, 152, 0, 0.15);
+}
+
+.orange-stat .stat-label {
+    color: rgba(255, 183, 77, 0.9);
+}
+
+.orange-stat .stat-value {
+    color: rgba(255, 183, 77, 1);
+}
+
+.orange-stat:hover {
+    background: linear-gradient(145deg, rgba(255, 152, 0, 0.35), rgba(255, 109, 0, 0.2));
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(255, 152, 0, 0.25);
+}
+
+/* Bar 3: Action Bar - Buttons with split theme */
+.action-bar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 0.4rem;
+    padding-top: 0.5rem;
+}
+
+.action-button {
+    display: flex;
+    align-items: center;
+    gap: 0.35rem;
+    padding: 0.5rem 0.85rem;
+    border-radius: 8px;
+    border: 1px solid rgba(255, 255, 255, 0.3);
+    font-size: 0.7rem;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    cursor: pointer;
+    flex: 1;
+    justify-content: center;
+    text-decoration: none;
+    color: white;
+    background: linear-gradient(145deg, rgba(255, 255, 255, 0.12), rgba(255, 255, 255, 0.04));
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+}
+
+.action-button svg {
+    width: 16px;
+    height: 16px;
+    flex-shrink: 0;
+}
+
+/* Blue action buttons (left side) */
+.blue-action {
+    background: linear-gradient(145deg, rgba(33, 150, 243, 0.3), rgba(13, 71, 161, 0.2));
+    border-color: rgba(121, 183, 255, 0.4);
+    box-shadow: 0 2px 8px rgba(33, 150, 243, 0.2);
+    color: rgba(200, 230, 255, 1);
+}
+
+.blue-action:hover {
+    background: linear-gradient(145deg, rgba(33, 150, 243, 0.45), rgba(13, 71, 161, 0.3));
+    border-color: rgba(121, 183, 255, 0.6);
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(33, 150, 243, 0.35);
+}
+
+.blue-action:active {
+    transform: translateY(0);
+    box-shadow: 0 2px 6px rgba(33, 150, 243, 0.3);
+}
+
+/* Center action button (neutral) */
+.center-action {
+    background: linear-gradient(145deg, rgba(140, 140, 140, 0.25), rgba(100, 100, 100, 0.15));
+    border-color: rgba(180, 180, 180, 0.4);
+    box-shadow: 0 2px 8px rgba(100, 100, 100, 0.2);
+    color: rgba(220, 220, 220, 1);
+}
+
+.center-action:hover {
+    background: linear-gradient(145deg, rgba(160, 160, 160, 0.35), rgba(120, 120, 120, 0.25));
+    border-color: rgba(200, 200, 200, 0.5);
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(120, 120, 120, 0.3);
+}
+
+.center-action:active {
+    transform: translateY(0);
+    box-shadow: 0 2px 6px rgba(100, 100, 100, 0.25);
+}
+
+/* Orange action buttons (right side) */
+.orange-action {
+    background: linear-gradient(145deg, rgba(255, 152, 0, 0.3), rgba(255, 109, 0, 0.2));
+    border-color: rgba(255, 183, 77, 0.4);
+    box-shadow: 0 2px 8px rgba(255, 152, 0, 0.2);
+    color: rgba(255, 230, 200, 1);
+}
+
+.orange-action:hover {
+    background: linear-gradient(145deg, rgba(255, 152, 0, 0.45), rgba(255, 109, 0, 0.3));
+    border-color: rgba(255, 183, 77, 0.6);
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(255, 152, 0, 0.35);
+}
+
+.orange-action:active {
+    transform: translateY(0);
+    box-shadow: 0 2px 6px rgba(255, 152, 0, 0.3);
+}
+
 
 #crossword-container {
     flex: 0 0 auto;
@@ -123,24 +395,12 @@ body {
     width: 100%;
 }
 
-.menu-row.primary-actions {
-    justify-content: flex-start;
-    padding-top: 0.5rem;
-}
-
-.menu-row.top-bar {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    width: 100%;
-    padding-bottom: 0.5rem;
-    border-bottom: 1px solid var(--cell-border);
-}
-
 .menu-row.selection-row {
     align-items: flex-end;
     gap: 0.5rem;
 }
+
+/* Remove unused styles - replaced by new bar system */
 
 /* Remove specific animation delays - not needed anymore */
 
@@ -343,7 +603,8 @@ body {
     background: rgba(255, 255, 255, 0.12);
 }
 
-/* Icon buttons for check and complete */
+/* Icon buttons for check and complete - DEPRECATED, using action-button class now */
+/* Keeping for backwards compatibility if needed elsewhere */
 .icon-button {
     padding: 0.6rem !important;
     width: 2.5rem;
@@ -357,79 +618,6 @@ body {
 .icon-button svg {
     width: 20px;
     height: 20px;
-}
-
-.green-button {
-    background: rgba(46, 125, 50, 0.8) !important;
-    border-color: rgba(46, 125, 50, 0.9) !important;
-}
-
-.green-button:hover {
-    background: rgba(46, 125, 50, 1) !important;
-}
-
-.orange-button {
-    background: rgba(255, 152, 0, 0.8) !important;
-    border-color: rgba(255, 152, 0, 0.9) !important;
-}
-
-.orange-button:hover {
-    background: rgba(255, 152, 0, 1) !important;
-}
-
-.info-button {
-    background: rgba(33, 150, 243, 0.8) !important;
-    border-color: rgba(33, 150, 243, 0.9) !important;
-    text-decoration: none;
-    color: white;
-}
-
-.info-button:hover {
-    background: rgba(33, 150, 243, 1) !important;
-}
-
-/* Puzzle info styles */
-.puzzle-info {
-    display: flex;
-    flex-direction: column;
-    gap: 0.25rem;
-    flex: 1;
-    min-width: 0;
-}
-
-.puzzle-title {
-    font-size: 0.9rem;
-    font-weight: 700;
-    letter-spacing: 0.02em;
-    color: var(--cell-text);
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-}
-
-.puzzle-meta {
-    display: flex;
-    gap: 0.5rem;
-    font-size: 0.7rem;
-    color: rgba(255, 255, 255, 0.7);
-    letter-spacing: 0.03em;
-    align-items: center;
-}
-
-.puzzle-separator {
-    opacity: 0.5;
-}
-
-.puzzle-date,
-.puzzle-weekday,
-.puzzle-authors {
-    white-space: nowrap;
-}
-
-.puzzle-authors {
-    overflow: hidden;
-    text-overflow: ellipsis;
-    max-width: 200px;
 }
 
 
@@ -533,8 +721,8 @@ body {
     padding: 0;
     font-size: 0.75rem;
     font-weight: 500;
-    color: var(--cell-text);
-    background-color: rgba(255, 255, 255, 0.6);
+    color: white;
+    background-color: rgba(100, 100, 100, 0.75);
     border-radius: 2px;
     flex-shrink: 0;
 }
@@ -543,7 +731,6 @@ body {
 #across li,
 #down li {
     display: flex;
-    flex-direction: column;
     gap: 0.2rem;
     margin-bottom: 0.3rem;
     font-size: 0.85rem;
@@ -558,50 +745,73 @@ body {
     box-sizing: border-box;
 }
 
+/* Both across and down items: horizontal layout with number in center spine */
+#across li,
+#down li {
+    flex-direction: row;
+    align-items: center;
+}
+
 .half-completed #across li,
 .half-completed #down li {
     font-size: 1.1rem;
 }
 
-/* Left column (odd items) - number after clue text on right */
-#across li:nth-child(odd) .clue-wrapper {
+/* Both across and down clue content wrapper - takes up remaining space */
+#across li .clue-content,
+#down li .clue-content {
     display: flex;
-    justify-content: space-between;
-    align-items: baseline;
+    flex-direction: column;
+    gap: 0.2rem;
+    flex: 1;
+    min-width: 0;
 }
 
-#across li:nth-child(odd) .clue-number {
+/* Left column (odd items) - content on left, number on right */
+#across li:nth-child(odd),
+#down li:nth-child(odd) {
+    flex-direction: row;
+}
+
+#across li:nth-child(odd) .clue-content,
+#down li:nth-child(odd) .clue-content {
+    order: 1;
+    align-items: flex-end;
+    text-align: right;
+}
+
+#across li:nth-child(odd) .clue-number,
+#down li:nth-child(odd) .clue-number {
     order: 2;
-    margin-right: 0;
-    margin-left: 0.35rem;
+    margin-left: 0.5rem;
 }
 
-/* Right column (even items) - number before clue text on left */
-#across li:nth-child(even) .clue-wrapper {
-    display: flex;
-    justify-content: flex-start;
-    align-items: baseline;
+/* Right column (even items) - number on left, content on right */
+#across li:nth-child(even),
+#down li:nth-child(even) {
+    flex-direction: row;
 }
 
-#across li:nth-child(even) .clue-number {
-    order: -1;
-    margin-right: 0.35rem;
-    margin-left: 0;
+#across li:nth-child(even) .clue-content,
+#down li:nth-child(even) .clue-content {
+    order: 2;
+    align-items: flex-start;
+    text-align: left;
+}
+
+#across li:nth-child(even) .clue-number,
+#down li:nth-child(even) .clue-number {
+    order: 1;
+    margin-right: 0.5rem;
 }
 
 /* Style for the clue text */
-.clue-wrapper {
-    margin-bottom: 0;
+.clue-text {
     font-weight: 400;
     cursor: pointer;
     user-select: none;
     word-wrap: break-word;
     overflow-wrap: break-word;
-}
-
-/* Down clues - normal layout, no flex manipulation */
-#down li .clue-wrapper {
-    display: block;
 }
 
 /* Style for clue numbers - make them stand out */
@@ -611,6 +821,9 @@ body {
     color: var(--cell-text);
     opacity: 0.9;
     flex-shrink: 0;
+    align-self: center;
+    line-height: 1;
+    padding: 0.2rem 0;
 }
 
 /* Add hover effect for clues */
@@ -693,6 +906,23 @@ body {
 }
 
 /* Highlight cells in affected clues that intersect with active clue */
+/* When across is active, intersection cells in down clues are orange */
+.state.intersection-cell-across {
+    background-color: rgba(255, 152, 0, 0.45) !important;
+    border-color: rgba(255, 152, 0, 0.8) !important;
+    box-shadow: 0 0 4px rgba(255, 152, 0, 0.4);
+    font-weight: 700;
+}
+
+/* When down is active, intersection cells in across clues are blue */
+.state.intersection-cell-down {
+    background-color: rgba(33, 150, 243, 0.45) !important;
+    border-color: rgba(33, 150, 243, 0.8) !important;
+    box-shadow: 0 0 4px rgba(33, 150, 243, 0.4);
+    font-weight: 700;
+}
+
+/* Legacy fallback - orange */
 .state.intersection-cell {
     background-color: rgba(255, 152, 0, 0.45) !important;
     border-color: rgba(255, 152, 0, 0.8) !important;
@@ -726,8 +956,8 @@ body {
     text-shadow: 0 0 20px transparent;
 }
 
-/* Active state animations for background text */
-@keyframes glowPulse {
+/* Active state animations for background text - Orange (Across) */
+@keyframes glowPulseOrange {
 
     0%,
     100% {
@@ -749,7 +979,7 @@ body {
     }
 }
 
-@keyframes glowFadeIn {
+@keyframes glowFadeInOrange {
     0% {
         opacity: 0.06;
         text-shadow: 0 0 20px transparent;
@@ -765,7 +995,7 @@ body {
     }
 }
 
-@keyframes glowFadeOut {
+@keyframes glowFadeOutOrange {
     0% {
         opacity: 0.3;
         text-shadow:
@@ -781,24 +1011,86 @@ body {
     }
 }
 
-/* Active across mode */
+/* Active state animations for background text - Blue (Down) */
+@keyframes glowPulseBlue {
+
+    0%,
+    100% {
+        opacity: 0.25;
+        text-shadow:
+            0 0 20px rgba(33, 150, 243, 0.6),
+            0 0 40px rgba(33, 150, 243, 0.4),
+            0 0 60px rgba(33, 150, 243, 0.2),
+            0 0 80px rgba(33, 150, 243, 0.1);
+    }
+
+    50% {
+        opacity: 0.35;
+        text-shadow:
+            0 0 30px rgba(33, 150, 243, 0.8),
+            0 0 50px rgba(33, 150, 243, 0.6),
+            0 0 70px rgba(33, 150, 243, 0.4),
+            0 0 90px rgba(33, 150, 243, 0.2);
+    }
+}
+
+@keyframes glowFadeInBlue {
+    0% {
+        opacity: 0.06;
+        text-shadow: 0 0 20px transparent;
+    }
+
+    100% {
+        opacity: 0.3;
+        text-shadow:
+            0 0 25px rgba(33, 150, 243, 0.7),
+            0 0 45px rgba(33, 150, 243, 0.5),
+            0 0 65px rgba(33, 150, 243, 0.3),
+            0 0 85px rgba(33, 150, 243, 0.15);
+    }
+}
+
+@keyframes glowFadeOutBlue {
+    0% {
+        opacity: 0.3;
+        text-shadow:
+            0 0 25px rgba(33, 150, 243, 0.7),
+            0 0 45px rgba(33, 150, 243, 0.5),
+            0 0 65px rgba(33, 150, 243, 0.3),
+            0 0 85px rgba(33, 150, 243, 0.15);
+    }
+
+    100% {
+        opacity: 0.06;
+        text-shadow: 0 0 20px transparent;
+    }
+}
+
+/* Active across mode - Orange */
 .clue-column[data-label="ACROSS"].active::before {
-    animation: glowFadeIn 0.6s cubic-bezier(0.4, 0, 0.2, 1) forwards,
-        glowPulse 3s ease-in-out 0.6s infinite;
-    color: rgba(255, 152, 0, 0.9);
+    opacity: 0.45;
+    color: rgba(255, 152, 0, 0.75);
+    text-shadow:
+        0 0 20px rgba(255, 152, 0, 0.4),
+        0 0 35px rgba(255, 152, 0, 0.25);
 }
 
-/* Active down mode */
+/* Active down mode - Blue */
 .clue-column[data-label="DOWN"].active::before {
-    animation: glowFadeIn 0.6s cubic-bezier(0.4, 0, 0.2, 1) forwards,
-        glowPulse 3s ease-in-out 0.6s infinite;
-    color: rgba(255, 152, 0, 0.9);
+    opacity: 0.45;
+    color: rgba(33, 150, 243, 0.75);
+    text-shadow:
+        0 0 20px rgba(33, 150, 243, 0.4),
+        0 0 35px rgba(33, 150, 243, 0.25);
 }
 
-/* Inactive state - fade out animation */
+/* Inactive state - glassy gray, no color */
 .clue-column[data-label="ACROSS"].inactive::before,
 .clue-column[data-label="DOWN"].inactive::before {
-    animation: glowFadeOut 0.6s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+    opacity: 0.20;
+    color: rgba(255, 255, 255, 0.50);
+    text-shadow: 0 0 18px rgba(255, 255, 255, 0.15);
+    transition: opacity 0.4s ease, color 0.4s ease, text-shadow 0.4s ease;
 }
 
 /* Ensure content stays above the background */
@@ -891,13 +1183,11 @@ input:checked+.slider:before {
     border-color: var(--correct-color);
 }
 
+/* DEPRECATED: Old score and timer displays - now in indicator bar */
 .score-display,
 .timer-display {
-    font-size: 0.9rem;
-    font-weight: 600;
-    color: var(--cell-text);
-    opacity: 0.8;
-    font-family: 'SF Mono', Monaco, 'Cascadia Code', 'Roboto Mono', Consolas, 'Courier New', monospace;
+    display: none;
+    /* Hidden, replaced by stat-item components */
 }
 
 .status-indicators {
@@ -916,7 +1206,6 @@ input:checked+.slider:before {
     font-weight: 700;
     text-align: center;
     box-shadow: 0 4px 15px rgba(255, 152, 0, 0.4);
-    animation: pulse 2s ease-in-out infinite;
     display: none;
     /* Hidden for now */
 }
@@ -1112,6 +1401,73 @@ input:checked+.slider:before {
     opacity: 0.7;
 }
 
+/* Cache Status Modal */
+.cache-status-section h3 {
+    margin-top: 0;
+    margin-bottom: 1rem;
+    font-size: 1.2rem;
+    color: var(--cell-text);
+}
+
+.cache-list {
+    list-style: none;
+    padding: 0;
+    margin: 0 0 1.5rem 0;
+}
+
+.cache-item {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    padding: 0.75rem;
+    margin-bottom: 0.5rem;
+    background: var(--cell-bg);
+    border: 1px solid var(--cell-border);
+    border-radius: 8px;
+}
+
+.cache-day {
+    font-weight: 600;
+    min-width: 100px;
+    color: var(--cell-text);
+}
+
+.cache-progress {
+    flex: 1;
+    height: 20px;
+    background: rgba(0, 0, 0, 0.2);
+    border-radius: 10px;
+    overflow: hidden;
+    border: 1px solid var(--cell-border);
+}
+
+.cache-progress-bar {
+    height: 100%;
+    background: linear-gradient(90deg, rgba(33, 150, 243, 0.8), rgba(33, 150, 243, 0.5));
+    transition: width 0.3s ease;
+    border-radius: 10px;
+}
+
+.cache-count {
+    font-weight: 600;
+    min-width: 60px;
+    text-align: right;
+    color: var(--cell-text);
+    font-family: monospace;
+}
+
+.cache-actions {
+    display: flex;
+    justify-content: center;
+    padding-top: 1rem;
+    border-top: 1px solid var(--cell-border);
+}
+
+.cache-actions button:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
 /* New Theme Icon Styles */
 .theme-switch .switch {
     padding: 0;
@@ -1259,9 +1615,9 @@ input:checked+.slider:before {
 
 /* Cell Formatting Styles for v2 */
 
-/* Shaded cells - light gray background */
+/* Shaded cells - subtle darker background */
 .grid-cell.shaded {
-    background-color: #e8e8e8;
+    background-color: color-mix(in srgb, currentColor 8%, var(--cell-bg));
 }
 
 .grid-cell.shaded input {
@@ -1276,17 +1632,11 @@ input:checked+.slider:before {
     left: 3px;
     right: 3px;
     bottom: 3px;
-    border: 2px solid #333;
+    border: 2px solid currentColor;
+    opacity: 0.4;
     border-radius: 50%;
     pointer-events: none;
     z-index: 1;
-}
-
-/* Dark mode circled cells */
-@media (prefers-color-scheme: dark) {
-    .grid-cell.circled::after {
-        border-color: #ddd;
-    }
 }
 
 /* Rebus cells - smaller font for multiple letters */
@@ -1445,6 +1795,7 @@ input:checked+.slider:before {
 }
 
 /* Highlighting styles for active clues and intersecting cells */
+/* When across is active - orange highlight */
 .grid-cell.highlighted-cell {
     background-color: rgba(255, 152, 0, 0.25) !important;
     position: relative;
@@ -1466,9 +1817,18 @@ input:checked+.slider:before {
     z-index: 2;
 }
 
+/* When down is active - blue highlight */
+body[data-active-direction="down"] .grid-cell.highlighted-cell {
+    background-color: rgba(33, 150, 243, 0.25) !important;
+}
+
+body[data-active-direction="down"] .grid-cell.highlighted-cell::before {
+    border-color: rgba(33, 150, 243, 0.7);
+}
+
 /* Highlight clue that is currently selected */
-#across li.highlighted-clue,
-#down li.highlighted-clue {
+/* Across clues (highlighted in orange) */
+#across li.highlighted-clue {
     background-color: rgba(255, 152, 0, 0.35) !important;
     border-color: rgba(255, 152, 0, 0.8);
     box-shadow: 0 2px 8px rgba(255, 152, 0, 0.3);
@@ -1476,12 +1836,38 @@ input:checked+.slider:before {
     font-weight: 600;
 }
 
+/* Make cells in highlighted across clue slightly darker */
+#across li.highlighted-clue .state {
+    opacity: 0.85;
+}
+
+/* Down clues (highlighted in blue) */
+#down li.highlighted-clue {
+    background-color: rgba(33, 150, 243, 0.35) !important;
+    border-color: rgba(33, 150, 243, 0.8);
+    box-shadow: 0 2px 8px rgba(33, 150, 243, 0.3);
+    transform: translateY(-1px) scale(1.02);
+    font-weight: 600;
+}
+
+/* Make cells in highlighted down clue slightly darker */
+#down li.highlighted-clue .state {
+    opacity: 0.85;
+}
+
 /* Highlight affected clues (intersecting with active clue) */
-#across li.affected-clue,
+/* When active clue is in across, affected down clues get blue background */
 #down li.affected-clue {
-    background-color: rgba(121, 183, 255, 0.2) !important;
-    border-color: rgba(121, 183, 255, 0.5);
-    box-shadow: 0 2px 6px rgba(121, 183, 255, 0.2);
+    background-color: rgba(33, 150, 243, 0.2) !important;
+    border-color: rgba(33, 150, 243, 0.5);
+    box-shadow: 0 2px 6px rgba(33, 150, 243, 0.2);
+}
+
+/* When active clue is in down, affected across clues get orange background */
+#across li.affected-clue {
+    background-color: rgba(255, 152, 0, 0.2) !important;
+    border-color: rgba(255, 152, 0, 0.5);
+    box-shadow: 0 2px 6px rgba(255, 152, 0, 0.2);
 }
 
 /* Add a subtle animation for highlighting */
@@ -1498,5 +1884,5 @@ input:checked+.slider:before {
 }
 
 .highlighted-clue {
-    animation: highlight-pulse 2s ease-in-out infinite;
+    /* Removed infinite animation for performance */
 }

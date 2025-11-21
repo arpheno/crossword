@@ -23,38 +23,89 @@
                             'highlighted-clue': isActiveClue(entry),
                             'affected-clue': isClueAffected(entry)
                         }">
-                        <span class="clue-wrapper">
+                        <div class="clue-content">
                             <span class="clue-text">[[ entry.clue_text ]]</span>
-                            <strong class="clue-number">[[ entry.clue_number ]].</strong>
-                        </span>
-                        <div class="state-container">
-                            <span v-for="(char, index) in getCurrentAnswer(entry)" :key="index" class="state"
-                                @click="handle_cell_click($event, entry, index)" :class="{
-                                      'red': isChecking && char.toLowerCase() !== entry.characters[index].letters.toLowerCase() && char !== ' ',
-                                      'green': isChecking && char.toLowerCase() === entry.characters[index].letters.toLowerCase() && char !== ' ',
-                                      'intersection-cell': isCellInAffectedClue(entry, index)
-                                  }">[[char]]</span>
+                            <div class="state-container">
+                                <span v-for="(char, index) in getCurrentAnswer(entry)" :key="index" class="state"
+                                    @click="handle_cell_click($event, entry, index)" :class="{
+                                          'red': isChecking && char.toLowerCase() !== entry.characters[index].letters.toLowerCase() && char !== ' ',
+                                          'green': isChecking && char.toLowerCase() === entry.characters[index].letters.toLowerCase() && char !== ' ',
+                                          'intersection-cell-across': activeDirection === 'across' && isCellInAffectedClue(entry, index),
+                                          'intersection-cell-down': activeDirection === 'down' && isCellInAffectedClue(entry, index)
+                                      }">[[char]]</span>
+                            </div>
                         </div>
+                        <strong class="clue-number">[[ entry.clue_number ]].</strong>
                     </li>
                 </ul>
             </div>
 
             <div class="center-column">
-                <!-- Top Control Panel -->
+                <!-- Top Control Panel - Three Bars -->
                 <div id="menu-top" class="menu-section">
-                    <div class="menu-row top-bar">
-                        <div class="puzzle-info">
-                            <div class="puzzle-title" v-if="currentPuzzleMetadata">
-                                [[ formatDate(currentPuzzleMetadata.date) ]]
-                            </div>
-                            <div class="puzzle-meta" v-if="currentPuzzleMetadata">
-                                <span class="puzzle-weekday">[[ getCurrentDayName() ]]</span>
-                                <span class="puzzle-separator">•</span>
-                                <span class="puzzle-authors">[[ currentPuzzleMetadata.authors.join(', ') ]]</span>
-                            </div>
+                    <!-- Bar 1: Date and Authors -->
+                    <div class="menu-row info-bar">
+                        <span class="puzzle-date" v-if="currentPuzzleMetadata">[[ formatDate(currentPuzzleMetadata.date)
+                            ]]</span>
+                        <span class="puzzle-separator" v-if="currentPuzzleMetadata">•</span>
+                        <span class="puzzle-weekday" v-if="currentPuzzleMetadata">[[ getCurrentDayName() ]]</span>
+                        <span class="puzzle-separator" v-if="currentPuzzleMetadata">•</span>
+                        <span class="puzzle-authors" v-if="currentPuzzleMetadata"
+                            :data-full-text="currentPuzzleMetadata.authors.join(', ')">[[
+                            currentPuzzleMetadata.authors.join(', ') ]]</span>
+                        <div class="puzzle-notepad" v-if="currentPuzzleMetadata && currentPuzzleMetadata.notepad">
+                            [[ currentPuzzleMetadata.notepad ]]
                         </div>
+                    </div>
+
+                    <!-- Bar 2: Indicator Bar (Statistics) -->
+                    <div class="menu-row indicator-bar">
+                        <div class="stat-item blue-stat">
+                            <span class="stat-label">Completed</span>
+                            <span class="stat-value">[[completedWords.size]] / [[crossword.length]]</span>
+                        </div>
+                        <div class="stat-item blue-stat">
+                            <span class="stat-label">Checks</span>
+                            <span class="stat-value">[[checksUsed]]</span>
+                        </div>
+                        <div class="stat-item blue-stat">
+                            <span class="stat-label">Reveals</span>
+                            <span class="stat-value">[[revealsUsed]]</span>
+                        </div>
+                        <div class="stat-item orange-stat">
+                            <span class="stat-label">Score</span>
+                            <span class="stat-value">[[score]]</span>
+                        </div>
+                        <div class="stat-item orange-stat">
+                            <span class="stat-label">Time</span>
+                            <span class="stat-value">[[formatTime(timer)]]</span>
+                        </div>
+                    </div>
+
+                    <!-- Bar 3: Action Buttons -->
+                    <div class="menu-row action-bar">
+                        <button @click="check_all()" id="check-all" class="action-button blue-action" title="Check all">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24"
+                                fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                                stroke-linejoin="round">
+                                <circle cx="12" cy="12" r="10"></circle>
+                                <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"></path>
+                                <line x1="12" y1="17" x2="12.01" y2="17"></line>
+                            </svg>
+                            <span>Check</span>
+                        </button>
+                        <button @click="revealAll()" id="reveal-all" class="action-button blue-action"
+                            title="Reveal all">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24"
+                                fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                                stroke-linejoin="round">
+                                <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
+                                <circle cx="12" cy="12" r="3"></circle>
+                            </svg>
+                            <span>Reveal</span>
+                        </button>
                         <a v-if="currentPuzzleMetadata" :href="getXWordInfoLink()" target="_blank"
-                            rel="noopener noreferrer" class="icon-button info-button" title="View on XWord Info">
+                            rel="noopener noreferrer" class="action-button center-action" title="View on XWord Info">
                             <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24"
                                 fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
                                 stroke-linejoin="round">
@@ -62,27 +113,16 @@
                                 <line x1="12" y1="16" x2="12" y2="12"></line>
                                 <line x1="12" y1="8" x2="12.01" y2="8"></line>
                             </svg>
+                            <span>Solution</span>
                         </a>
-                        <div class="score-display">🏆 [[score]]</div>
-                        <div class="timer-display">⏱️ [[formatTime(timer)]]</div>
-                    </div>
-                    <div class="menu-row primary-actions">
-                        <button @click="check_all()" id="check-all" class="icon-button green-button" title="Check all">
-                            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24"
-                                fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
-                                stroke-linejoin="round">
-                                <circle cx="12" cy="12" r="10"></circle>
-                                <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"></path>
-                                <line x1="12" y1="17" x2="12.01" y2="17"></line>
-                            </svg>
-                        </button>
                         <button @click="markCurrentPuzzleAsComplete()" id="complete-button"
-                            class="icon-button orange-button" title="Mark as Complete">
-                            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24"
+                            class="action-button orange-action" title="Mark as Complete">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24"
                                 fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
                                 stroke-linejoin="round">
                                 <polyline points="20 6 9 17 4 12"></polyline>
                             </svg>
+                            <span>Complete</span>
                         </button>
                     </div>
                 </div>
@@ -150,6 +190,17 @@
                                 <line x1="9" y1="21" x2="9" y2="9"></line>
                             </svg>
                         </button>
+                        <button @click="openCacheModal()" id="cache-button" class="icon-button" title="Cache Status">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24"
+                                fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                                stroke-linejoin="round">
+                                <path
+                                    d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z">
+                                </path>
+                                <polyline points="3.27 6.96 12 12.01 20.73 6.96"></polyline>
+                                <line x1="12" y1="22.08" x2="12" y2="12"></line>
+                            </svg>
+                        </button>
                         <div class="theme-switch">
                             <label class="switch">
                                 <input type="checkbox" v-model="isDarkMode" @change="toggle_night_mode"
@@ -187,17 +238,18 @@
                             'highlighted-clue': isActiveClue(entry),
                             'affected-clue': isClueAffected(entry)
                         }">
-                        <span class="clue-wrapper">
-                            <strong class="clue-number">[[ entry.clue_number ]].</strong>
+                        <strong class="clue-number">[[ entry.clue_number ]].</strong>
+                        <div class="clue-content">
                             <span class="clue-text">[[ entry.clue_text ]]</span>
-                        </span>
-                        <div class="state-container">
-                            <span v-for="(char, index) in getCurrentAnswer(entry)" :key="index" class="state"
-                                @click="handle_cell_click($event, entry, index)" :class="{
+                            <div class="state-container">
+                                <span v-for="(char, index) in getCurrentAnswer(entry)" :key="index" class="state"
+                                    @click="handle_cell_click($event, entry, index)" :class="{
                                       'red': isChecking && char.toLowerCase() !== entry.characters[index].letters.toLowerCase() && char !== ' ',
                                       'green': isChecking && char.toLowerCase() === entry.characters[index].letters.toLowerCase() && char !== ' ',
-                                      'intersection-cell': isCellInAffectedClue(entry, index)
+                                      'intersection-cell-across': activeDirection === 'across' && isCellInAffectedClue(entry, index),
+                                      'intersection-cell-down': activeDirection === 'down' && isCellInAffectedClue(entry, index)
                                   }">[[char]]</span>
+                            </div>
                         </div>
                     </li>
                 </ul>
@@ -247,6 +299,45 @@
                     </div>
                     <p v-if="Object.values(solvedPuzzlesList).every(list => list.length === 0)">You haven't solved any
                         puzzles yet!</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Cache Status Modal -->
+        <div v-if="showCacheModal" class="modal-overlay" @click.self="closeCacheModal">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h2>Cache Status</h2>
+                    <button @click="closeCacheModal" class="modal-close-button">&times;</button>
+                </div>
+                <div class="modal-body">
+                    <div class="cache-status-section">
+                        <h3>Cached Puzzles</h3>
+                        <ul class="cache-list">
+                            <li v-for="(count, day) in cachedCrosswordsCount" :key="day" class="cache-item">
+                                <span class="cache-day">[[ day.charAt(0).toUpperCase() + day.slice(1) ]]</span>
+                                <div class="cache-progress">
+                                    <div class="cache-progress-bar" :style="{ width: (count / 50 * 100) + '%' }"></div>
+                                </div>
+                                <span class="cache-count">[[ count ]] / 50</span>
+                            </li>
+                        </ul>
+                        <div class="cache-actions">
+                            <button @click="manuallyStartCaching()" class="action-button blue-action"
+                                :disabled="isCachingInProgress">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24"
+                                    fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                                    stroke-linejoin="round">
+                                    <polyline points="23 4 23 10 17 10"></polyline>
+                                    <polyline points="1 20 1 14 7 14"></polyline>
+                                    <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15">
+                                    </path>
+                                </svg>
+                                <span v-if="!isCachingInProgress">Start Caching</span>
+                                <span v-else>Caching...</span>
+                            </button>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>

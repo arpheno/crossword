@@ -99,6 +99,7 @@ class CrosswordMetadata(BaseModel):
     authors: List[str] = Field(default_factory=list, description="List of author names")
     width: int = Field(..., ge=1, description="Grid width (number of columns)")
     height: int = Field(..., ge=1, description="Grid height (number of rows)")
+    notepad: Optional[str] = Field(default=None, description="Special note or message about the puzzle")
     
     def __str__(self) -> str:
         author_str = ", ".join(self.authors) if self.authors else "Unknown"
