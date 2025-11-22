@@ -1,5 +1,7 @@
 // Vue app configuration - V2 with Cell object support
 // This version handles cells with formatting: shaded (^), circled (%), rebus (,)
+const socket = io();
+
 const CrosswordApp = {
     delimiters: ['[[', ']]'],
     data() {
@@ -70,7 +72,13 @@ const CrosswordApp = {
             showRebusMenu: false, // Show rebus context menu
             rebusInputValue: '', // Value in rebus input
             rebusMenuCell: { row: -1, col: -1 }, // Current rebus cell being edited
-            rebusMenuPosition: { x: 0, y: 0 } // Position of rebus menu
+            rebusMenuPosition: { x: 0, y: 0 }, // Position of rebus menu
+
+            // Multiplayer
+            showMultiplayerModal: false,
+            multiplayerRoomId: null,
+            qrAcross: null,
+            qrDown: null
         }
     },
     computed: {
@@ -124,6 +132,14 @@ const CrosswordApp = {
 
         // Add click listener to close rebus menu when clicking outside
         document.addEventListener('click', this.handleDocumentClick);
+
+        // Listen for multiplayer updates
+        socket.on('cell_updated', (data) => {
+            if (this.grid && this.grid[data.row] && typeof this.grid[data.row][data.col] !== 'undefined') {
+                // Use Vue.set to ensure reactivity
+                Vue.set(this.grid[data.row], data.col, data.value);
+            }
+        });
     },
     beforeUnmount() {
         // Clean up timer when component is destroyed
@@ -1331,6 +1347,44 @@ const CrosswordApp = {
                     alert("Puzzle marked as complete. Loading a new one.");
                     this.loadCrossword(this.selectedWeekday);
                 }
+            }
+        },
+
+        // Multiplayer Methods
+        openMultiplayerModal() {
+            this.showMultiplayerModal = true;
+        },
+        closeMultiplayerModal() {
+            this.showMultiplayerModal = false;
+        },
+        async startMultiplayerSession() {
+            if (!this.currentPuzzleMetadata) return;
+            try {
+                const response = await axios.post('/api/multiplayer/create', {
+                    date: this.currentPuzzleMetadata.date
+                });
+                this.multiplayerRoomId = response.data.room_id;
+
+                // Get QRs
+                const qr1 = await axios.get(`/api/multiplayer/qr/${this.multiplayerRoomId}/across`);
+                this.qrAcross = qr1.data.qr_image;
+
+                const qr2 = await axios.get(`/api/multiplayer/qr/${this.multiplayerRoomId}/down`);
+                this.qrDown = qr2.data.qr_image;
+
+                // Join room as spectator/host
+                socket.emit('join', { room: this.multiplayerRoomId, role: 'host' });
+
+            } catch (error) {
+                console.error("Failed to start session:", error);
+                alert("Failed to start multiplayer session.");
+            }
+        },
+        async createHotspot() {
+            try {
+                await axios.post('/api/system/wifi');
+            } catch (error) {
+                alert("Failed to open system settings.");
             }
         },
 

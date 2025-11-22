@@ -7,6 +7,7 @@
     <title>Crossword Puzzle</title>
     <script src="{{ url_for('static', filename='lib/vue.js') }}"></script>
     <script src="{{ url_for('static', filename='lib/axios.min.js') }}"></script>
+    <script src="{{ url_for('static', filename='lib/socket.io.min.js') }}"></script>
 
     <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
 </head>
@@ -201,6 +202,17 @@
                                 <line x1="12" y1="22.08" x2="12" y2="12"></line>
                             </svg>
                         </button>
+                        <button @click="openMultiplayerModal()" id="multiplayer-button" class="icon-button"
+                            title="Multiplayer">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24"
+                                fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                                stroke-linejoin="round">
+                                <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
+                                <circle cx="9" cy="7" r="4"></circle>
+                                <path d="M23 21v-2a4 4 0 0 0-3-3.87"></path>
+                                <path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
+                            </svg>
+                        </button>
                         <div class="theme-switch">
                             <label class="switch">
                                 <input type="checkbox" v-model="isDarkMode" @change="toggle_night_mode"
@@ -337,6 +349,62 @@
                                 <span v-else>Caching...</span>
                             </button>
                         </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Multiplayer Modal -->
+        <div v-if="showMultiplayerModal" class="modal-overlay" @click.self="closeMultiplayerModal">
+            <div class="modal-content" style="max-width: 600px;">
+                <div class="modal-header">
+                    <h2>Multiplayer Setup</h2>
+                    <button @click="closeMultiplayerModal" class="modal-close-button">&times;</button>
+                </div>
+                <div class="modal-body">
+                    <div v-if="!multiplayerRoomId" class="multiplayer-start">
+                        <p>Start a multiplayer session to play with friends on mobile devices.</p>
+                        <button @click="startMultiplayerSession()" class="action-button blue-action"
+                            style="width: 100%; justify-content: center; margin-top: 20px;">
+                            Start Session
+                        </button>
+                    </div>
+                    <div v-else class="multiplayer-lobby">
+                        <div class="lobby-header">
+                            <span class="room-code">Room: <strong>[[ multiplayerRoomId ]]</strong></span>
+                            <button @click="createHotspot()" class="action-button orange-action"
+                                title="Open System Settings">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24"
+                                    fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                                    stroke-linejoin="round">
+                                    <path d="M5 12.55a11 11 0 0 1 14.08 0"></path>
+                                    <path d="M1.42 9a16 16 0 0 1 21.16 0"></path>
+                                    <path d="M8.53 16.11a6 6 0 0 1 6.95 0"></path>
+                                    <line x1="12" y1="20" x2="12.01" y2="20"></line>
+                                </svg>
+                                <span>WiFi Hotspot</span>
+                            </button>
+                        </div>
+
+                        <div class="qr-container"
+                            style="display: flex; justify-content: space-around; margin-top: 20px;">
+                            <div class="qr-item" style="text-align: center;">
+                                <h3>Player 1 (Across)</h3>
+                                <img :src="qrAcross" v-if="qrAcross"
+                                    style="width: 150px; height: 150px; border: 1px solid #ccc;">
+                                <div v-else>Loading...</div>
+                            </div>
+                            <div class="qr-item" style="text-align: center;">
+                                <h3>Player 2 (Down)</h3>
+                                <img :src="qrDown" v-if="qrDown"
+                                    style="width: 150px; height: 150px; border: 1px solid #ccc;">
+                                <div v-else>Loading...</div>
+                            </div>
+                        </div>
+
+                        <p style="text-align: center; margin-top: 20px; color: #666;">
+                            Scan the QR codes to join. Ensure devices are on the same Wi-Fi.
+                        </p>
                     </div>
                 </div>
             </div>

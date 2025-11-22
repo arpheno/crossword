@@ -14,6 +14,10 @@ dependencies = [
     "uvicorn>=0.25.0",
     "pydantic>=2.5.2",
     "flask-sqlalchemy>=3.0.0",
+    "flask-socketio>=5.5.1",
+    "simple-websocket>=1.1.0",
+    "qrcode>=8.2",
+    "pillow>=12.0.0",
 ]
 
 [project.optional-dependencies]

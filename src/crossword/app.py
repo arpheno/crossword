@@ -2,9 +2,14 @@ import random
 from datetime import datetime, timedelta
 import os
 import json
+import subprocess
+from io import BytesIO
+import base64
 
 from flask import Flask, render_template, jsonify, request
+from flask_socketio import SocketIO, emit, join_room, leave_room
 import requests
+import qrcode
 
 from .data_reader import DataReader
 from .parser import NYTFormatParser
@@ -25,6 +30,32 @@ app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 db.init_app(app)
 init_db(app)
 
+# Initialize SocketIO
+socketio = SocketIO(app, cors_allowed_origins="*")
+
+# Game Session Store
+game_sessions = {}
+
+class GameSession:
+    def __init__(self, room_id, puzzle_date):
+        self.room_id = room_id
+        self.puzzle_date = puzzle_date
+        self.grid = {} # (row, col) -> value
+        self.players = {
+            'across': None, # socket_id
+            'down': None    # socket_id
+        }
+    
+    def update_cell(self, row, col, value):
+        self.grid[(row, col)] = value
+        
+    def to_dict(self):
+        return {
+            'room_id': self.room_id,
+            'puzzle_date': self.puzzle_date,
+            'grid': {f"{r},{c}": v for (r, c), v in self.grid.items()},
+            'players': self.players
+        }
 
 @app.route('/')
 def index():
@@ -207,6 +238,96 @@ def delete_completed_puzzle(puzzle_date):
         db.session.rollback()
         print(f"Error deleting completed puzzle: {e}")
         return jsonify({"error": str(e)}), 500
+
+
+# --- Multiplayer Routes & Events ---
+
+@app.route('/api/multiplayer/create', methods=['POST'])
+def create_session():
+    data = request.json
+    puzzle_date = data.get('date')
+    room_id = ''.join(random.choices('ABCDEFGHIJKLMNOPQRSTUVWXYZ', k=4))
+    game_sessions[room_id] = GameSession(room_id, puzzle_date)
+    return jsonify({'room_id': room_id})
+
+@app.route('/api/multiplayer/qr/<room_id>/<role>')
+def get_qr(room_id, role):
+    # Get local IP
+    import socket
+    s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+    try:
+        # doesn't even have to be reachable
+        s.connect(('10.255.255.255', 1))
+        IP = s.getsockname()[0]
+    except Exception:
+        IP = '127.0.0.1'
+    finally:
+        s.close()
+        
+    # Use the port from the request if possible, or default to 5000
+    host_with_port = request.host
+    # If running on localhost, replace with IP
+    if 'localhost' in host_with_port or '127.0.0.1' in host_with_port:
+        port = host_with_port.split(':')[-1] if ':' in host_with_port else '5000'
+        host_with_port = f"{IP}:{port}"
+    
+    url = f"http://{host_with_port}/mobile/{room_id}/{role}"
+    
+    img = qrcode.make(url)
+    buffered = BytesIO()
+    img.save(buffered, format="PNG")
+    img_str = base64.b64encode(buffered.getvalue()).decode()
+    
+    return jsonify({'qr_image': f"data:image/png;base64,{img_str}", 'url': url})
+
+@app.route('/mobile/<room_id>/<role>')
+def mobile_client(room_id, role):
+    return render_template('mobile.html', room_id=room_id, role=role)
+
+@app.route('/api/system/wifi', methods=['POST'])
+def open_wifi_settings():
+    try:
+        subprocess.run(["open", "x-apple.systempreferences:com.apple.Sharing-Settings.extension"])
+        return jsonify({"status": "success"})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+@socketio.on('join')
+def on_join(data):
+    room = data['room']
+    role = data.get('role')
+    join_room(room)
+    
+    session = game_sessions.get(room)
+    if session:
+        if role in ['across', 'down']:
+            session.players[role] = request.sid
+        
+        # Send current state
+        emit('game_state', session.to_dict(), to=request.sid)
+        emit('player_joined', {'role': role}, to=room)
+
+@socketio.on('update_cell')
+def on_update_cell(data):
+    room = data['room']
+    row = data['row']
+    col = data['col']
+    value = data['value']
+    
+    session = game_sessions.get(room)
+    if session:
+        session.update_cell(row, col, value)
+        emit('cell_updated', data, to=room, include_self=False)
+
+@socketio.on('request_swap')
+def on_request_swap(data):
+    room = data['room']
+    emit('swap_requested', data, to=room, include_self=False)
+
+@socketio.on('confirm_swap')
+def on_confirm_swap(data):
+    room = data['room']
+    emit('swap_confirmed', data, to=room)
 
 
 if __name__ == '__main__':
