@@ -148,14 +148,16 @@ const CrosswordApp = {
         document.removeEventListener('click', this.handleDocumentClick);
     },
     methods: {
-        async checkAndStartCaching() {
+        async checkAndStartCaching(force = false) {
             // Only cache if any day has fewer than 10 puzzles (low threshold)
+            // Unless forced (manual trigger)
             const needsMore = Object.values(this.cachedCrosswordsCount).some(count => count < 10);
-            if (!needsMore || this.isCachingInProgress) return;
+            if ((!needsMore && !force) || this.isCachingInProgress) return;
 
             // Check if caching ran recently (within last hour)
+            // Skip this check if forced
             const lastCachingTime = localStorage.getItem('lastCachingTime');
-            if (lastCachingTime) {
+            if (lastCachingTime && !force) {
                 const timeSinceLastCaching = Date.now() - parseInt(lastCachingTime);
                 const oneHour = 60 * 60 * 1000;
                 if (timeSinceLastCaching < oneHour) {
@@ -487,6 +489,8 @@ const CrosswordApp = {
             return true;
         },
         init() {
+            this.clearChecks(); // Reset visual indicators
+            this.completedWords.clear(); // Clear completed words
             this.buildCellMap();  // Build cell map from crossword entries with new Character model
             this.calculateGridSize();
             this.generateGrid();  // Now creates full grid of black squares
@@ -678,7 +682,7 @@ const CrosswordApp = {
             const day = parseInt(dateStr.substring(4, 6));
 
             const date = new Date(year, month, day);
-            const dayOfWeek = date.getDay();  // 0 = Sunday, 1 = Monday, etc.
+            const dayOfWeek = date.getDay();  // 0 = Sunday, 1 = Monday, 2 = Tuesday, etc.
 
             const days = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
             return days[dayOfWeek];
@@ -1285,7 +1289,7 @@ const CrosswordApp = {
             localStorage.removeItem('lastCachingTime');
 
             // Start caching
-            await this.checkAndStartCaching();
+            await this.checkAndStartCaching(true);
 
             // Update the display
             this.updateCachedCounts();
@@ -1613,4 +1617,9 @@ const CrosswordApp = {
 // Initialize Vue app when DOM is loaded
 document.addEventListener('DOMContentLoaded', () => {
     new Vue(CrosswordApp).$mount('#app');
-}); 
+});
+
+// Export for testing
+if (typeof module !== 'undefined' && module.exports) {
+    module.exports = { CrosswordApp };
+}

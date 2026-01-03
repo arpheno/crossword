@@ -17,6 +17,21 @@
     --orange-secondary: #ff6d00;
     --blue-primary: #2196f3;
     --blue-secondary: #0d47a1;
+    --black-cell-bg: #333333;
+}
+
+@media (prefers-color-scheme: dark) {
+    :root {
+        --black-cell-bg: black;
+    }
+}
+
+:root[style*="color-scheme: dark"] {
+    --black-cell-bg: black;
+}
+
+:root[style*="color-scheme: light"] {
+    --black-cell-bg: #333333;
 }
 
 html {
@@ -676,7 +691,7 @@ body {
 }
 
 .black-cell {
-    background-color: black;
+    background-color: var(--black-cell-bg);
 }
 
 .clue-index {
@@ -827,12 +842,18 @@ body {
 }
 
 /* Add hover effect for clues */
-#across li:hover,
-#down li:hover {
-    background-color: var(--cell-focus-bg);
-    border-color: color-mix(in srgb, currentColor 30%, transparent);
+#across li:hover {
+    background-color: rgba(255, 152, 0, 0.15);
+    border-color: rgba(255, 152, 0, 0.4);
     transform: translateY(-1px);
-    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.12);
+    box-shadow: 0 2px 6px rgba(255, 152, 0, 0.15);
+}
+
+#down li:hover {
+    background-color: rgba(33, 150, 243, 0.15);
+    border-color: rgba(33, 150, 243, 0.4);
+    transform: translateY(-1px);
+    box-shadow: 0 2px 6px rgba(33, 150, 243, 0.15);
 }
 
 /* Style for clue headers */
@@ -1885,4 +1906,125 @@ body[data-active-direction="down"] .grid-cell.highlighted-cell::before {
 
 .highlighted-clue {
     /* Removed infinite animation for performance */
+}
+
+/* Light mode overrides for control panel */
+:root[style*="color-scheme: light"] .menu-section {
+    background: linear-gradient(145deg, #ffffff, #f0f0f0);
+    border: 1px solid rgba(0, 0, 0, 0.1);
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.1);
+    color: #333;
+}
+
+:root[style*="color-scheme: light"] .info-bar .puzzle-date,
+:root[style*="color-scheme: light"] .info-bar .puzzle-weekday,
+:root[style*="color-scheme: light"] .info-bar .puzzle-authors,
+:root[style*="color-scheme: light"] .info-bar .puzzle-separator {
+    color: #333;
+}
+
+:root[style*="color-scheme: light"] .info-bar .puzzle-notepad {
+    color: #444;
+    border-color: rgba(0, 0, 0, 0.1);
+}
+
+:root[style*="color-scheme: light"] .stat-item {
+    background: linear-gradient(145deg, rgba(0, 0, 0, 0.05), rgba(0, 0, 0, 0.02));
+}
+
+/* Blue stat light mode */
+:root[style*="color-scheme: light"] .blue-stat {
+    background: linear-gradient(145deg, rgba(33, 150, 243, 0.15), rgba(13, 71, 161, 0.05));
+    border-color: rgba(33, 150, 243, 0.3);
+}
+
+:root[style*="color-scheme: light"] .blue-stat .stat-label {
+    color: #1565c0;
+}
+
+:root[style*="color-scheme: light"] .blue-stat .stat-value {
+    color: #0d47a1;
+}
+
+/* Orange stat light mode */
+:root[style*="color-scheme: light"] .orange-stat {
+    background: linear-gradient(145deg, rgba(255, 152, 0, 0.15), rgba(255, 109, 0, 0.05));
+    border-color: rgba(255, 152, 0, 0.3);
+}
+
+:root[style*="color-scheme: light"] .orange-stat .stat-label {
+    color: #e65100;
+}
+
+:root[style*="color-scheme: light"] .orange-stat .stat-value {
+    color: #bf360c;
+}
+
+/* Action buttons light mode */
+:root[style*="color-scheme: light"] .action-button {
+    background: linear-gradient(145deg, #ffffff, #f5f5f5);
+    border-color: rgba(0, 0, 0, 0.15);
+    color: #333;
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.05);
+}
+
+/* Blue action light mode */
+:root[style*="color-scheme: light"] .blue-action {
+    background: linear-gradient(145deg, #e3f2fd, #bbdefb);
+    border-color: #90caf9;
+    color: #1565c0;
+}
+
+:root[style*="color-scheme: light"] .blue-action:hover {
+    background: linear-gradient(145deg, #bbdefb, #90caf9);
+}
+
+/* Orange action light mode */
+:root[style*="color-scheme: light"] .orange-action {
+    background: linear-gradient(145deg, #fff3e0, #ffe0b2);
+    border-color: #ffcc80;
+    color: #e65100;
+}
+
+:root[style*="color-scheme: light"] .orange-action:hover {
+    background: linear-gradient(145deg, #ffe0b2, #ffcc80);
+}
+
+/* Center action (Solution) light mode */
+:root[style*="color-scheme: light"] .center-action {
+    background: linear-gradient(145deg, #f5f5f5, #e0e0e0);
+    border-color: #bdbdbd;
+    color: #424242;
+}
+
+:root[style*="color-scheme: light"] .center-action:hover {
+    background: linear-gradient(145deg, #e0e0e0, #d6d6d6);
+    color: #212121;
+}
+
+/* Inputs light mode */
+:root[style*="color-scheme: light"] .select-wrapper select,
+:root[style*="color-scheme: light"] #date-input {
+    background: linear-gradient(145deg, #ffffff, #f5f5f5);
+    border-color: rgba(0, 0, 0, 0.2);
+    color: #333;
+}
+
+:root[style*="color-scheme: light"] .select-wrapper::after {
+    color: #666;
+}
+
+:root[style*="color-scheme: light"] #date-input::placeholder {
+    color: #999;
+}
+
+/* Menu buttons light mode */
+:root[style*="color-scheme: light"] .menu-section button {
+    background: rgba(0, 0, 0, 0.05);
+    border-color: rgba(0, 0, 0, 0.15);
+    color: #333;
+}
+
+:root[style*="color-scheme: light"] .menu-section button:hover {
+    background: rgba(0, 0, 0, 0.1);
 }

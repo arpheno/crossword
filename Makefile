@@ -19,6 +19,13 @@ check-uv: ## Check if uv is installed
 		exit 1; \
 	}
 
+check-node: ## Check if node/npm is installed
+	@command -v npm >/dev/null 2>&1 || { \
+		echo "$(RED)Error: npm is not installed!$(NC)"; \
+		echo "$(YELLOW)Please install Node.js and npm to run JS tests.$(NC)"; \
+		exit 1; \
+	}
+
 help: ## Show this help message
 	@echo "$(BLUE)Crossword App - Available targets:$(NC)"
 	@echo ""
@@ -45,9 +52,15 @@ venv: check-uv ## Create virtual environment
 		echo "$(GREEN)Virtual environment created!$(NC)"; \
 	fi
 
-test: ## Run tests
-	@echo "$(BLUE)Running tests...$(NC)"
+test: ## Run all tests (Python and JS)
+	@echo "$(BLUE)Running Python tests...$(NC)"
 	uv run pytest tests/ -v
+	@echo "$(BLUE)Running JS tests...$(NC)"
+	npm test
+
+test-js: ## Run JS tests only
+	@echo "$(BLUE)Running JS tests...$(NC)"
+	npm test
 
 test-cov: ## Run tests with coverage
 	@echo "$(BLUE)Running tests with coverage...$(NC)"
@@ -110,7 +123,9 @@ deps-tree: ## Show dependency tree
 
 check: test lint ## Run all checks (tests + linting)
 
-setup: check-uv venv dev ## Complete setup: create venv and install deps
+setup: check-uv check-node venv dev ## Complete setup: create venv and install deps
+	@echo "$(BLUE)Installing Node dependencies...$(NC)"
+	npm install
 	@echo ""
 	@echo "$(GREEN)════════════════════════════════════════$(NC)"
 	@echo "$(GREEN)  Setup complete! 🎉$(NC)"

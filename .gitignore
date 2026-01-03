@@ -78,3 +78,4 @@ Thumbs.db
 instance/
 .webassets-cache
 .idea/
+node_modules/

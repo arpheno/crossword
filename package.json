@@ -1,0 +1,22 @@
+{
+    "name": "crossword-app",
+    "version": "1.0.0",
+    "description": "Frontend testing for Crossword App",
+    "scripts": {
+        "test": "jest"
+    },
+    "devDependencies": {
+        "jest": "^29.7.0",
+        "jest-environment-jsdom": "^29.7.0",
+        "vue": "^2.7.16",
+        "axios": "^1.6.0"
+    },
+    "jest": {
+        "testEnvironment": "jsdom",
+        "verbose": true,
+        "moduleDirectories": [
+            "node_modules",
+            "src/crossword/static"
+        ]
+    }
+}
