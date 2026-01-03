@@ -28,6 +28,14 @@ ENV/
 .venv
 env.bak/
 venv.bak/
+.python-version.bak
+
+# uv
+.uv_cache/
+# uv.lock is tracked for reproducible builds
+
+# Poetry (legacy)
+poetry.lock
 
 # IDE specific files
 .idea/
@@ -68,4 +76,6 @@ Thumbs.db
 
 # Project specific
 instance/
-.webassets-cache .idea/
+.webassets-cache
+.idea/
+node_modules/

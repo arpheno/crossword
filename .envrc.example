@@ -1,0 +1,26 @@
+#!/bin/bash
+# Quick development commands - source this file for aliases
+
+# Activate virtual environment
+alias activate='source .venv/bin/activate'
+
+# Quick commands
+alias mt='make test'
+alias mr='make run'
+alias mc='make clean'
+alias mi='make install'
+
+# uv shortcuts
+alias uvsync='uv sync --all-extras'
+alias uvrun='uv run'
+alias uvtest='uv run pytest'
+alias uvshell='uv run python'
+
+echo "Development aliases loaded!"
+echo "  activate  - Activate virtual environment"
+echo "  mt        - Run tests (make test)"
+echo "  mr        - Run app (make run)"
+echo "  mc        - Clean cache (make clean)"
+echo "  mi        - Install deps (make install)"
+echo ""
+echo "Run 'make help' for all available commands"

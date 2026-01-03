@@ -1,0 +1,191 @@
+# Crossword Puzzle App - GitHub Copilot Instructions
+Always use makefile to run tests and other operations like server running
+## Project Overview
+This is a Flask-based web application for solving NYT-style crossword puzzles with offline support. The app fetches puzzles from the NYT syndication API, parses them into clean domain models using Pydantic, and provides an interactive Vue.js frontend.
+
+## Tech Stack
+- **Backend**: Flask 3.x, Flask-SQLAlchemy
+- **Frontend**: Vue.js 2.6, Axios, vanilla JavaScript
+- **Data Models**: Pydantic 2.x for domain models
+- **Database**: SQLite with SQLAlchemy ORM
+- **Testing**: pytest with factory-boy
+- **Package Management**: uv (modern Python package manager)
+- **Python Version**: 3.13+
+
+## Code Style & Conventions
+
+### Python
+- Use type hints for all function parameters and return values
+- Follow Pydantic best practices for data models
+- Use `computed_field` decorator for derived properties in Pydantic models
+- Prefer f-strings for string formatting
+- Keep functions focused and single-purpose
+- Use descriptive variable names (e.g., `puzzle_date` not `pd`)
+
+### Flask Routes
+- All API routes should be under `/api/` prefix
+- Return appropriate HTTP status codes (200, 201, 400, 404, 500)
+- Always use `jsonify()` for JSON responses
+- Include error handling with try-except blocks
+- Log errors with `print()` statements (for now)
+
+### Database
+- Use SQLAlchemy ORM (declarative base)
+- All database operations should be wrapped in try-except with `db.session.rollback()` on errors
+- Use `to_dict()` methods for serializing models to JSON
+- Store JSON data as TEXT columns and serialize/deserialize with `json.dumps()`/`json.loads()`
+
+### Frontend
+- Use Vue.js 2.6 options API (not composition API)
+- Store all JavaScript in `src/crossword/static/main.js`
+- Use Axios for HTTP requests
+- All external libraries must be downloaded locally to `src/crossword/static/lib/` for offline support
+
+## Domain Models
+
+### Core Crossword Structure
+```
+Crossword
+├── CrosswordMetadata (date, title, authors, dimensions)
+└── List[Entry] (clues and answers)
+    └── List[Character] (individual cells with letters, styling)
+```
+
+### Key Concepts
+- **Entry**: One clue with its answer (across or down), positioned at (start_x, start_y)
+- **Character**: One cell in the grid, can be:
+  - Single letter
+  - Rebus (multiple letters in one cell)
+  - Can have styling: circled, shaded
+- **No explicit grid representation**: Entry positions define the grid implicitly
+
+### Date Format
+- Always use `YYMMDD` format (e.g., "231026" for October 26, 2023)
+- Use `datetime.strftime("%y%m%d")` for formatting
+
+## API Design Patterns
+
+### Endpoint Structure
+```
+GET    /api/resource          # List all
+GET    /api/resource/<id>     # Get one
+POST   /api/resource          # Create
+DELETE /api/resource/<id>     # Delete
+```
+
+### Response Format
+```python
+# Success
+return jsonify({"data": result}), 200
+
+# Created
+return jsonify({"message": "Created", "data": result}), 201
+
+# Error
+return jsonify({"error": "Error message"}), 400
+```
+
+## Testing
+
+### Test Organization
+- Unit tests in `tests/test_*.py`
+- Use pytest fixtures for common setup
+- Use factory-boy for test data generation
+- Integration tests should test full request/response cycle
+
+### Running Tests
+```bash
+make test          # Run all tests
+make test-cov      # Run with coverage
+pytest tests/test_specific.py  # Run specific test
+```
+
+## Development Workflow
+
+### Setup Commands
+```bash
+make bootstrap     # First-time setup (installs uv, creates venv, installs deps)
+make setup         # Setup project (if uv already installed)
+make run           # Start development server
+make test          # Run tests
+make clean         # Clean cache files
+```
+
+### Database Changes
+- Migrations are not used (yet)
+- Database schema is created automatically via `db.create_all()`
+- To reset database, delete `instance/crossword.db` and restart the app
+
+## Common Patterns
+
+### Fetching Crosswords
+```python
+reader = DataReader(base_url=base_url)
+api_text = reader._fetch_data(formatted_date)
+crossword = NYTFormatParser.parse(api_text)
+```
+
+### Serializing Pydantic Models for JSON
+```python
+response_data = {
+    "metadata": crossword.metadata.model_dump(),
+    "entries": [entry.model_dump() for entry in crossword.entries]
+}
+return jsonify(response_data)
+```
+
+### Database Operations
+```python
+try:
+    puzzle = CompletedPuzzle(puzzle_date=date, title=title)
+    db.session.add(puzzle)
+    db.session.commit()
+    return jsonify({"data": puzzle.to_dict()}), 201
+except Exception as e:
+    db.session.rollback()
+    return jsonify({"error": str(e)}), 500
+```
+
+## Important Notes
+
+### Offline Support
+- All external JavaScript libraries MUST be downloaded locally to `static/lib/`
+- No CDN links in production templates
+- See README.md for download instructions
+
+### Date Handling
+- NYT API uses `YYMMDD` format
+- Weekday mapping: monday=0, tuesday=1, ..., sunday=6
+- Use `datetime.strptime(date, "%y%m%d")` for parsing
+
+### Special Characters
+- Puzzles can contain rebuses (multiple letters in one cell)
+- Puzzles can have circled or shaded cells
+- See `SPECIAL_CHARACTERS.md` for details
+
+## When Adding New Features
+
+1. **Add domain models first** if needed (in `models.py`)
+2. **Add database models** if persistence is needed (in `database.py`)
+3. **Add API routes** following RESTful conventions (in `app.py`)
+4. **Add frontend logic** in Vue component (in `static/main.js`)
+5. **Add tests** for new functionality (in `tests/`)
+6. **Update this file** if you introduce new patterns or conventions
+
+## File Organization
+- `src/crossword/app.py` - Flask routes and app configuration
+- `src/crossword/models.py` - Pydantic domain models
+- `src/crossword/database.py` - SQLAlchemy models and DB config
+- `src/crossword/parser.py` - NYT format parser
+- `src/crossword/data_reader.py` - API client for fetching puzzles
+- `src/crossword/static/` - Frontend assets (JS, CSS)
+- `src/crossword/templates/` - Jinja2 templates
+- `tests/` - All test files
+
+## Questions to Ask Before Implementing
+
+1. Does this need to persist to the database?
+2. Is this a new domain concept (needs a Pydantic model)?
+3. Should this be a RESTful API endpoint?
+4. Does this need to work offline?
+5. Will this affect existing tests?
