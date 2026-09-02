@@ -13,5 +13,8 @@
   "devDependencies": {
     "typescript": "5.9.2",
     "vitest": "3.2.4"
+  },
+  "dependencies": {
+    "@mlc-ai/web-llm": "^0.2.84"
   }
 }

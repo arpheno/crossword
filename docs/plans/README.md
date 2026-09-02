@@ -50,6 +50,8 @@ change.
   domain/application boundaries and IndexedDB persistence.
 - The local LLM is required for original construction and clueing. Deterministic
   constraints, licensed sources, and validators remain authoritative.
+- Inference is in-browser only (WebGPU via WebLLM in a dedicated worker); local
+  HTTP inference servers such as Ollama are out of scope (ADR 0002).
 - Inference and fill run in dedicated workers; the model is unloaded during
   play after the local queue is prepared.
 - Start with a TypeScript bitset CSP and a Python reference oracle. Rust/WASM

@@ -87,3 +87,4 @@ src/crossword/static/lib/
 # Local dependency-audit output is intentionally kept out of source control.
 reports/npm-audit.json
 reports/mutation/
+.npm-cache/
