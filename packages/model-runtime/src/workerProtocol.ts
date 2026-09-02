@@ -10,7 +10,6 @@ import type {
 export type ModelWorkerConfig = Readonly<{
   manifest: ModelManifest;
   runtime: RuntimeProbe;
-  baseUrl: string;
 }>;
 
 export type ModelWorkerOperation = 'install' | 'load' | 'generate-candidates' | 'compose-clues' | 'unload';
@@ -41,8 +40,8 @@ function isFiniteNumber(value: unknown): value is number {
 }
 
 function isManifest(value: unknown): value is ModelManifest {
-  if (!isRecord(value) || value.schemaVersion !== 1 || typeof value.id !== 'string' || typeof value.version !== 'string' || typeof value.quantization !== 'string' || typeof value.runtimeVersion !== 'string' || typeof value.promptVersion !== 'string' || !isFiniteNumber(value.minimumMemoryMb) || !Array.isArray(value.shards) || (value.distribution !== undefined && !['webllm', 'ollama'].includes(value.distribution as string))) return false;
-  return (value.distribution === 'ollama' || value.shards.length > 0) && value.shards.every((shard) => isRecord(shard) && typeof shard.url === 'string' && typeof shard.sha256 === 'string' && /^[a-f0-9]{64}$/.test(shard.sha256) && Number.isInteger(shard.bytes) && (shard.bytes as number) > 0);
+  if (!isRecord(value) || value.schemaVersion !== 1 || typeof value.id !== 'string' || typeof value.version !== 'string' || typeof value.quantization !== 'string' || typeof value.runtimeVersion !== 'string' || typeof value.promptVersion !== 'string' || !isFiniteNumber(value.minimumMemoryMb) || !Array.isArray(value.shards) || (value.distribution !== undefined && value.distribution !== 'webllm-mlc')) return false;
+  return value.shards.every((shard) => isRecord(shard) && typeof shard.url === 'string' && typeof shard.sha256 === 'string' && /^[a-f0-9]{64}$/.test(shard.sha256) && Number.isInteger(shard.bytes) && (shard.bytes as number) > 0);
 }
 
 function isRuntime(value: unknown): value is RuntimeProbe {
@@ -76,15 +75,14 @@ function isClueRequest(value: unknown): value is Readonly<{ answer: string; inte
 export function parseModelWorkerRequest(value: unknown): ModelWorkerRequest | undefined {
   if (!isRecord(value) || value.version !== 1 || typeof value.type !== 'string') return undefined;
   if (value.type === 'cancel' && typeof value.requestId === 'string' && value.requestId) return { version: 1, type: 'cancel', requestId: value.requestId };
-  if (value.type === 'configure' && typeof value.requestId === 'string' && value.requestId && isRecord(value.config) && isManifest(value.config.manifest) && isRuntime(value.config.runtime) && typeof value.config.baseUrl === 'string') {
+  if (value.type === 'configure' && typeof value.requestId === 'string' && value.requestId && isRecord(value.config) && isManifest(value.config.manifest) && isRuntime(value.config.runtime)) {
     return {
       version: 1,
       type: 'configure',
       requestId: value.requestId,
       config: {
         manifest: value.config.manifest,
-        runtime: value.config.runtime,
-        baseUrl: value.config.baseUrl
+        runtime: value.config.runtime
       }
     };
   }

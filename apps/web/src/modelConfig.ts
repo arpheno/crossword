@@ -1,18 +1,20 @@
 import type { ModelManifest, RuntimeProbe } from '@crossword/model-runtime';
 
+// Dev-default pin per ADR 0002: the final model choice is an open owner
+// decision (plans README). In-browser WebLLM 0.2.84 downloads weights from
+// the pinned MLC host into browser storage at install time; no loopback or
+// remote inference endpoint exists in this application.
 export const localModelManifest: ModelManifest = {
   schemaVersion: 1,
-  id: 'qwen3:0.6b',
-  version: '0.6b',
-  quantization: 'Q4_K_M',
-  runtimeVersion: 'ollama-api-v1',
+  id: 'Llama-3.2-1B-Instruct-q4f16_1-MLC',
+  version: '3.2-1b',
+  quantization: 'q4f16_1',
+  runtimeVersion: 'webllm-0.2.84',
   promptVersion: 'candidate-v2',
   minimumMemoryMb: 2_048,
   shards: [],
-  distribution: 'ollama'
+  distribution: 'webllm-mlc'
 };
-
-export const localModelUrl = import.meta.env.VITE_LOCAL_MODEL_URL ?? 'http://127.0.0.1:11434';
 
 export function browserRuntimeProbe(): RuntimeProbe {
   const browserNavigator = navigator as Navigator & { deviceMemory?: number };

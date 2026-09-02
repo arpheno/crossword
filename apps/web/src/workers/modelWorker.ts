@@ -1,8 +1,7 @@
 import {
   createModelBroker,
-  createOllamaAdapter,
+  createWebLLMAdapter,
   parseModelWorkerRequest,
-  type LocalModelFetch,
   type ModelBroker,
   type ModelWorkerRequest,
   type ModelWorkerResponse
@@ -18,13 +17,6 @@ const jobs = new Map<string, AbortController>();
 const postState = () => {
   if (broker) workerScope.postMessage({ version: 1, type: 'state', state: broker.state() });
 };
-
-const fetcher: LocalModelFetch = (input, init) => fetch(input, {
-  method: init?.method,
-  headers: init?.headers as Record<string, string> | undefined,
-  body: init?.body,
-  signal: init?.signal
-});
 
 workerScope.onmessage = (event) => {
   const message = parseModelWorkerRequest(event.data);
@@ -42,7 +34,7 @@ workerScope.onmessage = (event) => {
       return;
     }
     try {
-      broker = createModelBroker(message.config.manifest, createOllamaAdapter({ baseUrl: message.config.baseUrl, fetcher }), message.config.runtime);
+      broker = createModelBroker(message.config.manifest, createWebLLMAdapter(), message.config.runtime);
       workerScope.postMessage({ version: 1, type: 'result', requestId: message.requestId, operation: 'configure', result: { ok: true, value: undefined } });
       postState();
     } catch (error) {

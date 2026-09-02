@@ -30,7 +30,7 @@ import { ClueSpine } from './components/ClueSpine';
 import { CrosswordGrid } from './components/CrosswordGrid';
 import { SessionCommands } from './components/SessionCommands';
 import { createBrowserModelWorkerClient, type ModelWorkerClient } from './workers/modelClient';
-import { browserRuntimeProbe, localModelManifest, localModelUrl } from './modelConfig';
+import { browserRuntimeProbe, localModelManifest } from './modelConfig';
 import { createNytCrosswordClient, type NytWeekday } from './nytApi';
 
 const initialPuzzle = createRealPuzzle();
@@ -293,7 +293,7 @@ function App() {
       };
       setModelProbe(probe);
       const client = modelClientRef.current ?? (modelClientRef.current = createBrowserModelWorkerClient());
-      const configured = await client.configure({ manifest: localModelManifest, runtime: probe, baseUrl: localModelUrl });
+      const configured = await client.configure({ manifest: localModelManifest, runtime: probe });
       if (!configured.ok) throw new Error(configured.error.message);
       const installed = await client.install(controller.signal);
       if (!installed.ok) throw new Error(installed.error.message);
@@ -453,7 +453,7 @@ function App() {
           <p>Original construction stays on this device and remains unavailable until the pinned local model is reachable through the broker.</p>
           <div className="setup-status"><span className="status-dot" aria-hidden="true" /> Local model {modelState}</div>
           <div className="setup-steps">
-            <span>01</span><strong>Endpoint {localModelUrl}</strong>
+            <span>01</span><strong>Runtime {modelProbe.webgpu ? 'WebGPU in-browser' : 'WebGPU unavailable'}</strong>
             <span>02</span><strong>Memory floor {localModelManifest.minimumMemoryMb.toLocaleString()} MB</strong>
             <span>03</span><strong>Storage {modelProbe.storageQuotaBytes ? `${Math.round(modelProbe.storageQuotaBytes / 1_000_000)} MB available` : 'unavailable'}</strong>
           </div>

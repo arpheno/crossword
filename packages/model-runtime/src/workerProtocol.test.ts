@@ -12,8 +12,7 @@ const config = {
     minimumMemoryMb: 1,
     shards: [{ url: '/fixture', sha256: 'a'.repeat(64), bytes: 1 }]
   },
-  runtime: { webgpu: true, availableMemoryMb: 2, storageQuotaBytes: 2, storageUsageBytes: 0 },
-  baseUrl: 'http://127.0.0.1:11434'
+  runtime: { webgpu: true, availableMemoryMb: 2, storageQuotaBytes: 2, storageUsageBytes: 0 }
 };
 
 describe('model worker protocol', () => {
@@ -39,7 +38,7 @@ describe('model worker protocol', () => {
   });
 
   it('rejects invalid config, payloads, and results', () => {
-    expect(parseModelWorkerRequest({ version: 1, type: 'configure', requestId: 'one', config: { ...config, baseUrl: 3 } })).toBeUndefined();
+    expect(parseModelWorkerRequest({ version: 1, type: 'configure', requestId: 'one', config: { ...config, manifest: { ...config.manifest, distribution: 'remote-cloud' } } })).toBeUndefined();
     expect(parseModelWorkerRequest({ version: 1, type: 'execute', requestId: 'two', operation: 'generate-candidates', payload: {} })).toBeUndefined();
     expect(parseModelWorkerRequest({
       version: 1,

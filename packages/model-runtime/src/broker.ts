@@ -13,7 +13,7 @@ export type ModelManifest = Readonly<{
   promptVersion: string;
   minimumMemoryMb: number;
   shards: readonly ModelShard[];
-  distribution?: 'webllm' | 'ollama';
+  distribution?: 'webllm-mlc';
 }>;
 
 export type RuntimeProbe = Readonly<{
@@ -86,12 +86,14 @@ function failure<T>(code: ModelFailureCode, message: string): BrokerResult<T> {
 }
 
 function isManifestValid(manifest: ModelManifest): boolean {
+  // webllm-mlc (ADR 0002) delegates weight integrity to the pinned WebLLM
+  // runtime manifest; M2.4 records explicit shard receipts. Shards are
+  // optional, but any recorded shard still needs a digest and size.
   return manifest.schemaVersion === 1
     && Boolean(manifest.id && manifest.version && manifest.quantization && manifest.runtimeVersion && manifest.promptVersion)
-    && (manifest.distribution === undefined || manifest.distribution === 'webllm' || manifest.distribution === 'ollama')
+    && (manifest.distribution === undefined || manifest.distribution === 'webllm-mlc')
     && Number.isInteger(manifest.minimumMemoryMb)
     && manifest.minimumMemoryMb > 0
-    && (manifest.distribution === 'ollama' || manifest.shards.length > 0)
     && manifest.shards.every((shard) => Boolean(shard.url) && /^[a-f0-9]{64}$/.test(shard.sha256) && Number.isInteger(shard.bytes) && shard.bytes > 0);
 }
 
@@ -148,8 +150,8 @@ export function createModelBroker(manifest: ModelManifest, adapter: LocalModelAd
   let currentState: ModelState = 'uninstalled';
 
   const canInstall = (): BrokerResult<void> => {
-    if (manifest.distribution !== 'ollama' && !runtime.webgpu || runtime.availableMemoryMb < manifest.minimumMemoryMb) return failure('unsupported-device', 'This device does not meet the local model requirements');
-    const requiredBytes = manifest.distribution === 'ollama' ? 0 : manifest.shards.reduce((total, shard) => total + shard.bytes, 0);
+    if (!runtime.webgpu || runtime.availableMemoryMb < manifest.minimumMemoryMb) return failure('unsupported-device', 'This device does not meet the local model requirements');
+    const requiredBytes = manifest.shards.reduce((total, shard) => total + shard.bytes, 0);
     if (runtime.storageQuotaBytes - runtime.storageUsageBytes < requiredBytes) return failure('storage-quota', 'There is not enough local storage for the pinned model');
     return success(undefined);
   };

@@ -1,5 +1,6 @@
 export { createModelBroker } from './broker';
-export { createOllamaAdapter } from './ollamaAdapter';
+export { createFakeLocalModelAdapter, type FakeLocalModelAdapter, type FakeLocalModelAdapterOptions } from './fakeAdapter';
+export { createWebLLMAdapter, type WebLlmAdapterOptions, type WebLlmEngine, type WebLlmEngineFactory, type WebLlmModuleLoader } from './webllmAdapter';
 export { parseModelWorkerRequest, parseModelWorkerResponse } from './workerProtocol';
 export type {
   BrokerResult,
@@ -15,5 +16,4 @@ export type {
   ModelState,
   RuntimeProbe
 } from './broker';
-export type { LocalModelFetch, LocalModelResponse, OllamaAdapterOptions } from './ollamaAdapter';
 export type { ModelWorkerConfig, ModelWorkerOperation, ModelWorkerRequest, ModelWorkerResponse } from './workerProtocol';
