@@ -5,8 +5,15 @@ import {
   type Entry,
   type PuzzleIndex
 } from '@crossword/domain';
-import type { CSSProperties } from 'react';
 import type { SolveSessionSnapshot } from '@crossword/domain';
+import type { CSSProperties } from 'react';
+import {
+  activeCrossingCells,
+  clueRowState,
+  isEntrySolved,
+  placeEntries,
+  type CompletionPolicy
+} from '../cluePlacement';
 
 type ClueSpineProps = {
   direction: Direction;
@@ -15,19 +22,20 @@ type ClueSpineProps = {
   session: SolveSessionSnapshot;
   incorrectCellIds: readonly CellId[];
   side: 'left' | 'right';
+  completionPolicy?: CompletionPolicy;
   onSelectEntry: (entry: Entry) => void;
   onSelectPattern: (entry: Entry, position: number) => void;
 };
-
-function isSolved(entry: Entry, session: SolveSessionSnapshot): boolean {
-  return entry.cellIds.every((cellId) => Boolean(session.entered[cellId]));
-}
 
 function ClueItem({
   entry,
   index,
   session,
-  incorrectCellIds,
+  state,
+  sharedCellIds,
+  collapsed,
+  lane,
+  row,
   onSelectEntry,
   onSelectPattern,
   style
@@ -35,21 +43,31 @@ function ClueItem({
   entry: Entry;
   index: PuzzleIndex;
   session: SolveSessionSnapshot;
-  incorrectCellIds: readonly CellId[];
+  state: string;
+  sharedCellIds: readonly CellId[];
+  collapsed: boolean;
+  lane: 'outer' | 'inner';
+  row: number;
   onSelectEntry: (entry: Entry) => void;
   onSelectPattern: (entry: Entry, position: number) => void;
   style?: CSSProperties;
 }) {
-  const active = session.selection.entryId === entry.id;
-  const solved = isSolved(entry, session);
+  const solved = state === 'solved';
   const pattern = patternForEntry(entry, session);
-  const hasIncorrect = entry.cellIds.some((cellId) => incorrectCellIds.includes(cellId));
-  const firstOpen = entry.cellIds.find((cellId) => !session.entered[cellId]) ?? entry.cellIds[0];
 
   return (
-    <li className={`clue-item ${active ? 'is-active' : ''} ${solved ? 'is-solved' : ''} ${hasIncorrect ? 'has-error' : ''}`} style={style}>
+    <li
+      aria-label={`${entry.number} ${entry.direction}, ${state}${collapsed ? ', collapsed' : ''}`}
+      className={`clue-item ${state === 'active' ? 'is-active' : ''} ${state === 'affected' ? 'is-affected' : ''} ${solved ? 'is-solved' : ''} ${state === 'error' ? 'has-error' : ''} ${collapsed ? 'is-collapsed' : ''}`}
+      data-collapsed={collapsed ? 'true' : undefined}
+      data-entry-id={entry.id}
+      data-lane={lane}
+      data-row={row}
+      data-state={state}
+      style={style}
+    >
       <button
-        aria-current={active ? 'true' : undefined}
+        aria-current={state === 'active' ? 'true' : undefined}
         aria-label={`${entry.number} ${entry.direction}: ${entry.clue}${solved ? ', solved' : ''}`}
         className="clue-select"
         onClick={() => onSelectEntry(entry)}
@@ -67,10 +85,13 @@ function ClueItem({
           if (!cellId) return null;
           const cell = index.cellsById.get(cellId);
           const selected = session.selection.cellId === cellId;
+          const crossing = sharedCellIds.includes(cellId);
           return (
             <button
-              aria-label={`${entry.direction} ${entry.number}, letter ${position + 1}, ${letter === '_' ? 'empty' : letter}`}
-              className={`pattern-position ${selected ? 'is-selected' : ''} ${cell?.circled ? 'is-circled' : ''}`}
+              aria-label={`${entry.direction} ${entry.number}, letter ${position + 1}, ${letter === '_' ? 'empty' : letter}${crossing ? ', crossing the selected entry' : ''}`}
+              className={`pattern-position ${selected ? 'is-selected' : ''} ${crossing ? 'is-crossing' : ''} ${cell?.circled ? 'is-circled' : ''}`}
+              data-cell-id={cellId}
+              data-crossing={crossing ? 'true' : undefined}
               key={cellId}
               onClick={() => onSelectPattern(entry, position)}
               type="button"
@@ -80,7 +101,6 @@ function ClueItem({
           );
         })}
       </div>
-      {firstOpen && <span className="sr-only">First unresolved cell available.</span>}
     </li>
   );
 }
@@ -92,60 +112,104 @@ export function ClueSpine({
   session,
   incorrectCellIds,
   side,
+  completionPolicy = 'collapsed',
   onSelectEntry,
   onSelectPattern
 }: ClueSpineProps) {
-  const laneEntries = entries.map((entry, position) => ({
-    entry,
-    lane: position % 2 === 0 ? 'outer' : 'inner',
-    row: Math.floor(position / 2) + 1
-  }));
-  const rows = Math.max(1, Math.ceil(entries.length / 2));
+  const policy: CompletionPolicy = completionPolicy;
+  const sharedCells = activeCrossingCells(index, session);
+  const solvedByEntry = new Map(entries.map((entry) => [entry.id, isEntrySolved(entry, session)]));
+
+  // 'hidden' is the one policy allowed to reflow: the player explicitly
+  // requested reclaiming space (docs/plans/06 §6.3).
+  const visibleEntries = policy === 'hidden'
+    ? entries.filter((entry) => !solvedByEntry.get(entry.id))
+    : entries;
+  const placed = placeEntries(visibleEntries);
+  const rows = Math.max(1, Math.ceil(placed.length / 2));
+
+  // 'collapsed' keeps every footprint; a row shrinks only when BOTH of its
+  // paired entries are solved, so the paired spine never tears (§6.3).
+  const collapsedRows = new Set<number>();
+  if (policy === 'collapsed') {
+    for (let row = 0; row < rows; row += 1) {
+      const pair = placed.filter((placement) => placement.row === row);
+      if (pair.length > 0 && pair.every((placement) => solvedByEntry.get(placement.entryId))) {
+        collapsedRows.add(row);
+      }
+    }
+  }
+  const rowTemplate = collapsedRows.size > 0
+    ? Array.from({ length: rows }, (_, row) => (collapsedRows.has(row) ? '34px' : 'minmax(82px, auto)')).join(' ')
+    : `repeat(${rows}, minmax(82px, auto))`;
 
   return (
     <aside
       className={`clue-spine clue-spine-${side} direction-${direction} ${session.selection.direction === direction ? 'is-direction-active' : ''}`}
       aria-label={`${direction} clues`}
+      data-direction={direction}
     >
       <div className="spine-heading">
         <span>{direction}</span>
-        <span>{entries.length.toString().padStart(2, '0')} entries</span>
+        <span>{placed.length.toString().padStart(2, '0')} entries</span>
       </div>
-      <div className="spine-layout" style={{ gridTemplateRows: `repeat(${rows}, minmax(82px, auto))` }}>
+      <div className="spine-layout" style={{ gridTemplateRows: rowTemplate }}>
         <ol className="clue-lane lane-outer">
-          {laneEntries.filter(({ lane }) => lane === 'outer').map(({ entry, row }) => (
-            <ClueItem
-              entry={entry}
-              index={index}
-              incorrectCellIds={incorrectCellIds}
-              key={entry.id}
-              onSelectEntry={onSelectEntry}
-              onSelectPattern={onSelectPattern}
-              session={session}
-              style={{ gridRow: row }}
-            />
-          ))}
+          {placed.filter(({ lane }) => lane === 'outer').map(({ entryId, row }) => {
+            const entry = entries.find((candidate) => candidate.id === entryId);
+            if (!entry) return null;
+            const { state, sharedCellIds } = clueRowState(entry, session, incorrectCellIds, sharedCells);
+            const collapsed = policy === 'collapsed' && solvedByEntry.get(entry.id) === true;
+            return (
+              <ClueItem
+                collapsed={collapsed}
+                entry={entry}
+                index={index}
+                key={entryId}
+                lane="outer"
+                onSelectEntry={onSelectEntry}
+                onSelectPattern={onSelectPattern}
+                row={row + 1}
+                session={session}
+                sharedCellIds={sharedCellIds}
+                state={state}
+                style={{ gridRow: row + 1 }}
+              />
+            );
+          })}
         </ol>
         <div className="number-spine" aria-hidden="true">
           {Array.from({ length: rows }, (_, row) => {
-            const first = laneEntries[row * 2]?.entry.number;
-            const second = laneEntries[row * 2 + 1]?.entry.number;
-            return <span key={row}>{first}{second ? ` / ${second}` : ''}</span>;
+            const first = placed[row * 2]?.entryId;
+            const second = placed[row * 2 + 1]?.entryId;
+            const firstNumber = first ? entries.find((entry) => entry.id === first)?.number : undefined;
+            const secondNumber = second ? entries.find((entry) => entry.id === second)?.number : undefined;
+            return <span key={row}>{firstNumber}{secondNumber ? ` / ${secondNumber}` : ''}</span>;
           })}
         </div>
         <ol className="clue-lane lane-inner">
-          {laneEntries.filter(({ lane }) => lane === 'inner').map(({ entry, row }) => (
-            <ClueItem
-              entry={entry}
-              index={index}
-              incorrectCellIds={incorrectCellIds}
-              key={entry.id}
-              onSelectEntry={onSelectEntry}
-              onSelectPattern={onSelectPattern}
-              session={session}
-              style={{ gridRow: row }}
-            />
-          ))}
+          {placed.filter(({ lane }) => lane === 'inner').map(({ entryId, row }) => {
+            const entry = entries.find((candidate) => candidate.id === entryId);
+            if (!entry) return null;
+            const { state, sharedCellIds } = clueRowState(entry, session, incorrectCellIds, sharedCells);
+            const collapsed = policy === 'collapsed' && solvedByEntry.get(entry.id) === true;
+            return (
+              <ClueItem
+                collapsed={collapsed}
+                entry={entry}
+                index={index}
+                key={entryId}
+                lane="inner"
+                onSelectEntry={onSelectEntry}
+                onSelectPattern={onSelectPattern}
+                row={row + 1}
+                session={session}
+                sharedCellIds={sharedCellIds}
+                state={state}
+                style={{ gridRow: row + 1 }}
+              />
+            );
+          })}
         </ol>
       </div>
     </aside>

@@ -390,6 +390,38 @@ h1 {
   color: var(--down);
 }
 
+/* Crossing echo (docs/plans/06 §7.2): quiet affected rows and exact
+   shared-cell rings in the active direction's family — one strong signal,
+   many quiet echoes, never a field of equal highlights. */
+.clue-item.is-affected {
+  background: color-mix(in oklch, var(--axis-soft) 55%, transparent);
+}
+
+.direction-across .pattern-position.is-crossing {
+  outline: 2px solid color-mix(in oklch, var(--across) 55%, transparent);
+  outline-offset: -2px;
+}
+
+.direction-down .pattern-position.is-crossing {
+  outline: 2px solid color-mix(in oklch, var(--down) 55%, transparent);
+  outline-offset: -2px;
+}
+
+.clue-item.is-solved:not(.is-active) .clue-select {
+  opacity: 0.55;
+}
+
+/* Collapsed rows keep their seam number and footprint (the paired spine
+   never tears); copy and pattern hide, height driven by the pair rule. */
+.clue-item.is-collapsed {
+  overflow: hidden;
+}
+
+.clue-item.is-collapsed > .clue-select,
+.clue-item.is-collapsed > .answer-pattern {
+  visibility: hidden;
+}
+
 .spine-heading {
   position: sticky;
   z-index: 5;
