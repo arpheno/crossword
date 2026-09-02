@@ -1,26 +1,32 @@
-FROM python:3.13-slim-bullseye
+# Build legacy browser assets from the npm lockfile; no generated vendor files
+# are required in the source checkout.
+FROM node:24.20.0-bookworm-slim AS legacy-assets
 
-# Install system dependencies
-RUN apt-get update && apt-get install -y --no-install-recommends \
-    git \
-    build-essential \
-    libmagic1 \
-    && rm -rf /var/lib/apt/lists/*
+WORKDIR /build
+COPY package.json package-lock.json ./
+COPY scripts/build-legacy-assets.mjs scripts/build-legacy-assets.mjs
+RUN npm ci --ignore-scripts && npm run build
+
+FROM python:3.13-slim-bookworm
+
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1 \
+    PORT=5001
 
 WORKDIR /app
 
-# Copy project files
-COPY pyproject.toml .
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends libmagic1 \
+    && rm -rf /var/lib/apt/lists/* \
+    && pip install --no-cache-dir uv==0.12.7
+
+COPY pyproject.toml uv.lock README.md ./
 COPY src/ ./src/
+COPY run.py ./run.py
 
-# Install uv and dependencies
-RUN pip install --no-cache-dir uv \
-    && uv venv \
-    && . .venv/bin/activate \
-    && uv pip install -e .
+# uv creates and manages the project environment from the pinned lockfile.
+RUN uv sync --frozen --no-dev
+COPY --from=legacy-assets /build/src/crossword/static/lib/ ./src/crossword/static/lib/
 
-# Expose the port the app runs on
-EXPOSE 50001
-
-# Run the Flask application
-CMD [".venv/bin/python", "-m", "flask", "--app", "src.app", "run", "--host", "0.0.0.0", "--port", "50001"]
+EXPOSE 5001
+CMD [".venv/bin/python", "run.py"]

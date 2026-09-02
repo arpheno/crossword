@@ -1,126 +1,83 @@
-# Quick Start with uv
+# Reproducible legacy setup
 
-This project uses [uv](https://github.com/astral-sh/uv) for fast, reliable Python package management.
-
-## First Time Setup (Fresh Clone)
-
-**Option 1: Automatic (Recommended)**
-```bash
-make bootstrap
-```
-This will:
-- Install uv automatically if it's missing (via Homebrew or curl)
-- Create the virtual environment
-- Install all dependencies
-
-**Option 2: Manual**
-```bash
-# Install uv first
-curl -LsSf https://astral.sh/uv/install.sh | sh
-# or on macOS:
-brew install uv
-
-# Then setup the project
-make setup
-```
+The Flask application is a private continuity bridge during migration. Its
+documented local port is `5001`.
 
 ## Prerequisites
 
-Install uv:
-```bash
-curl -LsSf https://astral.sh/uv/install.sh | sh
-```
+- [uv](https://docs.astral.sh/uv/getting-started/)
+- a Node version manager that reads `.node-version` (Node `24.20.0`)
 
-Or on macOS:
-```bash
-brew install uv
-```
+The repository pins npm as `npm@11.19.0` in `package.json`. If your Node
+installation does not provide that npm version, use Corepack or your version
+manager to activate the pinned package manager before running `make doctor`.
 
-## Setup
+## First-time setup
 
-```bash
-# Quick setup (creates venv and installs deps)
-make setup
-
-# Or step by step:
-make venv    # Create virtual environment
-make dev     # Install all dependencies including dev tools
-```
-
-## Common Commands
+The one-time bootstrap command installs uv when it is not already available,
+then performs the same clean setup used by CI:
 
 ```bash
-make help        # Show all available commands
-make run         # Run the development server
-make test        # Run tests
-make test-cov    # Run tests with coverage
-make clean       # Clean cache and build files
-make deps-update # Update dependencies
+make bootstrap
+make doctor
 ```
 
-## Development Workflow
-
-1. **First time setup:**
-   ```bash
-   make setup
-   ```
-
-2. **Run the app:**
-   ```bash
-   make run
-   ```
-
-3. **Run tests:**
-   ```bash
-   make test
-   ```
-
-4. **Update dependencies:**
-   ```bash
-   make deps-update
-   ```
-
-## Makefile Targets
-
-Run `make help` to see all available targets:
-
-- `install` - Install dependencies with uv
-- `dev` - Install with dev dependencies
-- `test` - Run tests
-- `test-cov` - Run tests with coverage
-- `run` - Run the Flask development server
-- `clean` - Clean up cache and build files
-- `docker-build` - Build Docker image
-- `docker-run` - Run Docker container
-
-## Manual uv Commands
-
-If you prefer to use uv directly:
+`make setup` is the non-bootstrap form when uv is already installed. It runs:
 
 ```bash
-# Create virtual environment
-uv venv
-
-# Activate virtual environment
-source .venv/bin/activate  # On macOS/Linux
-.venv\Scripts\activate     # On Windows
-
-# Install dependencies
-uv sync
-
-# Install with dev dependencies
-uv sync --all-extras
-
-# Run a command in the virtual environment
-uv run python run.py
-uv run pytest
-
-# Add a new dependency
-uv add <package-name>
-
-# Add a dev dependency
-uv add --dev <package-name>
-
-# Update dependencies
-uv lock --upgrade
+uv sync --all-extras --frozen
+npm ci --ignore-scripts
+make legacy-assets
 ```
+
+The generated files under `src/crossword/static/lib/` are ignored by git and
+can always be recreated from `package-lock.json`.
+
+## Daily commands
+
+```bash
+make legacy-run     # private Flask/Socket.IO bridge on port 5001
+make legacy-test    # local Python + JavaScript suite; no provider calls
+make legacy-smoke   # browser mount check using a synthetic local puzzle
+make build          # rebuild generated browser assets
+make npm-audit      # write reports/npm-audit.json; does not fix or upgrade
+make clean          # remove generated caches and browser assets
+```
+
+The live-provider tests are deliberately separate:
+
+```bash
+make legacy-test-live
+```
+
+That target sets `CROSSWORD_ALLOW_LIVE_PROVIDER=1` and selects only tests
+marked `live_provider`. It is a private, manually initiated diagnostic and is
+not part of CI or the default test suite.
+
+## React solver with NYT loading
+
+The React solver is the replacement play surface. The previous Flask process
+remains a local-only API bridge while the migration is in progress. Run both
+processes in separate terminals:
+
+```bash
+make legacy-run   # Flask API bridge on http://127.0.0.1:5001
+make web-dev      # React solver, normally on http://127.0.0.1:5173
+```
+
+In the React solver, enter a `YYMMDD` or `YYYY-MM-DD` date and choose `Load`,
+or select a weekday and choose `Random`. Vite proxies those requests to the
+local bridge; no provider credentials are committed to the repository. The
+same-origin `/crossword_by_date` and `/random_crossword` routes are available
+when the built app is hosted by the bridge.
+
+## Browser smoke prerequisites
+
+`make legacy-smoke` starts `scripts/legacy-smoke-server.py`, which serves the
+page and a tiny provider-neutral puzzle entirely on localhost. It then runs a
+headless Chrome/Chromium executable, checking that Vue has compiled the
+template and no `[[ ... ]]` or Vue directive markers remain in the live DOM.
+
+Set `CHROME_BIN` when the browser is not in a standard location. The target
+prints a skip message on machines without a browser; CI can use a controlled
+Chrome runner for this gate.

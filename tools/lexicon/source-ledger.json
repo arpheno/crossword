@@ -1,0 +1,37 @@
+{
+  "schemaVersion": 1,
+  "artifactId": "local-crossword-001-v1",
+  "status": "owner-review-required",
+  "sources": [
+    {
+      "id": "repository-fixtures",
+      "family": "fixture",
+      "version": "1",
+      "retrievedAt": "2026-08-30",
+      "spdx": "NOASSERTION",
+      "attribution": "Hand-authored test data in this repository",
+      "transformation": "No external source transformation",
+      "emittedRecords": 0,
+      "distribution": "Tests and local development only"
+    },
+    {
+      "id": "christophsjones-crossword-wordlist",
+      "family": "external-crossword-lexicon",
+      "version": "master@2026-08-30",
+      "retrievedAt": "2026-08-30",
+      "spdx": "NOASSERTION",
+      "attribution": "No attribution requirement stated; source repository is christophsjones/crossword-wordlist",
+      "transformation": "Parsed surface;score records, normalized surfaces to uppercase A-Z, deduplicated by maximum score, and emitted 78 answer records for local-crossword-001",
+      "emittedRecords": 78,
+      "emittedDigest": "969e204f1a60cd800664901700412f881178229b0d7e9dc8aa43f2249450f825",
+      "distribution": "Local construction pending owner review; do not redistribute as a licensed lexicon"
+    }
+  ],
+  "externalSourceDecision": {
+    "status": "owner-review-required",
+    "reviewedAt": "2026-08-30",
+    "requiredBefore": "public distribution of local-crossword-001 or any derived lexicon artifact",
+    "reason": "The preferred source repository does not state a license or attribution terms.",
+    "candidateFamilies": ["WordNet", "Wikidata", "Wiktionary", "SCOWL"]
+  }
+}

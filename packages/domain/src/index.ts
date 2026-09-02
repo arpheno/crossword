@@ -1,0 +1,64 @@
+export {
+  assertValidPuzzle,
+  createFixturePuzzle,
+  createLargeFixturePuzzle,
+  createRealPuzzle,
+  deriveEntryNumbers,
+  getCellPosition,
+  getEntryForCell,
+  indexPuzzle,
+  parsePuzzle,
+  serializePuzzle,
+  validatePuzzle
+} from './puzzle';
+export type {
+  Cell,
+  CellId,
+  Direction,
+  Entry,
+  EntryId,
+  PuzzleDocument,
+  PuzzleId,
+  PuzzleIndex,
+  PuzzleManifest,
+  PuzzleProvenance,
+  PuzzleSource,
+  PuzzleTopology,
+  ClueMechanism,
+  ClueSet,
+  ClueVariant,
+  GenerationReceipt,
+  IntegrityDigest,
+  ProvenanceRecord,
+  QualityReport
+} from './puzzle';
+export {
+  checkSession,
+  clearCell,
+  createSession,
+  enterLetter,
+  moveSelection,
+  patternForEntry,
+  revealCell,
+  nudgeEntry,
+  pauseSession,
+  resumeSession,
+  selectCell,
+  stepEntry,
+  touchSession,
+  toggleDirection,
+  updateActiveTime,
+  validateSessionSnapshot,
+  validateSolveEvent
+} from './session';
+export type {
+  CheckResult,
+  CheckScope,
+  EntryStep,
+  MoveKey,
+  Selection,
+  SessionStatus,
+  SessionEventType,
+  SolveEvent,
+  SolveSessionSnapshot
+} from './session';

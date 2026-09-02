@@ -79,3 +79,11 @@ instance/
 .webassets-cache
 .idea/
 node_modules/
+
+# Legacy browser assets are generated from package-lock.json by
+# `make legacy-assets`; never commit a hand-vendored copy.
+src/crossword/static/lib/
+
+# Local dependency-audit output is intentionally kept out of source control.
+reports/npm-audit.json
+reports/mutation/

@@ -1,0 +1,10 @@
+.git
+.github
+.idea
+.venv
+node_modules
+instance
+reports
+__pycache__
+*.pyc
+src/crossword/static/lib

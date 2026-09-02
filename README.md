@@ -2,40 +2,41 @@
 
 A web application for solving crossword puzzles that works both online and offline.
 
+> **Next generation:** the audited product, architecture, original-construction,
+> local-AI, quality, and migration roadmap starts at
+> [docs/plans/README.md](docs/plans/README.md). The current Flask/NYT application
+> is a private continuity bridge, not the planned public deployment.
+
 ## 🚀 Quick Start (Fresh Clone)
 
 ```bash
-# One command to rule them all
+# Installs the pinned Python and Node dependencies and builds legacy assets.
 make bootstrap
 ```
 
-This will automatically:
-- ✅ Install uv (if not already installed)
-- ✅ Create a virtual environment
-- ✅ Install all dependencies
+The repository pins Python through `.python-version`, Node through
+`.node-version`, npm through `packageManager` in `package.json`, and both
+dependency graphs through `uv.lock` and `package-lock.json`. `uv sync
+--all-extras` and `npm ci` are the canonical installation commands.
 
-Then run:
+Then verify and run:
 ```bash
-make run    # Start the app
-make test   # Run tests
+make doctor       # Check the pinned tools and project .venv
+make legacy-run   # Start the private bridge on http://127.0.0.1:5001
+make web-dev      # Start the React replacement solver (separate terminal)
+make test         # Run local Python and JavaScript tests
+make legacy-smoke # Mount check with a local synthetic puzzle (Chrome required)
 ```
 
-**📖 See [QUICKSTART.md](QUICKSTART.md) for detailed setup instructions and troubleshooting.**
+See [SETUP.md](SETUP.md) for the setup contract and troubleshooting.
 
 ## 📋 Manual Setup
 
 If you prefer manual setup or already have uv installed:
 
 ```bash
-# 1. Install uv (if needed)
-curl -LsSf https://astral.sh/uv/install.sh | sh
-# or: brew install uv
-
-# 2. Setup the project
+# Install uv using the official instructions, then:
 make setup
-
-# 3. Run the app
-make run
 ```
 
 See [SETUP.md](SETUP.md) for detailed documentation.
@@ -44,29 +45,24 @@ See [SETUP.md](SETUP.md) for detailed documentation.
 
 ```bash
 make help        # Show all available commands
-make run         # Run development server
+make legacy-run  # Run development server on port 5001
 make test        # Run tests
+make build       # Rebuild ignored legacy browser assets
 make test-cov    # Run tests with coverage
 make clean       # Clean cache files
 make deps-update # Update dependencies
+make npm-audit   # Record npm audit JSON; never upgrades dependencies
 ```
 
-## Setup Local Dependencies
+## Legacy browser assets
 
-For offline support, the application requires local copies of Vue.js and Axios. Follow these steps to set up the local dependencies:
+The private continuity page loads Vue, Axios, and Socket.IO from
+`src/crossword/static/lib/`. Those files are generated (and intentionally
+ignored) by `make legacy-assets` from the exact npm lockfile. Do not download
+or hand-vendor replacement files. See
+[docs/legacy-assets.md](docs/legacy-assets.md) for the asset provenance.
 
-1. Create the libraries directory:
-```bash
-mkdir -p src/crossword/static/lib
-```
-
-2. Download the required libraries:
-```bash
-# Download Vue.js
-curl -o src/crossword/static/lib/vue.js https://cdn.jsdelivr.net/npm/vue@2.6.14/dist/vue.js
-
-# Download Axios
-curl -o src/crossword/static/lib/axios.min.js https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js
-```
-
-These steps ensure that the application works properly in offline mode by using local copies of the required JavaScript libraries instead of CDN versions. 
+The browser smoke uses a synthetic local puzzle and never calls the private
+provider. Private provider tests are marked `live_provider`, skipped by the
+default suite, and available only through `make legacy-test-live` with an
+explicit opt-in.

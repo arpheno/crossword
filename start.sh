@@ -1,11 +1,6 @@
-#!/bin/bash
+#!/bin/sh
 
-# Activate virtual environment if it exists
-if [ -d ".venv" ]; then
-    source .venv/bin/activate
-elif [ -d "venv" ]; then
-    source venv/bin/activate
-fi
-
-# Run the Flask application
-python -m flask --app src.crossword.app run --port 5000 
+# Compatibility entrypoint for the private bridge. uv owns interpreter
+# selection; do not fall back to a globally installed Python.
+set -eu
+exec uv run python run.py

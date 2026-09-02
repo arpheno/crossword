@@ -1,0 +1,133 @@
+{
+  "version": 1,
+  "description": "Forbidden-content policy for public artifacts. Allowlisted paths are private continuity material and must be excluded from a public build.",
+  "forbidden_patterns": [
+    {
+      "id": "provider-host",
+      "description": "Known syndicated-provider host or route",
+      "regex": "(?i)\\bnytsyn(?:c?rossword)?\\b|\\bnytsyn\\.pzzl\\.com\\b"
+    },
+    {
+      "id": "provider-name",
+      "description": "Provider name or acronym",
+      "regex": "(?i)\\bNYT(?:\\s+Times)?\\b"
+    },
+    {
+      "id": "solution-link",
+      "description": "Third-party solution site name or link",
+      "regex": "(?i)(?:https?://)?(?:www\\.)?xwordinfo\\.com\\b|\\bxword\\s+info\\b"
+    },
+    {
+      "id": "provider-response-marker",
+      "description": "Known provider response marker",
+      "regex": "(?i)org\\.apache\\.catalina\\.connector\\.coyote(?:writer)?"
+    },
+    {
+      "id": "legacy-answer-sample-tragicomic",
+      "description": "Known legacy answer sample",
+      "regex": "(?i)\\bTRAGICOMIC\\b"
+    },
+    {
+      "id": "legacy-answer-sample-cherrygarcia",
+      "description": "Known legacy answer sample",
+      "regex": "(?i)\\bCHERRYGARCIA\\b"
+    },
+    {
+      "id": "legacy-answer-sample-magicrealism",
+      "description": "Known legacy answer sample",
+      "regex": "(?i)\\bMAGICREALISM\\b"
+    },
+    {
+      "id": "legacy-answer-sample-closebutnocigar",
+      "description": "Known legacy answer sample",
+      "regex": "(?i)\\bCLOSEBUTNOCIGAR\\b"
+    },
+    {
+      "id": "legacy-clue-sample-not-quite-right",
+      "description": "Known legacy clue sample",
+      "regex": "(?i)\\bnot\\s+quite\\s+right\\b"
+    }
+  ],
+  "allowlisted_paths": [
+    {
+      "path": "src/cell.py",
+      "reason": "Legacy rich-cell compatibility model; local bridge only"
+    },
+    {
+      "path": "src/crossword/app.py",
+      "reason": "Legacy local continuity bridge; excluded from public builds"
+    },
+    {
+      "path": "src/crossword/data_reader.py",
+      "reason": "Legacy local continuity bridge; excluded from public builds"
+    },
+    {
+      "path": "src/crossword/parser.py",
+      "reason": "Legacy parser characterization target; excluded from public builds"
+    },
+    {
+      "path": "src/crossword/scraper.py",
+      "reason": "Legacy local continuity bridge; excluded from public builds"
+    },
+    {
+      "path": "src/crossword/static/main.js",
+      "reason": "Legacy solver UI; excluded from public builds"
+    },
+    {
+      "path": "src/crossword/templates/**",
+      "reason": "Legacy solver templates; excluded from public builds"
+    },
+    {
+      "path": "tests/test_clue_numbering.py",
+      "reason": "Historical provider regression corpus; retained locally only"
+    },
+    {
+      "path": "tests/test_integration.py",
+      "reason": "Explicitly private live-provider integration tests"
+    },
+    {
+      "path": "tests/test_notepad_parsing.py",
+      "reason": "Historical provider regression corpus; retained locally only"
+    },
+    {
+      "path": "tests/test_parser.py",
+      "reason": "Historical provider regression corpus; retained locally only"
+    },
+    {
+      "path": "tests/legal/**",
+      "reason": "Scanner tests contain detector signatures as test inputs; never a public content artifact"
+    },
+    {
+      "path": "scripts/legacy-browser-smoke.mjs",
+      "reason": "Legacy browser smoke harness; excluded from public builds"
+    },
+    {
+      "path": "docs/plans/**",
+      "reason": "Migration audit and policy documentation; not a public content artifact"
+    },
+    {
+      "path": ".cursorrules",
+      "reason": "Legacy development notes; not a public build input"
+    },
+    {
+      "path": ".github/**",
+      "reason": "Legacy development notes; not a public build input"
+    },
+    {
+      "path": "README.md",
+      "reason": "Migration documentation; not a public content artifact"
+    },
+    {
+      "path": "SPECIAL_CHARACTERS.md",
+      "reason": "Legacy parser documentation; retained locally only"
+    },
+    {
+      "path": "CELL_MODEL.md",
+      "reason": "Legacy parser documentation; retained locally only"
+    },
+    {
+      "path": "tools/content_scan/**",
+      "reason": "Scanner policy and tests contain detector signatures by design"
+    }
+  ]
+}

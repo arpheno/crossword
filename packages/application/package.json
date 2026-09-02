@@ -1,0 +1,23 @@
+{
+  "name": "@crossword/application",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "test": "vitest run",
+    "build": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@crossword/construction": "0.1.0",
+    "@crossword/domain": "0.1.0",
+    "@crossword/model-runtime": "0.1.0",
+    "@crossword/persistence": "0.1.0"
+  },
+  "devDependencies": {
+    "typescript": "5.9.2",
+    "vitest": "3.2.4"
+  }
+}

@@ -5,6 +5,9 @@ from src.crossword.parser import NYTFormatParser
 from src.crossword.data_reader import DataReader
 
 
+pytestmark = pytest.mark.live_provider
+
+
 @pytest.fixture
 def data_reader():
     """Create a DataReader instance for testing."""

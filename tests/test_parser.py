@@ -397,6 +397,7 @@ class TestNYTParserRebusSquares:
         assert len(result) == 4, f"Expected 4 positions but got {len(result)}: {result}"
         assert result.startswith("CAT"), f"Should start with CAT but got: {result}"
     
+    @pytest.mark.live_provider
     def test_rebus_parsing_real_puzzle_201511(self):
         """Test rebus parsing with real puzzle data from 201511."""
         from src.crossword.data_reader import DataReader
