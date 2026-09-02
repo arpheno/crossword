@@ -105,6 +105,18 @@ function App() {
     return () => window.removeEventListener('crossword-sw-update', handleUpdate);
   }, []);
 
+  // Roving focus: keep DOM focus on the logical selected cell so the focus
+  // ring and the active-cell highlight never split when the selection moves
+  // by arrow keys, typed letters, or clears. Click paths already focus.
+  const selectedCellId = session.selection.cellId;
+  useEffect(() => {
+    if (!selectedCellId) return;
+    const active = document.activeElement;
+    if (active instanceof HTMLElement && active.matches('[data-cell-id][data-block="false"]')) {
+      focusCell(selectedCellId);
+    }
+  }, [selectedCellId]);
+
   function handleUpdate() {
     navigator.serviceWorker.controller?.postMessage({ type: 'SKIP_WAITING' });
     window.location.reload();

@@ -103,7 +103,10 @@ export function ClueSpine({
   const rows = Math.max(1, Math.ceil(entries.length / 2));
 
   return (
-    <aside className={`clue-spine clue-spine-${side} direction-${direction}`} aria-label={`${direction} clues`}>
+    <aside
+      className={`clue-spine clue-spine-${side} direction-${direction} ${session.selection.direction === direction ? 'is-direction-active' : ''}`}
+      aria-label={`${direction} clues`}
+    >
       <div className="spine-heading">
         <span>{direction}</span>
         <span>{entries.length.toString().padStart(2, '0')} entries</span>

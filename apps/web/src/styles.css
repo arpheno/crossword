@@ -347,15 +347,20 @@ h1 {
 .clue-spine::before {
   position: absolute;
   z-index: -1;
-  top: 88px;
-  bottom: 0;
+  inset: 88px 0 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   color: var(--axis);
   font-family: var(--font-ui);
+  /* Field marks scale with the spine's available HEIGHT, not viewport width;
+     14dvh keeps the rotated word inside the column at any window height. */
   font-size: clamp(4.5rem, 7vw, 8.5rem);
+  font-size: clamp(4rem, min(7vw, 14dvh), 8.5rem);
   font-weight: 760;
   letter-spacing: 0.11em;
   line-height: 1;
-  opacity: 0.035;
+  opacity: 0.05;
   pointer-events: none;
   text-transform: uppercase;
   writing-mode: vertical-rl;
@@ -370,6 +375,19 @@ h1 {
 .direction-down::before {
   right: -0.2em;
   content: "Down";
+}
+
+/* Static echo of the active direction on its field mark — no animation. */
+.clue-spine.is-direction-active::before {
+  opacity: 0.1;
+}
+
+.direction-across.is-direction-active::before {
+  color: var(--across);
+}
+
+.direction-down.is-direction-active::before {
+  color: var(--down);
 }
 
 .spine-heading {
