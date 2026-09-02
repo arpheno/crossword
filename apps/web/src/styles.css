@@ -167,16 +167,28 @@ button:disabled {
   line-height: 1;
 }
 
-.masthead-meta {
+.utility-status {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 14px;
   color: var(--ink-muted);
   font-family: var(--font-pattern);
   font-size: 0.61rem;
   letter-spacing: 0.1em;
   line-height: 1.2;
   text-transform: uppercase;
+}
+
+.save-state {
+  color: var(--ink-muted);
+}
+
+.solve-clock {
+  color: var(--ink-strong);
+  font-size: 0.9rem;
+  font-variant-numeric: tabular-nums;
+  font-weight: 500;
+  letter-spacing: 0.03em;
 }
 
 .status-dot {
@@ -190,17 +202,16 @@ button:disabled {
 
 /* Puzzle identity rail */
 
-.play-header {
-  min-height: 64px;
+.identity-rail {
   display: flex;
-  align-items: center;
+  align-items: baseline;
   justify-content: space-between;
-  gap: var(--space-5);
-  padding: 9px 0 10px;
+  gap: var(--space-4);
+  padding: 10px 0 12px;
   border-bottom: 1px solid var(--line);
 }
 
-.play-header > div:first-child {
+.identity-copy {
   min-width: 0;
   display: grid;
   grid-template-columns: max-content minmax(0, 1fr);
@@ -209,6 +220,15 @@ button:disabled {
     "title subtitle";
   align-items: baseline;
   column-gap: 16px;
+}
+
+.session-chip {
+  flex: none;
+  color: var(--ink-muted);
+  font-family: var(--font-pattern);
+  font-size: 0.61rem;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
 }
 
 .eyebrow,
@@ -242,7 +262,7 @@ h1 {
   margin: 0;
   color: var(--ink-strong);
   font-family: var(--font-clue);
-  font-size: clamp(1.55rem, 2.3vw, 2.25rem);
+  font-size: clamp(1.375rem, 2vw, 2rem);
   font-weight: 500;
   line-height: 1;
   letter-spacing: -0.025em;
@@ -266,24 +286,6 @@ h1 {
   margin-right: 12px;
   color: var(--line-strong);
   content: "—";
-}
-
-.session-readout {
-  flex: none;
-  display: grid;
-  grid-template-columns: auto auto;
-  align-items: baseline;
-  gap: 10px;
-  color: var(--ink-muted);
-}
-
-.session-readout strong {
-  color: var(--ink-strong);
-  font-family: var(--font-pattern);
-  font-size: 1.05rem;
-  font-variant-numeric: tabular-nums;
-  font-weight: 500;
-  letter-spacing: 0.03em;
 }
 
 /* Bilateral solving field */
@@ -877,19 +879,13 @@ h1 {
 
 /* Active clue bridge */
 
-.active-clue-dock {
+.active-clue-bridge {
   --axis: var(--active-axis, var(--across));
   --axis-soft: var(--active-axis-soft, var(--across-soft));
   width: min(100%, 620px);
-  min-height: 58px;
   display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
-  grid-template-areas:
-    "kicker pattern"
-    "clue pattern";
-  align-items: center;
-  gap: 3px 16px;
-  padding: 9px 12px 10px;
+  gap: 3px;
+  padding: 7px 12px 8px;
   border: 1px solid var(--line);
   border-left: 4px solid var(--axis);
   border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
@@ -897,8 +893,15 @@ h1 {
   box-shadow: var(--panel-shadow);
 }
 
-.dock-kicker {
-  grid-area: kicker;
+.bridge-primary {
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.bridge-kicker {
+  flex: none;
   color: var(--active-axis-strong, var(--across-strong));
   font-family: var(--font-pattern);
   font-size: 0.6rem;
@@ -907,18 +910,67 @@ h1 {
   text-transform: uppercase;
 }
 
-.active-clue-dock p {
-  grid-area: clue;
+.bridge-clue {
+  flex: 1 1 auto;
+  min-width: 0;
   margin: 0;
+  overflow: hidden;
   color: var(--ink-strong);
   font-family: var(--font-clue);
   font-size: clamp(0.9rem, 1vw, 1.05rem);
   font-weight: 550;
   line-height: 1.18;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.bridge-nudge {
+  flex: none;
+  min-height: 26px;
+  padding: 3px 10px;
+  border: 1px solid color-mix(in oklch, var(--assist) 45%, var(--line));
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--ink-muted);
+  cursor: pointer;
+  font-family: var(--font-pattern);
+  font-size: 0.58rem;
+  font-weight: 650;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.bridge-crossing {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  min-width: 0;
+  margin: 0;
+  color: var(--ink-muted);
+  font-family: var(--font-clue);
+  font-size: 0.78rem;
+  line-height: 1.2;
+}
+
+.bridge-crossing-kicker {
+  flex: none;
+  color: var(--active-axis-strong, var(--across-strong));
+  font-family: var(--font-pattern);
+  font-size: 0.56rem;
+  font-weight: 650;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.bridge-crossing-text {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .dock-pattern {
-  grid-area: pattern;
+  flex: none;
   max-width: 238px;
   justify-content: flex-end;
 }
@@ -951,6 +1003,71 @@ h1 {
   background: var(--surface-raised);
   box-shadow: 0 14px 38px -22px color-mix(in oklch, var(--ink-strong) 55%, transparent);
   margin: 5px 0 10px;
+}
+
+/* Command menus: native details elements, keyboard accessible, and the
+   strip stays attached to the center stage instead of document flow. */
+.command-menu {
+  position: relative;
+}
+
+.command-menu summary {
+  min-height: 30px;
+  display: inline-grid;
+  place-items: center;
+  padding: 4px 8px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  background: var(--surface-canvas);
+  color: var(--ink);
+  cursor: pointer;
+  font-family: var(--font-pattern);
+  font-size: 0.58rem;
+  font-weight: 650;
+  letter-spacing: 0.045em;
+  line-height: 1;
+  text-transform: uppercase;
+  list-style: none;
+  white-space: nowrap;
+}
+
+.command-menu summary::-webkit-details-marker {
+  display: none;
+}
+
+.command-menu[open] summary {
+  border-color: var(--line-strong);
+  background: var(--surface-sunken);
+}
+
+.command-menu-items {
+  position: absolute;
+  z-index: 30;
+  top: calc(100% + 4px);
+  left: 0;
+  display: grid;
+  gap: 3px;
+  min-width: 150px;
+  padding: 6px;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius-sm);
+  background: var(--surface-raised);
+  box-shadow: 0 14px 38px -18px color-mix(in oklch, var(--ink-strong) 55%, transparent);
+}
+
+.command-menu-items button {
+  justify-items: start;
+  text-align: left;
+}
+
+.command-more .command-menu-items {
+  left: auto;
+  right: 0;
+  min-width: 240px;
+}
+
+.command-more .file-command {
+  justify-items: start;
 }
 
 .command-group {
@@ -1303,7 +1420,7 @@ h1 {
     width: min(100%, calc(100dvh - 245px), 560px);
   }
 
-  .active-clue-dock {
+  .active-clue-bridge {
     width: min(100%, 560px);
   }
 
@@ -1393,7 +1510,7 @@ h1 {
     box-shadow: 6px 7px 0 color-mix(in oklch, var(--down) 12%, transparent);
   }
 
-  .active-clue-dock {
+  .active-clue-bridge {
     position: sticky;
     z-index: 10;
     bottom: 70px;
@@ -1465,7 +1582,7 @@ h1 {
     width: min(100%, calc(100dvh - 220px), 570px);
   }
 
-  .active-clue-dock {
+  .active-clue-bridge {
     min-height: 50px;
     padding-block: 7px;
   }

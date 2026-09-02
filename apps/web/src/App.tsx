@@ -7,7 +7,6 @@ import {
   indexPuzzle,
   moveSelection,
   nudgeEntry,
-  patternForEntry,
   pauseSession,
   revealCell,
   resumeSession,
@@ -25,10 +24,11 @@ import {
 import { createSessionUseCases } from '@crossword/application';
 import { createContinuityExport, createIndexedDbContinuityRepository, createIndexedDbSessionRepository, parseContinuityExport } from '@crossword/persistence';
 import type { ModelState, RuntimeProbe } from '@crossword/model-runtime';
-import { ActiveClueDock } from './components/ActiveClueDock';
+import { ActiveClueBridge } from './components/ActiveClueBridge';
 import { ClueSpine } from './components/ClueSpine';
 import { CrosswordGrid } from './components/CrosswordGrid';
-import { SessionCommands } from './components/SessionCommands';
+import { SolveClock } from './components/SolveClock';
+import { SolveCommands } from './components/SolveCommands';
 import { createBrowserModelWorkerClient, type ModelWorkerClient } from './workers/modelClient';
 import { browserRuntimeProbe, localModelManifest } from './modelConfig';
 import { createNytCrosswordClient, type NytWeekday } from './nytApi';
@@ -38,13 +38,6 @@ const initialIndex = indexPuzzle(initialPuzzle);
 const sessionUseCases = createSessionUseCases(createIndexedDbSessionRepository());
 const continuityRepository = createIndexedDbContinuityRepository();
 const nytClient = createNytCrosswordClient();
-
-function formatDuration(activeMs: number): string {
-  const totalSeconds = Math.floor(activeMs / 1000);
-  const minutes = Math.floor(totalSeconds / 60).toString().padStart(2, '0');
-  const seconds = (totalSeconds % 60).toString().padStart(2, '0');
-  return `${minutes}:${seconds}`;
-}
 
 function focusCell(cellId: CellId) {
   const focusNow = () => {
@@ -125,7 +118,10 @@ function App() {
   useEffect(() => {
     if (!storageReady) return;
     const persist = () => {
-      void sessionUseCases.save(puzzle, index, session).catch(() => undefined);
+      // Stamp active time at persist boundaries; the visible clock is a leaf
+      // (SolveClock), so no interval re-renders the solver tree (docs/plans/06 §11).
+      const stamped = updateActiveTime(session, Date.now());
+      void sessionUseCases.save(puzzle, index, stamped).catch(() => undefined);
     };
     const timer = window.setTimeout(persist, 250);
     const flush = () => persist();
@@ -138,16 +134,10 @@ function App() {
     };
   }, [session, storageReady]);
 
-  useEffect(() => {
-    const timer = window.setInterval(() => {
-      setSession((current) => updateActiveTime(current, Date.now()));
-    }, 1000);
-    return () => window.clearInterval(timer);
-  }, []);
-
   const activeEntry = index.entriesById.get(session.selection.entryId);
   const acrossEntries = puzzle.entries.filter((entry) => entry.direction === 'across');
   const downEntries = puzzle.entries.filter((entry) => entry.direction === 'down');
+  const statusLabel = session.status === 'complete' ? 'Complete' : 'In progress';
 
   function handleSelectCell(cellId: CellId, direction?: Direction, toggle = false) {
     setSession((current) => selectCell(touchSession(current, Date.now()), index, cellId, direction, toggle));
@@ -343,31 +333,33 @@ function App() {
     }
   }
 
-  const statusLabel = session.status === 'complete' ? 'Complete' : 'In progress';
-
   return (
     <main className="app-shell">
-      <header className="masthead">
+      <header className="masthead utility-rail">
         <a className="wordmark" href="/" aria-label="Crossword home">
           <span className="wordmark-mark" aria-hidden="true">+</span>
           <span>crossword</span>
         </a>
-        <div className="masthead-meta" aria-label="Application status">
-          <span className="status-dot" aria-hidden="true" />
-          <span>Local workspace / offline ready{storageReady ? ' / saved' : ' / loading'}</span>
+        <div className="utility-status">
+          {!storageReady && <span className="save-state">Saving…</span>}
+          <SolveClock
+            activeMs={session.activeMs}
+            lastClockAtMs={session.lastClockAtMs}
+            lastInteractionAtMs={session.lastInteractionAtMs}
+            paused={session.paused}
+          />
         </div>
       </header>
 
-      <section className="play-header" aria-labelledby="puzzle-title">
-        <div>
-          <p className="eyebrow">{puzzle.provenance.source === 'import' ? 'Imported NYT puzzle' : `Local construction / ${puzzle.width}x${puzzle.height}`}</p>
+      <section className="identity-rail" aria-label="Puzzle identity">
+        <div className="identity-copy">
+          <p className="eyebrow">
+            {puzzle.provenance.source === 'import' ? 'Imported' : 'Original'} · {puzzle.width}×{puzzle.height}
+          </p>
           <h1 id="puzzle-title">{puzzle.title}</h1>
           <p className="puzzle-subtitle">{puzzle.subtitle}</p>
         </div>
-        <div className="session-readout" aria-label="Session status">
-          <span>{statusLabel}</span>
-          <strong>{formatDuration(session.activeMs)}</strong>
-        </div>
+        <span className="session-chip">{statusLabel}</span>
       </section>
 
       <section className="workspace" aria-label="Crossword workspace">
@@ -404,13 +396,31 @@ function App() {
             />
           </div>
           {activeEntry && (
-            <ActiveClueDock
+            <ActiveClueBridge
               entry={activeEntry}
               index={index}
+              onNudge={handleNudge}
               onSelectPattern={handleSelectPattern}
               session={session}
             />
           )}
+          <SolveCommands
+            onCheck={handleCheck}
+            onExport={handleExport}
+            onImport={handleImport}
+            onLoadDate={handleLoadDate}
+            onLoadRandom={handleLoadRandom}
+            onModelSetup={() => setSetupOpen(true)}
+            onNewPuzzle={handleNewPuzzle}
+            onPause={handlePauseToggle}
+            onReveal={handleReveal}
+            puzzleDate={puzzleDate}
+            puzzleLoading={puzzleLoading}
+            randomWeekday={randomWeekday}
+            setPuzzleDate={setPuzzleDate}
+            setRandomWeekday={setRandomWeekday}
+            paused={session.paused}
+          />
         </div>
 
         <ClueSpine
@@ -424,25 +434,6 @@ function App() {
           side="right"
         />
       </section>
-
-      <SessionCommands
-        onCheck={handleCheck}
-        onExport={handleExport}
-        onImport={handleImport}
-        onLoadDate={handleLoadDate}
-        onLoadRandom={handleLoadRandom}
-        onModelSetup={() => setSetupOpen(true)}
-        onNudge={handleNudge}
-        onNewPuzzle={handleNewPuzzle}
-        onPause={handlePauseToggle}
-        onReveal={handleReveal}
-        puzzleDate={puzzleDate}
-        puzzleLoading={puzzleLoading}
-        randomWeekday={randomWeekday}
-        setPuzzleDate={setPuzzleDate}
-        setRandomWeekday={setRandomWeekday}
-        paused={session.paused}
-      />
 
       {dataNotice && <p className="data-notice" role="status">{dataNotice}</p>}
 
@@ -475,11 +466,6 @@ function App() {
           </div>
         </aside>
       )}
-
-      <footer className="footer-line">
-        <span>Original local construction</span>
-        <span>v0.1</span>
-      </footer>
     </main>
   );
 }
