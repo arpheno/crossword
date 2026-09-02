@@ -6,8 +6,9 @@ equivalent). One agent per package; never two agents on the same files.
 Coordination status 2026-09-02: **Luna 1, Luna 2, Luna 3, MR-1, SCAN-1 are
 in flight repo-side.** Before delegating one of them, check `git log --oneline`
 — if its integration commit has landed, the package is done; do not re-run it.
-**Luna 4 and Luna 5 are unassigned** and should be delegated only after Luna
-1–3 integrate.
+**Luna 4 and Luna 5 are assigned repo-side** (GLM subagents) and run chained
+after Luna 1–3 integrate — do not delegate them. Copilot stays available for
+future new packages, not for these.
 
 ## Ground rules for every prompt (prepend to any paste)
 
@@ -93,7 +94,7 @@ rename to `SolveCommands.tsx`), new `apps/web/src/components/SolveClock.tsx`.
 Acceptance: composition test asserts regions and command reachability; the
 timer-isolation test passes; full web suite and `npm run web:build` pass.
 
-## Luna 4 — Visual tokens and CSS (READY for Copilot after Luna 1–3 land)
+## Luna 4 — Visual tokens and CSS (repo-side after Luna 1–3 land)
 
 Ownership: `apps/web/src/styles.css` and token definitions only.
 
@@ -112,7 +113,7 @@ Acceptance: the §16 visual-composition criteria pass at 1920×1080 / 1440 /
 1280 / 200% zoom; the §16 fixture matrix snapshots render sensibly; idle page
 settles to browser-baseline CPU (document how you measured).
 
-## Luna 5 — Accessibility, visual regression, energy gates (READY after Luna 4)
+## Luna 5 — Accessibility, visual regression, energy gates (repo-side after Luna 4)
 
 Ownership: browser tests, axe checks, screenshot baselines, performance
 instrumentation; production code changes limited to defects the suite finds
