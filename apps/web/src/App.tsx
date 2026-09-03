@@ -4,6 +4,7 @@ import {
   clearCell,
   createRealPuzzle,
   enterLetter,
+  enterRebus,
   indexPuzzle,
   moveSelection,
   pauseSession,
@@ -174,6 +175,11 @@ function App() {
     if (!cellId) return;
     setSession((current) => selectCell(touchSession(current, Date.now()), index, cellId, entry.direction));
     focusInput(cellId);
+  }
+
+  function handleEnterRebus(token: string) {
+    setChecking(false);
+    setSession((current) => enterRebus(touchSession(current, Date.now()), puzzle, index, token));
   }
 
   function handleEnter(letter: string) {
@@ -363,6 +369,7 @@ function App() {
             incorrectCellIds={checkingIncorrect}
             onClear={handleClear}
             onEnter={handleEnter}
+            onEnterRebus={handleEnterRebus}
             onMove={handleMove}
             onSelectCell={handleSelectCell}
             onToggleDirection={handleToggleDirection}

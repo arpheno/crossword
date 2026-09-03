@@ -1,3 +1,5 @@
+import { useState } from 'react';
+import { enterRebus } from '@crossword/domain';
 import { ClueColumn } from '../components/legacy/ClueColumn';
 import { LegacyGrid } from '../components/legacy/LegacyGrid';
 import { resolveHarnessFixture, resolveHarnessMode, type HarnessMode } from './fixtures';
@@ -6,9 +8,14 @@ const noop = () => undefined;
 
 export function HarnessPage({ fixtureId, mode }: { fixtureId: string | null; mode: HarnessMode }) {
   const fixture = resolveHarnessFixture(fixtureId);
-  const { puzzle, index, session, incorrectCellIds } = fixture.build();
+  const { puzzle, index, session: initialSession, incorrectCellIds } = fixture.build();
+  const [session, setSession] = useState(initialSession);
   const acrossEntries = puzzle.entries.filter((entry) => entry.direction === 'across');
   const downEntries = puzzle.entries.filter((entry) => entry.direction === 'down');
+
+  function handleEnterRebus(token: string) {
+    setSession((current) => enterRebus(current, puzzle, index, token));
+  }
 
   return (
     <div
@@ -37,6 +44,7 @@ export function HarnessPage({ fixtureId, mode }: { fixtureId: string | null; mod
               incorrectCellIds={incorrectCellIds}
               onClear={noop}
               onEnter={noop}
+              onEnterRebus={handleEnterRebus}
               onMove={noop}
               onSelectCell={noop}
               onToggleDirection={noop}
@@ -69,7 +77,7 @@ export function HarnessPage({ fixtureId, mode }: { fixtureId: string | null; mod
       </section>
 
       <nav className="harness-index" aria-label="Fixture index">
-        {['empty-15', 'active-across', 'active-down-typed', 'check-error', 'half-collapsed', 'long-clue', 'special-cells'].map((id) => (
+        {['empty-15', 'active-across', 'active-down-typed', 'check-error', 'half-collapsed', 'long-clue', 'special-cells', 'rebus'].map((id) => (
           <a key={id} href={`/harness?fixture=${id}&mode=${mode}`}>{id}</a>
         ))}
         <span className="harness-modes">

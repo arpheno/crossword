@@ -61,8 +61,10 @@ export function ClueColumn({
 
   return (
     <div
+      aria-label={`${label} clues`}
       className={`clue-column ${active ? 'active' : 'inactive'}`}
       data-label={label}
+      tabIndex={0}
     >
       <ul id={direction}>
         {visible.map((entry) => {

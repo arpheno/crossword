@@ -10,6 +10,7 @@ type LegacyGridProps = {
   checkedCellIds: readonly CellId[];
   onSelectCell: (cellId: CellId) => void;
   onEnter: (letter: string) => void;
+  onEnterRebus: (token: string) => void;
   onClear: () => void;
   onMove: (key: 'ArrowUp' | 'ArrowDown' | 'ArrowLeft' | 'ArrowRight') => void;
   onToggleDirection: () => void;
@@ -28,6 +29,7 @@ export function LegacyGrid({
   checkedCellIds,
   onSelectCell,
   onEnter,
+  onEnterRebus,
   onClear,
   onMove,
   onToggleDirection
@@ -137,6 +139,12 @@ export function LegacyGrid({
                     data-row={cell.row}
                     data-solution={solutionByCellId.get(cell.id) ?? ''}
                     maxLength={cell.rebus !== undefined ? 10 : 1}
+                    onContextMenu={(event) => {
+                      if (cell.rebus === undefined) return;
+                      event.preventDefault();
+                      const token = window.prompt('Rebus entry (up to 10 letters):');
+                      if (token) onEnterRebus(token);
+                    }}
                     onClick={() => onSelectCell(cell.id as CellId)}
                     onFocus={() => onSelectCell(cell.id as CellId)}
                     onKeyDown={(event) => handleKeyDown(event as ReactKeyboardEvent<HTMLInputElement>, cell)}
