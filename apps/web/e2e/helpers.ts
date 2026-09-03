@@ -8,11 +8,11 @@ export async function backgroundColor(page: Page, selector: string): Promise<str
 }
 
 export function gridCell(page: Page, cellId: string) {
-  return page.locator(`.crossword-grid [data-cell-id="${cellId}"]`);
+  return page.locator(`#crossword-container input[data-cell-id="${cellId}"]`);
 }
 
 export async function openSolver(page: Page) {
   await page.goto('/');
-  await page.waitForSelector('.crossword-grid');
+  await page.waitForSelector('#crossword-container input');
   await page.waitForTimeout(250);
 }

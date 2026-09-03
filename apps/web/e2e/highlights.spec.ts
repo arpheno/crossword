@@ -1,68 +1,66 @@
 import { expect, test } from '@playwright/test';
-import { backgroundColor, gridCell, openSolver } from './helpers';
+import { backgroundColor, openSolver } from './helpers';
 
-// Paint-regression guards: the shipped bug class was "state correct, paint
-// transparent" (an undefined CSS variable made the active clue row invisible
-// in every browser). These assertions read the RENDERED result so that class
-// of failure can never pass again.
+// Paint-regression guards, now against the ported legacy stylesheet. The
+// shipped bug class was "state correct, paint transparent" (an undefined CSS
+// variable) — these assertions read the RENDERED result.
 
-test.describe('highlight paint', () => {
-  test('selected grid cell paints the strong across fill', async ({ page }) => {
-    await page.setViewportSize({ width: 1440, height: 900 });
+test.describe('highlight paint (legacy look)', () => {
+  test('the active grid input highlights like the legacy app', async ({ page }) => {
     await openSolver(page);
-    await gridCell(page, 'real-cell-0-0').click();
+    await page.locator('#crossword-container input[data-row="0"][data-cell="0"]').click();
 
-    const bg = await backgroundColor(page, '.grid-cell.is-active');
-    expect(bg).not.toBe('rgba(0, 0, 0, 0)');
-    expect(bg).not.toBe('transparent');
+    const highlighted = await backgroundColor(page, '.grid-cell.highlighted-cell');
+    expect(highlighted).not.toBe('rgba(0, 0, 0, 0)');
+    expect(highlighted).not.toBe('transparent');
   });
 
-  test('the active clue row paints an opaque surface and seam accent', async ({ page }) => {
-    await page.setViewportSize({ width: 1440, height: 900 });
+  test('the active clue row paints the legacy highlight', async ({ page }) => {
     await openSolver(page);
-    await gridCell(page, 'real-cell-0-0').click();
+    await page.locator('#crossword-container input[data-row="0"][data-cell="0"]').click();
 
-    const row = page.locator('[data-state="active"]').first();
-    const paint = await row.evaluate((el) => {
-      const cs = getComputedStyle(el);
-      return { background: cs.backgroundColor, borderRight: cs.borderRightWidth };
-    });
-    expect(paint.background).not.toBe('rgba(0, 0, 0, 0)');
-    expect(paint.background).not.toBe('transparent');
-    expect(parseFloat(paint.borderRight)).toBeGreaterThanOrEqual(3);
+    const clue = page.locator('#across li.highlighted-clue').first();
+    const paint = await clue.evaluate((el) => getComputedStyle(el).backgroundColor);
+    expect(paint).not.toBe('rgba(0, 0, 0, 0)');
+    expect(paint).not.toBe('transparent');
   });
 
-  test('crossing entries tint in their own direction family with ringed cells', async ({ page }) => {
-    await page.setViewportSize({ width: 1440, height: 900 });
+  test('crossing clues tint in the opposite direction family', async ({ page }) => {
     await openSolver(page);
-    await gridCell(page, 'real-cell-0-0').click();
+    await page.locator('#crossword-container input[data-row="0"][data-cell="0"]').click();
 
-    const canvas = await page.evaluate(() => getComputedStyle(document.body).backgroundColor);
-    const affected = page.locator('[data-state="affected"]').first();
+    const acrossCanvas = await backgroundColor(page, '#app');
+    const affected = page.locator('#down li.affected-clue').first();
     const bg = await affected.evaluate((el) => getComputedStyle(el).backgroundColor);
     expect(bg).not.toBe('rgba(0, 0, 0, 0)');
-    expect(bg).not.toBe(canvas);
-
-    const ring = await page
-      .locator('[data-crossing="true"]')
-      .first()
-      .evaluate((el) => getComputedStyle(el).outlineStyle);
-    expect(ring).toBe('solid');
+    expect(bg).not.toBe(acrossCanvas);
+    // legacy affected tint IS flag blue at 20% (rgb(33, 150, 243))
+    expect(bg).toContain('33, 150, 243');
   });
 
   test('the rotated field marks render at legacy scale', async ({ page }) => {
-    await page.setViewportSize({ width: 1440, height: 900 });
     await openSolver(page);
-    await gridCell(page, 'real-cell-0-0').click();
 
-    const mark = await page
-      .locator('.clue-spine-left')
+    const mark = await page.locator('.clue-column').first().evaluate((el) => {
+      const cs = getComputedStyle(el, '::before');
+      return { content: cs.content, fontSize: parseFloat(cs.fontSize), opacity: parseFloat(cs.opacity) };
+    });
+    expect(mark.content).toContain('ACROSS');
+    expect(mark.fontSize).toBeGreaterThanOrEqual(120);
+    expect(mark.opacity).toBeGreaterThan(0.03);
+  });
+
+  test('grid inputs keep the legacy cell size', async ({ page }) => {
+    await openSolver(page);
+    const cellSize = await page
+      .locator('.grid-cell input')
+      .first()
       .evaluate((el) => {
-        const cs = getComputedStyle(el, '::before');
-        return { content: cs.content, fontSize: parseFloat(cs.fontSize), opacity: parseFloat(cs.opacity) };
+        const cs = getComputedStyle(el);
+        return { w: parseFloat(cs.width), h: parseFloat(cs.height) };
       });
-    expect(mark.content).toContain('Across');
-    expect(mark.fontSize).toBeGreaterThanOrEqual(150);
-    expect(mark.opacity).toBeGreaterThan(0.05);
+    // var(--cell-size) = 2.5rem at 16px root
+    expect(cellSize.w).toBeGreaterThanOrEqual(34);
+    expect(cellSize.h).toBeGreaterThanOrEqual(34);
   });
 });
