@@ -21,7 +21,12 @@ import {
   type SolveSessionSnapshot
 } from '@crossword/domain';
 import { createSessionUseCases } from '@crossword/application';
-import { createIndexedDbSessionRepository } from '@crossword/persistence';
+import {
+  createContinuityExport,
+  createIndexedDbContinuityRepository,
+  createIndexedDbSessionRepository,
+  parseContinuityExport
+} from '@crossword/persistence';
 import type { ModelState } from '@crossword/model-runtime';
 import { ClueColumn } from './components/legacy/ClueColumn';
 import { LegacyGrid } from './components/legacy/LegacyGrid';
@@ -34,6 +39,7 @@ const initialPuzzle = createRealPuzzle();
 const initialIndex = indexPuzzle(initialPuzzle);
 const sessionUseCases = createSessionUseCases(createIndexedDbSessionRepository());
 const nytClient = createNytCrosswordClient();
+const continuityRepository = createIndexedDbContinuityRepository();
 
 function focusInput(cellId: CellId) {
   // scoped to the grid: clue-column answer cells share data-cell-id
@@ -225,6 +231,41 @@ function App() {
     setDataNotice(notice);
   }
 
+  async function handleExport() {
+    try {
+      const serialized = await createContinuityExport({
+        preferences: { theme: isDarkMode ? 'dark' : 'light' },
+        profiles: {},
+        puzzles: [puzzle],
+        sessions: [session],
+        events: session.events
+      });
+      const url = URL.createObjectURL(new Blob([serialized], { type: 'application/json' }));
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `crossword-${puzzle.id}.json`;
+      link.click();
+      URL.revokeObjectURL(url);
+      setDataNotice('Continuity archive exported.');
+    } catch (error) {
+      setDataNotice(error instanceof Error ? error.message : 'Export failed.');
+    }
+  }
+
+  async function handleImport(file: File) {
+    try {
+      const archive = await parseContinuityExport(await file.text());
+      const imported = archive.sessions.find((candidate) => candidate.puzzleId === puzzle.id);
+      if (!imported) throw new Error('This archive does not contain a session for this puzzle.');
+      const restored = sessionUseCases.restore(puzzle, index, imported);
+      await continuityRepository.replace(JSON.stringify(archive));
+      setSession(restored);
+      setDataNotice('Continuity archive imported.');
+    } catch (error) {
+      setDataNotice(error instanceof Error ? error.message : 'Import failed.');
+    }
+  }
+
   async function handleLoadWeekday() {
     setPuzzleLoading(true);
     try {
@@ -396,6 +437,29 @@ function App() {
               <button aria-label="Get new puzzle" disabled={puzzleLoading} id="get-puzzle-button" type="button" onClick={handleLoadWeekday}>
                 {puzzleLoading ? '…' : '→'}
               </button>
+              <button className="action-button blue-action" title="Export continuity archive" type="button" onClick={handleExport}>
+                Export
+              </button>
+              <button
+                className="action-button blue-action"
+                title="Import continuity archive"
+                type="button"
+                onClick={() => document.getElementById('import-archive-input')?.click()}
+              >
+                Import
+              </button>
+              <input
+                accept="application/json,.json"
+                aria-label="Import continuity archive"
+                id="import-archive-input"
+                onChange={(event) => {
+                  const file = event.target.files?.[0];
+                  if (file) void handleImport(file);
+                  event.target.value = '';
+                }}
+                style={{ display: 'none' }}
+                type="file"
+              />
               <div className="menu-spacer" />
               <button className="icon-button" title="Solved puzzles" type="button" onClick={() => setShowSolvedModal(true)}>S</button>
               <button className="icon-button" title="Model setup" type="button" onClick={() => setSetupOpen(true)}>M</button>
