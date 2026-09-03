@@ -2121,3 +2121,38 @@ body[data-active-direction="down"] .grid-cell.highlighted-cell::before {
 .clue-column[data-label="DOWN"].active::before {
   opacity: 0.3;
 }
+
+/* ==========================================================================
+   Compact desktop composition (review P1: 1136px clue-width floor).
+   Between mobile and panorama the grid comes first and each clue column
+   gets a readable full-width lane instead of a squeezed three-column row.
+   ========================================================================== */
+
+@media (min-width: 769px) and (max-width: 1180px) {
+  #notmenu {
+    flex-direction: column;
+    align-items: center;
+  }
+
+  .center-column {
+    order: -1;
+    width: 100%;
+    max-width: 660px;
+    margin: 0 auto;
+  }
+
+  .clue-column {
+    width: 100%;
+    max-width: 920px;
+    margin: 0 auto;
+  }
+}
+
+/* Mobile: fluid cells so the 15x15 grid fits narrow viewports instead of
+   clipping (review P1: 390px math). The mirrored two-lane layout below
+   768px is preserved from the legacy stylesheet. */
+@media (max-width: 768px) {
+  :root {
+    --cell-size: min(2rem, calc((100vw - 48px) / 15));
+  }
+}

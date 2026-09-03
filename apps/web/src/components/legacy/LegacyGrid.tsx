@@ -132,7 +132,7 @@ export function LegacyGrid({
                 >
                   <span className="clue-index">{numbersByCellId.get(cell.id) ?? ''}</span>
                   <input
-                    aria-label={`grid cell ${cell.row}-${cell.column}`}
+                    aria-label={`${numbersByCellId.get(cell.id) ? `${numbersByCellId.get(cell.id)}, ` : ''}row ${cell.row + 1}, column ${cell.column + 1}${letter ? `, ${letter}` : ', empty'}${selected ? ', selected' : ''}`}
                     className={inputClasses}
                     data-cell={cell.column}
                     data-cell-id={cell.id as string}
@@ -144,6 +144,18 @@ export function LegacyGrid({
                       event.preventDefault();
                       const token = window.prompt('Rebus entry (up to 10 letters):');
                       if (token) onEnterRebus(token);
+                    }}
+                    onChange={(event) => {
+                      // paste, dictation, IME and autofill land here; the
+                      // keyboard path stays on keydown for legacy speed
+                      const sanitized = event.target.value.replace(/[^A-Za-z]/g, '');
+                      if (sanitized) onEnter(sanitized);
+                    }}
+                    onPaste={(event) => {
+                      const text = event.clipboardData.getData('text').replace(/[^A-Za-z]/g, '').toUpperCase();
+                      if (!text) return;
+                      event.preventDefault();
+                      for (const ch of text) onEnter(ch);
                     }}
                     onClick={() => onSelectCell(cell.id as CellId)}
                     onFocus={() => onSelectCell(cell.id as CellId)}

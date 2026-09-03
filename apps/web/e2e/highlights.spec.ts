@@ -38,6 +38,23 @@ test.describe('highlight paint (legacy look)', () => {
     expect(bg).toContain('33, 150, 243');
   });
 
+  test('down selection switches the grid highlight to blue (data-active-direction)', async ({ page }) => {
+    await page.setViewportSize({ width: 1440, height: 900 });
+    await openSolver(page);
+    await page.locator('#down li').first().click();
+
+    const paint = await page.evaluate(() => ({
+      attr: document.body.getAttribute('data-active-direction'),
+      bg: (() => {
+        const cell = document.querySelector('.grid-cell.highlighted-cell');
+        return cell ? getComputedStyle(cell).backgroundColor : null;
+      })()
+    }));
+    expect(paint.attr).toBe('down');
+    // body[data-active-direction="down"] paints rgba(33, 150, 243, 0.25)
+    expect(paint.bg).toContain('33, 150, 243');
+  });
+
   test('the rotated field marks render at legacy scale', async ({ page }) => {
     await openSolver(page);
 

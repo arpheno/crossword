@@ -64,6 +64,21 @@ test.describe('play journeys (legacy replica)', () => {
     expect(duplicates).toBe(0);
   });
 
+  test('dialogs are semantically modal: escape closes, close is labelled', async ({ page }) => {
+    await page.setViewportSize({ width: 1136, height: 900 });
+    await openSolver(page);
+
+    await page.locator('#complete-button').click();
+    const dialog = page.locator('.modal-content[role="dialog"]');
+    await expect(dialog).toBeVisible();
+    await expect(dialog).toHaveAttribute('aria-modal', 'true');
+    await expect(page.locator('#solved-modal-title')).toBeVisible();
+    await expect(page.locator('.modal-content[role="dialog"] .modal-close-button')).toBeFocused();
+
+    await page.keyboard.press('Escape');
+    await expect(page.locator('.modal-content[role="dialog"]')).toHaveCount(0);
+  });
+
   test('night mode toggle flips the color scheme and persists across reload', async ({ page }) => {
     await page.setViewportSize({ width: 1136, height: 900 });
     await openSolver(page);

@@ -60,7 +60,13 @@ function App() {
   const [dataNotice, setDataNotice] = useState('');
   const [weekday, setWeekday] = useState<NytWeekday>('monday');
   const [puzzleLoading, setPuzzleLoading] = useState(false);
-  const [isDarkMode, setDarkMode] = useState<boolean>(() => localStorage.getItem('crossword-dark') === '1');
+  const [isDarkMode, setDarkMode] = useState<boolean>(() => {
+    try {
+      return localStorage.getItem('crossword-dark') === '1';
+    } catch {
+      return false;
+    }
+  });
   const [modelState, setModelState] = useState<ModelState>('uninstalled');
   const [modelBusy, setModelBusy] = useState(false);
   const modelClientRef = useRef<ModelWorkerClient | null>(null);
@@ -89,13 +95,13 @@ function App() {
 
   useEffect(() => () => modelClientRef.current?.dispose(), []);
 
-  // completion flow: when the grid fills, record the solve and open the
-  // solved modal (legacy markCurrentPuzzleAsComplete equivalent)
+  // completion flow: when the grid fills (or the owner marks it complete),
+  // record the solve and open the solved modal
   const completedRecorded = useRef('');
-  useEffect(() => {
-    if (session.status !== 'complete') return;
+  function recordCompletion(force = false) {
+    if (!force && session.status !== 'complete') return;
     setShowSolvedModal(true);
-    if (completedRecorded.current === puzzle.id) return;
+    if (!force && completedRecorded.current === puzzle.id) return;
     completedRecorded.current = puzzle.id;
     const record = {
       id: puzzle.id,
@@ -105,16 +111,35 @@ function App() {
     };
     setSolvedList((current) => {
       const next = [record, ...current.filter((item) => item.id !== puzzle.id)].slice(0, 50);
-      localStorage.setItem('crossword-solved', JSON.stringify(next));
+      try {
+        localStorage.setItem('crossword-solved', JSON.stringify(next));
+      } catch {
+        // restricted storage: the modal still shows this session
+      }
       return next;
     });
-  }, [session.status, puzzle.id, puzzle.title, session.activeMs]);
+  }
+
+  useEffect(() => {
+    if (session.status === 'complete') recordCompletion();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [session.status]);
+
+  // legacy hook: body[data-active-direction] drives the grid highlight
+  // color (blue when Down is active, orange otherwise)
+  useEffect(() => {
+    document.body.dataset.activeDirection = session.selection.direction;
+  }, [session.selection.direction]);
 
   // legacy night-mode mechanism: color-scheme on :root flips the ported
   // stylesheet's dark tokens
   useEffect(() => {
     document.documentElement.style.colorScheme = isDarkMode ? 'dark' : 'light';
-    localStorage.setItem('crossword-dark', isDarkMode ? '1' : '0');
+    try {
+      localStorage.setItem('crossword-dark', isDarkMode ? '1' : '0');
+    } catch {
+      // restricted storage: night mode still applies for this session
+    }
   }, [isDarkMode]);
 
   // Roving focus inside the grid only: after arrows, focus follows the
@@ -395,17 +420,14 @@ function App() {
               <button className="action-button blue-action" id="reveal-all" title="Reveal all" type="button" onClick={handleRevealAll}>
                 <span>Reveal</span>
               </button>
-              <button className="action-button center-action" title="Solution" type="button">
-                <span>Solution</span>
-              </button>
-              <button className="action-button orange-action" id="complete-button" title="Mark as Complete" type="button" onClick={() => setShowSolvedModal(true)}>
+              <button className="action-button orange-action" id="complete-button" title="Mark as Complete" type="button" onClick={() => recordCompletion(true)}>
                 <span>Complete</span>
               </button>
             </div>
           </div>
 
           <LegacyGrid
-            checkedCellIds={session.checkedCellIds}
+            checkedCellIds={checkingCorrect}
             index={index}
             incorrectCellIds={checkingIncorrect}
             onClear={handleClear}
@@ -494,11 +516,23 @@ function App() {
       {dataNotice && <p className="data-notice" role="status">{dataNotice}</p>}
 
       {showSolvedModal && (
-        <div className="modal-overlay" onClick={(event) => { if (event.target === event.currentTarget) setShowSolvedModal(false); }}>
-          <div className="modal-content">
+        <div
+          className="modal-overlay"
+          onClick={(event) => { if (event.target === event.currentTarget) setShowSolvedModal(false); }}
+          onKeyDown={(event) => { if (event.key === 'Escape') setShowSolvedModal(false); }}
+        >
+          <div aria-labelledby="solved-modal-title" aria-modal="true" className="modal-content" role="dialog">
             <div className="modal-header">
-              <h2>Solved puzzles</h2>
-              <button className="modal-close-button" type="button" onClick={() => setShowSolvedModal(false)}>&times;</button>
+              <h2 id="solved-modal-title">Solved puzzles</h2>
+              <button
+                autoFocus
+                className="modal-close-button"
+                type="button"
+                aria-label="Close solved puzzles"
+                onClick={() => setShowSolvedModal(false)}
+              >
+                &times;
+              </button>
             </div>
             <div className="modal-body">
               {session.status === 'complete' && (
@@ -532,11 +566,23 @@ function App() {
       )}
 
       {setupOpen && (
-        <div className="modal-overlay" onClick={(event) => { if (event.target === event.currentTarget) setSetupOpen(false); }}>
-          <div className="modal-content">
+        <div
+          className="modal-overlay"
+          onClick={(event) => { if (event.target === event.currentTarget) setSetupOpen(false); }}
+          onKeyDown={(event) => { if (event.key === 'Escape') setSetupOpen(false); }}
+        >
+          <div aria-labelledby="setup-title" aria-modal="true" className="modal-content" role="dialog">
             <div className="modal-header">
-              <h2>Model setup</h2>
-              <button className="modal-close-button" type="button" onClick={() => setSetupOpen(false)}>&times;</button>
+              <h2 id="setup-title">Model setup</h2>
+              <button
+                autoFocus
+                className="modal-close-button"
+                type="button"
+                aria-label="Close model setup"
+                onClick={() => setSetupOpen(false)}
+              >
+                &times;
+              </button>
             </div>
             <div className="modal-body">
               <p>Original construction stays on this device. WebGPU in-browser via the pinned local model — no server, no cloud inference.</p>

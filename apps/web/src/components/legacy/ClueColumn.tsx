@@ -73,11 +73,17 @@ export function ClueColumn({
           const sharedCells = shared.get(entry.id) ?? [];
           return (
             <li
-              key={entry.id}
+              aria-label={`${entry.number} ${entry.direction}: ${entry.clue}`}
               className={`${highlighted ? 'highlighted-clue' : ''} ${affected ? 'affected-clue' : ''}`}
               onClick={() => onSelectEntry(entry)}
-            >
-              {direction === 'down' && <strong className="clue-number">{entry.number}.</strong>}
+              onKeyDown={(event) => {
+                if (event.key === 'Enter' || event.key === ' ') {
+                  event.preventDefault();
+                  onSelectEntry(entry);
+                }
+              }}
+              tabIndex={0}
+            >        {direction === 'down' && <strong className="clue-number">{entry.number}.</strong>}
               <div className="clue-content">
                 <span className="clue-text">{entry.clue}</span>
                 <div className="state-container">
@@ -88,12 +94,22 @@ export function ClueColumn({
                     const crossing = sharedCells.includes(cellId) ? ` ${intersectionClass}` : '';
                     return (
                       <span
+                        aria-label={`${entry.number} ${entry.direction}, letter ${position + 1}`}
                         className={`state${crossing}${incorrect ? ' red' : ''}${green ? ' green' : ''}`}
                         key={cellId}
                         onClick={(event) => {
                           event.stopPropagation();
                           onSelectPattern(entry, position);
                         }}
+                        onKeyDown={(event) => {
+                          if (event.key === 'Enter' || event.key === ' ') {
+                            event.preventDefault();
+                            event.stopPropagation();
+                            onSelectPattern(entry, position);
+                          }
+                        }}
+                        role="button"
+                        tabIndex={0}
                       >
                         {char === ' ' ? '\u00A0' : char}
                       </span>
