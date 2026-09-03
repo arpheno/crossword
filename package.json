@@ -24,9 +24,12 @@
         "web:build": "npm --workspace @crossword/web run build",
         "web:test": "npm --workspace @crossword/web run test",
         "scan:content": "node scripts/scan-forbidden-content.mjs",
+        "e2e": "PLAYWRIGHT_BROWSERS_PATH=$PWD/.browsers playwright test --config apps/web/playwright.config.ts",
+        "e2e:install": "PLAYWRIGHT_BROWSERS_PATH=$PWD/.browsers npx playwright install chromium",
         "test:mutation": "stryker run"
     },
     "devDependencies": {
+        "@playwright/test": "^1.62.1",
         "@stryker-mutator/core": "^10.0.0",
         "@stryker-mutator/vitest-runner": "^10.0.0",
         "axios": "1.13.2",
