@@ -23,6 +23,7 @@
         "web:dev": "npm --workspace @crossword/web run dev --",
         "web:build": "npm --workspace @crossword/web run build",
         "web:test": "npm --workspace @crossword/web run test",
+        "scan:content": "node scripts/scan-forbidden-content.mjs",
         "test:mutation": "stryker run"
     },
     "devDependencies": {
