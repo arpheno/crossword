@@ -14,7 +14,7 @@
 
 export type TopologyTemplate = Readonly<{
   id: string;
-  style: 'wide-open' | 'stacked' | 'weave' | 'cornered' | 'dense';
+  style: 'wide-open' | 'stacked' | 'weave' | 'cornered' | 'dense' | 'human-derived';
   notes: string;
   mask: readonly string[];
 }>;
@@ -22,6 +22,31 @@ export type TopologyTemplate = Readonly<{
 const WIDTH = 15;
 
 export const TEMPLATES: readonly TopologyTemplate[] = [
+  {
+    id: 'human-15x15',
+    style: 'human-derived',
+    notes:
+      'Proven NYT-style human mask (the legacy app\'s reference grid). Fill-measured ' +
+      'against the full lab lexicon: solved in ~2s at 79 search nodes, average answer ' +
+      'length 4.8 — the calibration target every generated template must meet.',
+    mask: [
+      '....#....#.....',
+      '....#....#.....',
+      '....#....#.....',
+      '...........#...',
+      '####...#...#...',
+      '......#......##',
+      '.....#....#....',
+      '.....#...#.....',
+      '....#....#.....',
+      '##......#......',
+      '...#...#...####',
+      '...#...........',
+      '.....#....#....',
+      '.....#....#....',
+      '.....#....#....'
+    ]
+  },
   {
     id: 'wide-open-26',
     style: 'wide-open',

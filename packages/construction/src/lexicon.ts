@@ -12,8 +12,6 @@
  * letter-bag heuristics produce a 0..1 fill score. The score is a search
  * *preference*, never an eligibility rule — eligibility is policy.
  */
-import { createHash } from 'node:crypto';
-
 import type { FillCandidate } from './csp';
 
 export type LexiconProvenanceRecord = Readonly<{
@@ -31,6 +29,12 @@ export type LoadLexiconOptions = Readonly<{
   maxLength?: number;
   /** Explicit words to exclude (household exclusions, recent answers). */
   excluded?: readonly string[];
+  /**
+   * Optional crossword-frequency prior (`WORD COUNT` lines) derived from the
+   * household's solved corpus. Lifts recurring crossword vocabulary in the
+   * preference score; never grants eligibility.
+   */
+  frequencyPrior?: string;
 }>;
 
 export type Lexicon = Readonly<{
@@ -76,6 +80,31 @@ function stapleScore(word: string): number {
   return Math.min(1, Math.max(0.05, score));
 }
 
+/**
+ * Parse the frequency prior into (word -> count) and produce a scorer that
+ * blends the staple heuristics with corpus familiarity. A word in the top
+ * prior band scores up to +0.35; unseen words keep the heuristic score.
+ */
+function createPrior(priorText: string | undefined): (word: string) => number {
+  if (!priorText) return () => 0;
+  const prior = new Map<string, number>();
+  for (const line of priorText.split('\n')) {
+    const [word, count] = line.trim().split(/\s+/);
+    if (!word || !/^[A-Z]+$/.test(word)) continue;
+    const parsed = Number(count);
+    if (Number.isFinite(parsed) && parsed > 0) prior.set(word, parsed);
+  }
+  const values = [...prior.values()].sort((a, b) => b - a);
+  const top = values[0] ?? 1;
+  const floor = values[Math.min(values.length - 1, 2000)] ?? 1;
+  const range = Math.max(1, top - floor);
+  return (word: string): number => {
+    const count = prior.get(word);
+    if (count === undefined) return 0;
+    return 0.35 * Math.min(1, Math.max(0, (count - floor) / range));
+  };
+}
+
 function normalizeSurface(surface: string): string {
   return surface.trim().toUpperCase().replace(/[^A-Z]/g, '');
 }
@@ -96,7 +125,14 @@ export function loadLexicon(text: string, options: LoadLexiconOptions = {}): Lex
   }
   if (words.length === 0) throw new Error('Lexicon artifact is empty');
 
-  const digest = createHash('sha256').update(text).digest('hex');
+  const priorBoost = createPrior(options.frequencyPrior);
+  const score = (word: string): number => Math.min(1, stapleScore(word) + priorBoost(word));
+
+  // Runtime digest is a cheap, deterministic content hash for diagnostics and
+  // ledger correlation. The authoritative sha256 is pinned in the artifact
+  // manifest emitted by the build script; this value only proves which bytes
+  // the loaded lexicon was parsed from.
+  const digest = runtimeDigest(text);
   const byLength = new Map<number, string[]>();
   for (const word of words) {
     const bucket = byLength.get(word.length);
@@ -104,7 +140,7 @@ export function loadLexicon(text: string, options: LoadLexiconOptions = {}): Lex
     else byLength.set(word.length, [word]);
   }
   for (const bucket of byLength.values()) {
-    bucket.sort((left, right) => stapleScore(right) - stapleScore(left) || left.localeCompare(right));
+    bucket.sort((left, right) => score(right) - score(left) || left.localeCompare(right));
   }
 
   const provenance: LexiconProvenanceRecord = {
@@ -125,7 +161,7 @@ export function loadLexicon(text: string, options: LoadLexiconOptions = {}): Lex
       if (!normalized || normalized.length < 3 || normalized.length > maxLength || !wordSet.has(normalized)) return undefined;
       return {
         word: normalized,
-        score: stapleScore(normalized),
+        score: score(normalized),
         lexemeId: `web2:${normalized}`,
         sourceIds: [provenance.id]
       };
@@ -137,6 +173,16 @@ export function loadLexicon(text: string, options: LoadLexiconOptions = {}): Lex
       return wordSet.has(normalizeSurface(surface));
     }
   };
+}
+
+/** 32-bit FNV-1a hex digest of the artifact text. */
+function runtimeDigest(text: string): string {
+  let hash = 0x811c9dc5;
+  for (let index = 0; index < text.length; index += 1) {
+    hash ^= text.charCodeAt(index);
+    hash = Math.imul(hash, 0x01000193) >>> 0;
+  }
+  return `fnv1a-${hash.toString(16).padStart(8, '0')}`;
 }
 
 export function lexiconProvenanceFrom(lexicon: Lexicon): LexiconProvenanceRecord {
