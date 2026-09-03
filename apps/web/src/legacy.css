@@ -2028,3 +2028,83 @@ body[data-active-direction="down"] .grid-cell.highlighted-cell::before {
 :root[style*="color-scheme: light"] .menu-section button:hover {
     background: rgba(0, 0, 0, 0.1);
 }
+/* ==========================================================================
+   Spine refinement (phase 2): de-boxed rows, same legacy identity.
+   The clue list loses its per-clue card boxes — borders, radii, hover lifts
+   — and reads as clean hairline-separated rows. Highlights become full-bleed
+   washes with a seam-side accent bar. Nothing else moves.
+   ========================================================================== */
+
+.clue-column li {
+  border: none;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.08);
+  border-radius: 0;
+  box-shadow: none;
+  padding: 12px 14px;
+  margin: 0;
+  transition: background-color 140ms ease;
+}
+
+.clue-column li:last-child {
+  border-bottom: none;
+}
+
+.clue-column li:hover {
+  transform: none;
+  box-shadow: none;
+  background-color: rgba(0, 0, 0, 0.035);
+}
+
+.clue-text {
+  font-size: 1rem;
+  line-height: 1.35;
+}
+
+.state-container {
+  gap: 4px;
+  margin-top: 7px;
+}
+
+.state {
+  border-radius: 3px;
+}
+
+.clue-number {
+  font-size: 1.05rem;
+}
+
+/* highlight/affected keep their tints, drop their boxes; the accent bar
+   sits on the seam side (odd rows: number right; even rows: number left) */
+.clue-column li.highlighted-clue,
+.clue-column li.affected-clue {
+  border-bottom-color: transparent;
+}
+
+.clue-column li.highlighted-clue:nth-child(odd),
+.clue-column li.affected-clue:nth-child(odd) {
+  box-shadow: inset -3px 0 0 var(--orange-primary);
+}
+
+.clue-column li.highlighted-clue:nth-child(even),
+.clue-column li.affected-clue:nth-child(even) {
+  box-shadow: inset 3px 0 0 var(--orange-primary);
+}
+
+.clue-column[data-label="DOWN"] li.highlighted-clue:nth-child(odd),
+.clue-column[data-label="DOWN"] li.affected-clue:nth-child(odd) {
+  box-shadow: inset -3px 0 0 var(--blue-primary);
+}
+
+.clue-column[data-label="DOWN"] li.highlighted-clue:nth-child(even),
+.clue-column[data-label="DOWN"] li.affected-clue:nth-child(even) {
+  box-shadow: inset 3px 0 0 var(--blue-primary);
+}
+
+/* watermark: same legacy scale, softened so clue text always wins */
+.clue-column::before {
+  opacity: 0.05;
+}
+
+.clue-column.active::before {
+  opacity: 0.3;
+}
