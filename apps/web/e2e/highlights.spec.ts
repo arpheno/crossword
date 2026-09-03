@@ -56,15 +56,19 @@ test.describe('highlight paint (legacy look)', () => {
   });
 
   test('the rotated field marks render at legacy scale', async ({ page }) => {
+    await page.setViewportSize({ width: 1440, height: 900 });
     await openSolver(page);
 
     const mark = await page.locator('.clue-column').first().evaluate((el) => {
       const cs = getComputedStyle(el, '::before');
-      return { content: cs.content, fontSize: parseFloat(cs.fontSize), opacity: parseFloat(cs.opacity) };
+      return { content: cs.content, fontSize: parseFloat(cs.fontSize), opacity: parseFloat(cs.opacity), color: cs.color };
     });
+    // exact-look contract (ADR 0003): the owner tuned these values in the
+    // legacy app; the replica must render them byte-identically
     expect(mark.content).toContain('ACROSS');
-    expect(mark.fontSize).toBeGreaterThanOrEqual(120);
-    expect(mark.opacity).toBeGreaterThan(0.03);
+    expect(mark.fontSize).toBe(240);
+    expect(mark.opacity).toBe(0.45);
+    expect(mark.color).toBe('rgba(255, 152, 0, 0.75)');
   });
 
   test('grid inputs keep the legacy cell size', async ({ page }) => {

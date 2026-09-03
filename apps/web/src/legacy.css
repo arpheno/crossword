@@ -2109,18 +2109,10 @@ body[data-active-direction="down"] .grid-cell.highlighted-cell::before {
   box-shadow: inset 3px 0 0 var(--blue-primary);
 }
 
-/* watermark: same legacy scale, softened so clue text always wins */
-.clue-column::before,
-.clue-column[data-label="ACROSS"]::before,
-.clue-column[data-label="DOWN"]::before {
-  opacity: 0.05;
-}
-
-.clue-column.active::before,
-.clue-column[data-label="ACROSS"].active::before,
-.clue-column[data-label="DOWN"].active::before {
-  opacity: 0.3;
-}
+/* watermark: the legacy ::before values (0.06 idle / 0.45 active / 0.20
+   inactive, orange-white colors, glow shadows) are the owner's tuned
+   rendering — no overrides appended. Verified identical to the legacy app
+   by computed-style diff (ADR 0003 exact-look directive).
 
 /* ==========================================================================
    Compact desktop composition (review P1: 1136px clue-width floor).
