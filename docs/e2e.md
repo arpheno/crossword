@@ -1,12 +1,14 @@
 # Browser journeys, paint guards, and visual baselines
 
-Status: Luna 5 core, Chromium-local. Not wired into CI yet.
+Status: Luna 5 core, Chromium-local. Structural checks run in CI; visual
+snapshots remain local because the checked-in baselines are macOS-specific.
 
 ## Run
 
 ```bash
 npm run e2e:install   # once: downloads Chromium into .browsers/ (repo-local)
 npm run e2e           # starts the dev server itself (reuses a running one)
+npm run e2e:ci        # CI-safe journeys, paint, rebus, and axe checks
 npm run e2e -- --update-snapshots   # regenerate visual baselines
 ```
 
@@ -33,6 +35,7 @@ Three layers, added after two shipped bugs that unit tests could not see:
 
 - Chromium lives in `.browsers/` (gitignored) via `PLAYWRIGHT_BROWSERS_PATH`.
 - The dev server is reused when already running, so `make web-dev` plus
-  `npm run e2e` share one instance.
-- CI wiring, Firefox/WebKit projects, and axe checks are the remaining
-  Luna 5 scope.
+   `npm run e2e` share one instance.
+- Firefox/WebKit projects remain the next cross-engine scope. CI uploads
+   Playwright JUnit, screenshots, and traces alongside coverage and mutation
+   reports when a check fails.

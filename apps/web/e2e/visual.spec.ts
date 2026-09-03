@@ -12,6 +12,10 @@ async function shot(page: import('@playwright/test').Page, name: string) {
   });
 }
 
+// Baselines are captured on darwin; cross-platform font rendering differs,
+// so visual comparison stays local and CI runs journeys + paint guards.
+test.skip(Boolean(process.env.CI), 'visual baselines are darwin-local');
+
 test.describe('visual baselines (legacy replica)', () => {
   test('panorama 1440 with a typed entry', async ({ page }) => {
     await page.setViewportSize({ width: 1440, height: 900 });
