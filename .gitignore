@@ -88,3 +88,7 @@ src/crossword/static/lib/
 reports/npm-audit.json
 reports/mutation/
 .npm-cache/
+.shots/
+.browsers/
+shoot.tmp.cjs
+verify.tmp.cjs

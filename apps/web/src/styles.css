@@ -304,6 +304,7 @@ h1 {
 .clue-spine {
   --axis: var(--ink-muted);
   --axis-soft: var(--surface-sunken);
+  --axis-whisper: color-mix(in oklch, var(--surface-sunken) 70%, var(--surface-canvas));
   position: relative;
   isolation: isolate;
   min-width: 0;
@@ -346,20 +347,21 @@ h1 {
 .clue-spine::before {
   position: absolute;
   z-index: -1;
-  inset: 88px 0 16px;
+  inset: 88px 0 0;
   display: flex;
   align-items: center;
   justify-content: center;
+  overflow: hidden;
   color: var(--axis);
   font-family: var(--font-ui);
-  /* Field marks scale with the spine's available HEIGHT, not viewport width;
-     14dvh keeps the rotated word inside the column at any window height. */
-  font-size: clamp(4.5rem, 7vw, 8.5rem);
-  font-size: clamp(4rem, min(7vw, 14dvh), 8.5rem);
-  font-weight: 760;
-  letter-spacing: 0.11em;
+  /* Legacy-scale field marks: oversized glyphs cropped inside the spine —
+     texture, not typography. The clipping layer keeps them out of the
+     scroll height. */
+  font-size: clamp(8rem, 16vw, 15rem);
+  font-weight: 900;
+  letter-spacing: 0.2em;
   line-height: 1;
-  opacity: 0.05;
+  opacity: 0.08;
   pointer-events: none;
   text-transform: uppercase;
   writing-mode: vertical-rl;
@@ -378,7 +380,7 @@ h1 {
 
 /* Static echo of the active direction on its field mark — no animation. */
 .clue-spine.is-direction-active::before {
-  opacity: 0.1;
+  opacity: 0.25;
 }
 
 .direction-across.is-direction-active::before {
@@ -392,8 +394,14 @@ h1 {
 /* Crossing echo (docs/plans/06 §7.2): quiet affected rows and exact
    shared-cell rings in the active direction's family — one strong signal,
    many quiet echoes, never a field of equal highlights. */
-.clue-item.is-affected {
-  background: color-mix(in oklch, var(--axis-soft) 55%, transparent);
+/* Affected (crossing) entries: quiet tint in their OWN direction family,
+   like the legacy product's blue crossings under an orange selection. */
+.direction-across .clue-item.is-affected {
+  background: color-mix(in oklch, var(--across-soft) 55%, var(--surface-canvas));
+}
+
+.direction-down .clue-item.is-affected {
+  background: color-mix(in oklch, var(--down-soft) 60%, var(--surface-canvas));
 }
 
 .direction-across .pattern-position.is-crossing {
@@ -632,26 +640,26 @@ h1 {
 }
 
 .clue-item.is-active {
-  background: linear-gradient(90deg, transparent, var(--axis-whisper));
+  background: var(--active-axis-soft, var(--across-soft));
 }
 
 .lane-outer .clue-item.is-active {
-  border-right-color: var(--axis);
-  background: linear-gradient(90deg, transparent 4%, var(--axis-whisper));
+  border-right-color: var(--active-axis, var(--across));
+  border-right-width: 3px;
 }
 
 .lane-inner .clue-item.is-active {
-  border-left-color: var(--axis);
-  background: linear-gradient(90deg, var(--axis-whisper), transparent 96%);
+  border-left-color: var(--active-axis, var(--across));
+  border-left-width: 3px;
 }
 
 .clue-item.is-active .clue-text {
-  color: var(--axis-strong);
+  color: var(--active-axis-strong, var(--across-strong));
   font-weight: 650;
 }
 
 .clue-item.is-active .pattern-position {
-  border-color: color-mix(in oklch, var(--axis) 60%, var(--line));
+  border-color: color-mix(in oklch, var(--active-axis, var(--across)) 60%, var(--line));
 }
 
 .clue-item.has-error {
