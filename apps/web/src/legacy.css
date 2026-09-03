@@ -2035,7 +2035,8 @@ body[data-active-direction="down"] .grid-cell.highlighted-cell::before {
    washes with a seam-side accent bar. Nothing else moves.
    ========================================================================== */
 
-.clue-column li {
+#across li,
+#down li {
   border: none;
   border-bottom: 1px solid rgba(0, 0, 0, 0.08);
   border-radius: 0;
@@ -2045,11 +2046,13 @@ body[data-active-direction="down"] .grid-cell.highlighted-cell::before {
   transition: background-color 140ms ease;
 }
 
-.clue-column li:last-child {
+#across li:last-child,
+#down li:last-child {
   border-bottom: none;
 }
 
-.clue-column li:hover {
+#across li:hover,
+#down li:hover {
   transform: none;
   box-shadow: none;
   background-color: rgba(0, 0, 0, 0.035);
@@ -2074,37 +2077,47 @@ body[data-active-direction="down"] .grid-cell.highlighted-cell::before {
 }
 
 /* highlight/affected keep their tints, drop their boxes; the accent bar
-   sits on the seam side (odd rows: number right; even rows: number left) */
-.clue-column li.highlighted-clue,
-.clue-column li.affected-clue {
-  border-bottom-color: transparent;
+   sits on the seam side (odd rows: number right; even rows: number left).
+   Selectors match the legacy ID strength (#across/#down) so they win the
+   cascade against the original card rules. */
+#across li.highlighted-clue,
+#down li.highlighted-clue,
+#across li.affected-clue,
+#down li.affected-clue {
+  border: none;
+  border-bottom: 1px solid transparent;
+  border-radius: 0;
 }
 
-.clue-column li.highlighted-clue:nth-child(odd),
-.clue-column li.affected-clue:nth-child(odd) {
+#across li.highlighted-clue:nth-child(odd),
+#across li.affected-clue:nth-child(odd) {
   box-shadow: inset -3px 0 0 var(--orange-primary);
 }
 
-.clue-column li.highlighted-clue:nth-child(even),
-.clue-column li.affected-clue:nth-child(even) {
+#across li.highlighted-clue:nth-child(even),
+#across li.affected-clue:nth-child(even) {
   box-shadow: inset 3px 0 0 var(--orange-primary);
 }
 
-.clue-column[data-label="DOWN"] li.highlighted-clue:nth-child(odd),
-.clue-column[data-label="DOWN"] li.affected-clue:nth-child(odd) {
+#down li.highlighted-clue:nth-child(odd),
+#down li.affected-clue:nth-child(odd) {
   box-shadow: inset -3px 0 0 var(--blue-primary);
 }
 
-.clue-column[data-label="DOWN"] li.highlighted-clue:nth-child(even),
-.clue-column[data-label="DOWN"] li.affected-clue:nth-child(even) {
+#down li.highlighted-clue:nth-child(even),
+#down li.affected-clue:nth-child(even) {
   box-shadow: inset 3px 0 0 var(--blue-primary);
 }
 
 /* watermark: same legacy scale, softened so clue text always wins */
-.clue-column::before {
+.clue-column::before,
+.clue-column[data-label="ACROSS"]::before,
+.clue-column[data-label="DOWN"]::before {
   opacity: 0.05;
 }
 
-.clue-column.active::before {
+.clue-column.active::before,
+.clue-column[data-label="ACROSS"].active::before,
+.clue-column[data-label="DOWN"].active::before {
   opacity: 0.3;
 }
