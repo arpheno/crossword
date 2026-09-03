@@ -17,7 +17,7 @@ test('panorama keeps three columns beside the grid at 1440', async ({ page }) =>
     return {
       across: box('.clue-column'),
       grid: box('#crossword-container'),
-      down: box('.center-column')
+      down: box('.clue-column[data-label="DOWN"]')
     };
   });
   expect(geo.across?.x).toBeLessThan(geo.grid!.x);
