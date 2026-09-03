@@ -9,6 +9,7 @@ snapshots remain local because the checked-in baselines are macOS-specific.
 npm run e2e:install   # once: downloads Chromium into .browsers/ (repo-local)
 npm run e2e           # starts the dev server itself (reuses a running one)
 npm run e2e:ci        # CI-safe journeys, paint, rebus, and axe checks
+npm run e2e:all       # structural checks in Chromium, Firefox, and WebKit
 npm run e2e -- --update-snapshots   # regenerate visual baselines
 ```
 
@@ -39,3 +40,16 @@ Three layers, added after two shipped bugs that unit tests could not see:
 - Firefox/WebKit projects remain the next cross-engine scope. CI uploads
    Playwright JUnit, screenshots, and traces alongside coverage and mutation
    reports when a check fails.
+
+## QA protocol
+
+The QA agent may commit **failing tests on purpose** — they are bug reports
+encoded as acceptance criteria. The rule for implementing agents:
+
+1. run the full suites first (unit, build, e2e); a failing test owned by QA
+   is a work item, not noise;
+2. fix the **app** until the test passes — never weaken, skip, or delete a
+   QA test;
+3. if a QA test is genuinely wrong (asserts the wrong legacy behavior),
+   object in the commit message and in `docs/reviews/`, and coordinate
+   before changing it.
