@@ -41,7 +41,9 @@ const nytClient = createNytCrosswordClient();
 
 function focusCell(cellId: CellId) {
   const focusNow = () => {
-    document.querySelector<HTMLButtonElement>(`[data-cell-id="${cellId}"]`)?.focus({ preventScroll: true });
+    // Scoped to the grid: spine answer cells share the same data-cell-id,
+    // and focusing one of those leaves keystrokes dead (no key handler).
+    document.querySelector<HTMLButtonElement>(`.crossword-grid [data-cell-id="${cellId}"]`)?.focus({ preventScroll: true });
   };
   if (document.readyState === 'complete' || document.readyState === 'interactive') {
     requestAnimationFrame(() => requestAnimationFrame(focusNow));
@@ -49,6 +51,8 @@ function focusCell(cellId: CellId) {
     focusNow();
   }
 }
+
+type ThemePreference = 'day' | 'night';
 
 function App() {
   const [puzzle, setPuzzle] = useState<PuzzleDocument>(initialPuzzle);
@@ -100,15 +104,29 @@ function App() {
 
   // Roving focus: keep DOM focus on the logical selected cell so the focus
   // ring and the active-cell highlight never split when the selection moves
-  // by arrow keys, typed letters, or clears. Click paths already focus.
+  // by arrow keys, typed letters, or clears. Only grid cells participate —
+  // spine answer cells carry the same ids but no key handlers.
   const selectedCellId = session.selection.cellId;
   useEffect(() => {
     if (!selectedCellId) return;
     const active = document.activeElement;
-    if (active instanceof HTMLElement && active.matches('[data-cell-id][data-block="false"]')) {
+    if (active instanceof HTMLElement && active.closest('.crossword-grid') && active.matches('[data-cell-id]')) {
       focusCell(selectedCellId);
     }
   }, [selectedCellId]);
+
+  const [theme, setTheme] = useState<ThemePreference | null>(() => {
+    const stored = localStorage.getItem('crossword-theme');
+    return stored === 'day' || stored === 'night' ? stored : null;
+  });
+
+  useEffect(() => {
+    const root = document.documentElement;
+    if (theme) root.dataset.theme = theme;
+    else delete root.dataset.theme;
+    if (theme) localStorage.setItem('crossword-theme', theme);
+    else localStorage.removeItem('crossword-theme');
+  }, [theme]);
 
   function handleUpdate() {
     navigator.serviceWorker.controller?.postMessage({ type: 'SKIP_WAITING' });
@@ -348,6 +366,14 @@ function App() {
             lastInteractionAtMs={session.lastInteractionAtMs}
             paused={session.paused}
           />
+          <button
+            className="theme-toggle"
+            type="button"
+            onClick={() => setTheme(theme === 'night' ? 'day' : 'night')}
+            aria-label={theme === 'night' ? 'Switch to day mode' : 'Switch to night mode'}
+          >
+            {theme === 'night' ? 'Day' : 'Night'}
+          </button>
         </div>
       </header>
 

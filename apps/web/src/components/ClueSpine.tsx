@@ -66,6 +66,9 @@ function ClueItem({
       data-state={state}
       style={style}
     >
+      {/* Spoken-workflow number: one player says "17 across", the other finds
+          it instantly. Lives at the seam edge of every row, legacy-style. */}
+      <span aria-hidden="true" className="clue-number-tag">{entry.number}</span>
       <button
         aria-current={state === 'active' ? 'true' : undefined}
         aria-label={`${entry.number} ${entry.direction}: ${entry.clue}${solved ? ', solved' : ''}`}
@@ -178,15 +181,7 @@ export function ClueSpine({
             );
           })}
         </ol>
-        <div className="number-spine" aria-hidden="true">
-          {Array.from({ length: rows }, (_, row) => {
-            const first = placed[row * 2]?.entryId;
-            const second = placed[row * 2 + 1]?.entryId;
-            const firstNumber = first ? entries.find((entry) => entry.id === first)?.number : undefined;
-            const secondNumber = second ? entries.find((entry) => entry.id === second)?.number : undefined;
-            return <span key={row}>{firstNumber}{secondNumber ? ` / ${secondNumber}` : ''}</span>;
-          })}
-        </div>
+        <div className="number-spine" aria-hidden="true" />
         <ol className="clue-lane lane-inner">
           {placed.filter(({ lane }) => lane === 'inner').map(({ entryId, row }) => {
             const entry = entries.find((candidate) => candidate.id === entryId);

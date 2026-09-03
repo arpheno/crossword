@@ -1,9 +1,9 @@
 /*
  * CROSSWORD / 2026
  *
- * Precision-paper interface for the bilateral clue spine.
- * Static surfaces, semantic color and geometry do the work: no backdrop
- * filters, no animated shadows and no perpetual effects.
+ * Maspalomas palette (owner design language, lalange docs): Dunes of
+ * Maspalomas by day, Roque Nublo volcanic basalt by night. Static surfaces,
+ * semantic color and geometry do the work.
  */
 
 :root {
@@ -12,33 +12,35 @@
   font-synthesis: none;
   text-rendering: optimizeLegibility;
 
-  --surface-canvas: oklch(0.972 0.012 82);
-  --surface-raised: oklch(0.991 0.007 82);
-  --surface-sunken: oklch(0.935 0.018 78);
-  --surface-grid: oklch(0.245 0.018 62);
-  --surface-grid-block: oklch(0.185 0.014 62);
-  --ink-strong: oklch(0.245 0.018 62);
-  --ink: oklch(0.315 0.02 62);
-  --ink-muted: oklch(0.49 0.025 65);
-  --ink-faint: oklch(0.64 0.022 70);
-  --line-soft: oklch(0.84 0.018 72);
-  --line: oklch(0.76 0.022 70);
-  --line-strong: oklch(0.43 0.02 65);
+  /* Daymode — "Dunes of Maspalomas": Calima washes, Dune Gold highlights,
+     Copper Red Across, Flag Blue Down. */
+  --surface-canvas: #EFE3CD;
+  --surface-raised: #F7EEDF;
+  --surface-sunken: #E3CFAF;
+  --surface-grid: #2B2116;
+  --surface-grid-block: #111111;
+  --ink-strong: #2B2116;
+  --ink: #43362A;
+  --ink-muted: #6E5C48;
+  --ink-faint: #97836A;
+  --line-soft: #D4BE9C;
+  --line: #C0A87F;
+  --line-strong: #8A6F4D;
 
-  --across: oklch(0.59 0.16 45);
-  --across-strong: oklch(0.49 0.17 42);
-  --across-soft: oklch(0.925 0.05 48);
-  --across-whisper: oklch(0.958 0.025 51);
-  --down: oklch(0.53 0.115 238);
-  --down-strong: oklch(0.43 0.125 240);
-  --down-soft: oklch(0.915 0.04 238);
-  --down-whisper: oklch(0.957 0.021 238);
-  --success: oklch(0.49 0.105 151);
-  --success-soft: oklch(0.92 0.04 151);
-  --error: oklch(0.54 0.18 28);
-  --error-soft: oklch(0.925 0.052 28);
-  --assist: oklch(0.61 0.105 92);
-  --assist-soft: oklch(0.925 0.05 92);
+  --across: #C8703F;
+  --across-strong: #A55A2E;
+  --across-soft: #F2D8C2;
+  --across-whisper: #F7E8DA;
+  --down: #2B86E0;
+  --down-strong: #1F6CBE;
+  --down-soft: #D8E8F8;
+  --down-whisper: #E8F1FB;
+  --success: #01796F;
+  --success-soft: #D3E8E4;
+  --error: #C62828;
+  --error-soft: #F3D4D2;
+  --assist: #C47610;
+  --assist-soft: #F0E0C0;
 
   --font-clue: "Iowan Old Style", "Palatino Linotype", Palatino, Georgia, serif;
   --font-ui: Inter, ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
@@ -52,10 +54,11 @@
   --space-3: 12px;
   --space-4: 16px;
   --space-5: 24px;
-  --focus-color: oklch(0.64 0.15 238);
-  --focus-ring: 0 0 0 3px color-mix(in oklch, var(--focus-color) 48%, transparent);
-  --grid-shadow: 9px 11px 0 color-mix(in oklch, var(--down) 13%, transparent);
-  --panel-shadow: 0 18px 50px -36px color-mix(in oklch, var(--ink-strong) 55%, transparent);
+  --focus-color: #1F6CBE;
+  --focus-ring: 0 0 0 3px color-mix(in srgb, var(--focus-color) 48%, transparent);
+  --grid-shadow: 8px 10px 0 color-mix(in srgb, #C8703F 22%, transparent);
+  --panel-shadow: 0 18px 50px -36px color-mix(in srgb, #2B2116 55%, transparent);
+  --mica: linear-gradient(135deg, #C47610, #E0D058, #A5663A, #FFF);
 
   color: var(--ink);
   background: var(--surface-canvas);
@@ -134,13 +137,34 @@ button:disabled {
 /* Utility rail */
 
 .masthead {
-  min-height: 50px;
+  min-height: 40px;
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: var(--space-4);
+  padding: 2px 0;
   border-bottom: 1px solid var(--line);
   font-family: var(--font-ui);
+}
+
+.theme-toggle {
+  min-height: 26px;
+  padding: 3px 10px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--ink-muted);
+  cursor: pointer;
+  font-family: var(--font-pattern);
+  font-size: 0.58rem;
+  font-weight: 650;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.theme-toggle:hover {
+  border-color: var(--line-strong);
+  color: var(--ink-strong);
 }
 
 .wordmark {
@@ -204,22 +228,19 @@ button:disabled {
 
 .identity-rail {
   display: flex;
-  align-items: baseline;
+  align-items: center;
   justify-content: space-between;
   gap: var(--space-4);
-  padding: 10px 0 12px;
+  padding: 7px 0 8px;
   border-bottom: 1px solid var(--line);
 }
 
 .identity-copy {
   min-width: 0;
-  display: grid;
-  grid-template-columns: max-content minmax(0, 1fr);
-  grid-template-areas:
-    "eyebrow eyebrow"
-    "title subtitle";
+  display: flex;
   align-items: baseline;
-  column-gap: 16px;
+  gap: 14px;
+  flex-wrap: nowrap;
 }
 
 .session-chip {
@@ -243,8 +264,8 @@ button:disabled {
 }
 
 .eyebrow {
-  grid-area: eyebrow;
-  margin: 0 0 4px;
+  margin: 0;
+  flex: none;
   color: var(--across-strong);
 }
 
@@ -255,14 +276,13 @@ p {
 }
 
 h1 {
-  grid-area: title;
   margin: 0;
   color: var(--ink-strong);
   font-family: var(--font-clue);
-  font-size: clamp(1.375rem, 2vw, 2rem);
-  font-weight: 500;
-  line-height: 1;
-  letter-spacing: -0.025em;
+  font-size: clamp(1.2rem, 1.8vw, 1.6rem);
+  font-weight: 550;
+  line-height: 1.05;
+  letter-spacing: -0.015em;
   white-space: nowrap;
 }
 
@@ -292,13 +312,52 @@ h1 {
   flex: 1 1 auto;
   display: grid;
   grid-template-columns:
-    minmax(340px, 1fr)
+    minmax(0, 1fr)
     clamp(480px, 34vw, 620px)
-    minmax(340px, 1fr);
+    minmax(0, 1fr);
+  grid-template-areas: "across stage down";
   gap: clamp(14px, 1.25vw, 24px);
   align-items: start;
   padding: 8px 0 4px;
   overflow: hidden;
+}
+
+.clue-spine-left {
+  grid-area: across;
+}
+
+.solve-stage {
+  grid-area: stage;
+}
+
+.clue-spine-right {
+  grid-area: down;
+}
+
+/* Standard/compact mode (docs/plans/06 §12): below the panorama minimum the
+   grid comes first and each direction gets a full-width field — playable at
+   any window size instead of squeezing the grid into a sliver. */
+@media (max-width: 1359px) {
+  .workspace {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-areas:
+      "stage"
+      "across"
+      "down";
+    grid-template-rows: auto auto auto;
+    overflow: visible;
+  }
+
+  .solve-stage {
+    justify-self: center;
+    width: min(100%, 620px);
+  }
+
+  .clue-spine-left,
+  .clue-spine-right {
+    width: min(100%, 980px);
+    margin: 0 auto;
+  }
 }
 
 .clue-spine {
@@ -1784,75 +1843,130 @@ h1 {
   justify-content: flex-end;
 }
 
-/* Designed dark palette (docs/plans/06 §13): a warm-paper inversion with
-   adjusted accents — Across and Down stay distinguishable; the harness
-   theme-dark wrapper and the OS preference share one token set. */
-.theme-dark {
+/* Nightmode — "Roque Nublo": basalt black, puce oxide surfaces, Teneguía
+   red Across, Atlantic Phosphor Down. Owner-selected via the toggle
+   ([data-theme='night']) or the harness wrapper. */
+.theme-dark,
+[data-theme='night'] {
   color-scheme: dark;
-  --surface-canvas: oklch(0.215 0.012 62);
-  --surface-raised: oklch(0.25 0.014 62);
-  --surface-sunken: oklch(0.185 0.012 62);
-  --surface-grid: oklch(0.9 0.012 62);
-  --surface-grid-block: oklch(0.13 0.01 62);
-  --ink-strong: oklch(0.93 0.012 62);
-  --ink: oklch(0.83 0.014 62);
-  --ink-muted: oklch(0.63 0.02 65);
-  --ink-faint: oklch(0.5 0.02 70);
-  --line-soft: oklch(0.35 0.015 70);
-  --line: oklch(0.43 0.02 70);
-  --line-strong: oklch(0.63 0.02 65);
-  --across: oklch(0.73 0.15 48);
-  --across-strong: oklch(0.81 0.14 50);
-  --across-soft: oklch(0.32 0.06 45);
-  --across-whisper: oklch(0.27 0.04 45);
-  --down: oklch(0.72 0.11 235);
-  --down-strong: oklch(0.8 0.1 235);
-  --down-soft: oklch(0.31 0.05 235);
-  --down-whisper: oklch(0.26 0.035 235);
-  --success: oklch(0.72 0.12 152);
-  --success-soft: oklch(0.3 0.05 152);
-  --error: oklch(0.68 0.17 25);
-  --error-soft: oklch(0.31 0.06 25);
-  --assist: oklch(0.76 0.1 92);
-  --assist-soft: oklch(0.31 0.05 92);
-  --focus-color: oklch(0.75 0.12 235);
-  --grid-shadow: 9px 11px 0 color-mix(in oklch, var(--down) 22%, transparent);
-  --panel-shadow: 0 18px 50px -36px color-mix(in oklch, black 72%, transparent);
+  --surface-canvas: #111111;
+  --surface-raised: #1A1414;
+  --surface-sunken: #171010;
+  --surface-grid: #E7E7E7;
+  --surface-grid-block: #000000;
+  --ink-strong: #E7E7E7;
+  --ink: #CFC5BE;
+  --ink-muted: #9C8B85;
+  --ink-faint: #6B5C57;
+  --line-soft: #2E211F;
+  --line: #3F2C29;
+  --line-strong: #692F2E;
+  --across: #E0334A;
+  --across-strong: #FF5A6E;
+  --across-soft: #2E1216;
+  --across-whisper: #201013;
+  --down: #00EDF5;
+  --down-strong: #7FF6FB;
+  --down-soft: #0D2B2D;
+  --down-whisper: #091E20;
+  --success: #02A08F;
+  --success-soft: #0E2A26;
+  --error: #FF5A6E;
+  --error-soft: #2E1216;
+  --assist: #E0D058;
+  --assist-soft: #2B2513;
+  --focus-color: #7FF6FB;
+  --grid-shadow: 8px 10px 0 color-mix(in srgb, #CF1020 30%, transparent);
+  --panel-shadow: 0 18px 50px -36px color-mix(in srgb, black 80%, transparent);
   color: var(--ink);
   background: var(--surface-canvas);
 }
 
 @media (prefers-color-scheme: dark) {
-  :root {
+  :root:not([data-theme='day']) {
     color-scheme: dark;
-    --surface-canvas: oklch(0.215 0.012 62);
-    --surface-raised: oklch(0.25 0.014 62);
-    --surface-sunken: oklch(0.185 0.012 62);
-    --surface-grid: oklch(0.9 0.012 62);
-    --surface-grid-block: oklch(0.13 0.01 62);
-    --ink-strong: oklch(0.93 0.012 62);
-    --ink: oklch(0.83 0.014 62);
-    --ink-muted: oklch(0.63 0.02 65);
-    --ink-faint: oklch(0.5 0.02 70);
-    --line-soft: oklch(0.35 0.015 70);
-    --line: oklch(0.43 0.02 70);
-    --line-strong: oklch(0.63 0.02 65);
-    --across: oklch(0.73 0.15 48);
-    --across-strong: oklch(0.81 0.14 50);
-    --across-soft: oklch(0.32 0.06 45);
-    --across-whisper: oklch(0.27 0.04 45);
-    --down: oklch(0.72 0.11 235);
-    --down-strong: oklch(0.8 0.1 235);
-    --down-soft: oklch(0.31 0.05 235);
-    --down-whisper: oklch(0.26 0.035 235);
-    --success: oklch(0.72 0.12 152);
-    --success-soft: oklch(0.3 0.05 152);
-    --error: oklch(0.68 0.17 25);
-    --error-soft: oklch(0.31 0.06 25);
-    --assist: oklch(0.76 0.1 92);
-    --assist-soft: oklch(0.31 0.05 92);
-    --focus-color: oklch(0.75 0.12 235);
-    --grid-shadow: 9px 11px 0 color-mix(in oklch, var(--down) 22%, transparent);
-    --panel-shadow: 0 18px 50px -36px color-mix(in oklch, black 72%, transparent);
+    --surface-canvas: #111111;
+    --surface-raised: #1A1414;
+    --surface-sunken: #171010;
+    --surface-grid: #E7E7E7;
+    --surface-grid-block: #000000;
+    --ink-strong: #E7E7E7;
+    --ink: #CFC5BE;
+    --ink-muted: #9C8B85;
+    --ink-faint: #6B5C57;
+    --line-soft: #2E211F;
+    --line: #3F2C29;
+    --line-strong: #692F2E;
+    --across: #E0334A;
+    --across-strong: #FF5A6E;
+    --across-soft: #2E1216;
+    --across-whisper: #201013;
+    --down: #00EDF5;
+    --down-strong: #7FF6FB;
+    --down-soft: #0D2B2D;
+    --down-whisper: #091E20;
+    --success: #02A08F;
+    --success-soft: #0E2A26;
+    --error: #FF5A6E;
+    --error-soft: #2E1216;
+    --assist: #E0D058;
+    --assist-soft: #2B2513;
+    --focus-color: #7FF6FB;
+    --grid-shadow: 8px 10px 0 color-mix(in srgb, #CF1020 30%, transparent);
+    --panel-shadow: 0 18px 50px -36px color-mix(in srgb, black 80%, transparent);
   }
+}
+
+/* Spoken-workflow clue numbers (docs/plans/06 §6.1): one player says
+   "17 across", the other finds it instantly — bold number at the seam edge
+   of every row, legacy-style. */
+.clue-item {
+  position: relative;
+}
+
+.clue-number-tag {
+  position: absolute;
+  z-index: 2;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--ink-strong);
+  font-family: var(--font-pattern);
+  font-size: 1.02rem;
+  font-variant-numeric: tabular-nums;
+  font-weight: 750;
+  line-height: 1;
+  pointer-events: none;
+}
+
+.lane-outer .clue-number-tag {
+  right: -36px;
+}
+
+.lane-inner .clue-number-tag {
+  left: -36px;
+}
+
+.clue-spine-right .lane-outer .clue-number-tag {
+  left: -36px;
+  right: auto;
+}
+
+.clue-spine-right .lane-inner .clue-number-tag {
+  right: -36px;
+  left: auto;
+}
+
+.clue-item.is-active .clue-number-tag {
+  color: var(--active-axis-strong, var(--across-strong));
+}
+
+/* Mica accents (owner palette): the mineral glitter gradient marks the
+   wordmark and the completion moment. */
+.wordmark-mark {
+  background: var(--mica);
+}
+
+.completion-banner {
+  border-left: 4px solid;
+  border-image: var(--mica) 1;
 }

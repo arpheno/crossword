@@ -42,7 +42,8 @@ export function CrosswordGrid({
     const firstCellId = entry.cellIds[0];
     if (!firstCellId) continue;
     const current = numbersByCellId.get(firstCellId);
-    numbersByCellId.set(firstCellId, current ? `${current}/${entry.number}` : `${entry.number}`);
+    if (!current) numbersByCellId.set(firstCellId, `${entry.number}`);
+    else if (current !== `${entry.number}`) numbersByCellId.set(firstCellId, `${current}/${entry.number}`);
   }
   const rows = Array.from({ length: puzzle.height }, (_, row) =>
     puzzle.cells.filter((cell) => cell.row === row)
