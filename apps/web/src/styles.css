@@ -1744,3 +1744,58 @@ h1 {
     animation-iteration-count: 1 !important;
   }
 }
+
+/* Visual harness (docs/plans/06 §17 Luna 1): fixtures render the production
+   components with deterministic sessions; this chrome is harness-only. */
+
+.harness-root {
+  max-width: 1880px;
+  margin: 0 auto;
+  padding: 12px 24px 24px;
+}
+
+.harness-notes {
+  margin: 14px 0 0;
+  color: var(--ink-muted);
+  font-family: var(--font-ui);
+  font-size: 0.78rem;
+  line-height: 1.45;
+}
+
+.harness-notes ul {
+  margin: 0;
+  padding-left: 18px;
+}
+
+.harness-index {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 12px;
+  font-family: var(--font-pattern);
+  font-size: 0.6rem;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.harness-index a {
+  padding: 4px 8px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  color: var(--ink);
+  text-decoration: none;
+}
+
+.harness-index a:hover {
+  border-color: var(--line-strong);
+}
+
+.harness-modes {
+  display: inline-flex;
+  gap: 8px;
+  margin-left: 8px;
+}
+
+.harness-modes a {
+  border-style: dashed;
+}
