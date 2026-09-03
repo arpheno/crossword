@@ -34,7 +34,12 @@ export type FillRequest = Readonly<{
   lockedWords?: Readonly<Record<string, string>>;
   seed?: number;
   maxNodes?: number;
-  qualityThreshold?: number;
+  /**
+   * Minimum SUM of candidate scores for a complete fill to be recorded as a
+   * solution. Unit: raw candidate-score sum — NOT the normalized editorial
+   * 0..1 quality gate, which lives in the application layer (`scoreFill`).
+   */
+  minimumAssignmentScore?: number;
   excludedWords?: readonly string[];
 }>;
 
@@ -83,6 +88,15 @@ type IndexedIntersection = Readonly<{
   rightPosition: number;
 }>;
 
+type LengthClass = Readonly<{
+  length: number;
+  count: number;
+  /** Local preference-ordered ids -> global candidate ids. */
+  globalByLocal: readonly number[];
+  localIndexByGlobal: ReadonlyMap<number, number>;
+  words: number;
+}>;
+
 type IndexedRequest = Readonly<{
   slots: readonly FillSlot[];
   slotIds: readonly string[];
@@ -90,8 +104,10 @@ type IndexedRequest = Readonly<{
   intersectionsBySlot: readonly (readonly IndexedIntersection[])[];
   candidates: readonly IndexedCandidate[];
   candidatesByLength: ReadonlyMap<number, readonly number[]>;
+  /** Per-length local index classes: bitsets are width-local to a length. */
+  lengthClasses: ReadonlyMap<number, LengthClass>;
   /**
-   * Bitset of candidate indexes carrying `letter` at `position`, among
+   * Bitset of LOCAL candidate indexes carrying `letter` at `position`, among
    * candidates of a given length. Key: `${length}:${position}:${letter}`.
    */
   positionBits: ReadonlyMap<string, Bits>;
@@ -188,14 +204,32 @@ function createIndex(request: FillRequest): IndexedRequest | { failure: FillResu
     candidatesByLength.set(candidate.normalizedWord.length, indexes);
   }
 
+  // Per-length local index classes: every bitset is width-local to its length
+  // class (a 4-letter class with 5k words needs 157 u32 words, not the ~7100
+  // a global bitset would use). Local order preserves global preference order.
+  const lengthClasses = new Map<number, LengthClass>();
+  for (const [length, globalIndexes] of candidatesByLength) {
+    const globalByLocal = [...globalIndexes].sort((a, b) => a - b);
+    const localIndexByGlobal = new Map<number, number>();
+    globalByLocal.forEach((globalIndex, localIndex) => localIndexByGlobal.set(globalIndex, localIndex));
+    lengthClasses.set(length, {
+      length,
+      count: globalByLocal.length,
+      globalByLocal,
+      localIndexByGlobal,
+      words: Math.ceil(globalByLocal.length / 32)
+    });
+  }
+
   const positionBits = new Map<string, Bits>();
-  const bitWords = Math.ceil(candidates.length / 32);
   for (const candidate of candidates) {
+    const lengthClass = lengthClasses.get(candidate.normalizedWord.length)!;
+    const localIndex = lengthClass.localIndexByGlobal.get(candidate.index)!;
     for (let position = 0; position < candidate.normalizedWord.length; position += 1) {
       const letter = candidate.normalizedWord[position]!;
       const key = `${candidate.normalizedWord.length}:${position}:${letter}`;
-      const bits = positionBits.get(key) ?? new Uint32Array(bitWords);
-      bits[candidate.index >>> 5] = bits[candidate.index >>> 5]! | (1 << (candidate.index & 31));
+      const bits = positionBits.get(key) ?? new Uint32Array(lengthClass.words);
+      bits[localIndex >>> 5] = bits[localIndex >>> 5]! | (1 << (localIndex & 31));
       positionBits.set(key, bits);
     }
   }
@@ -239,6 +273,7 @@ function createIndex(request: FillRequest): IndexedRequest | { failure: FillResu
     intersectionsBySlot,
     candidates,
     candidatesByLength,
+    lengthClasses,
     positionBits,
     excludedWords: new Set(excluded?.map((word) => word.toUpperCase()) ?? []),
     candidateIndexByWord,
@@ -262,7 +297,8 @@ function compatibleBits(
   sourcePosition: number,
   source: Bits
 ): Bits {
-  const result = new Uint32Array(source.length);
+  const targetClass = index.lengthClasses.get(targetLength)!;
+  const result = new Uint32Array(targetClass.words);
   for (let letterIndex = 0; letterIndex < 26; letterIndex += 1) {
     const letter = LETTERS[letterIndex]!;
     const sourceBits = index.positionBits.get(`${sourceLength}:${sourcePosition}:${letter}`);
@@ -462,7 +498,7 @@ function* searchGenerator(
   yield;
   if (state.cancelled || state.overBudget) return;
   if (slotIndex < 0) {
-    if (state.score >= (request.qualityThreshold ?? Number.NEGATIVE_INFINITY)) {
+    if (state.score >= (request.minimumAssignmentScore ?? Number.NEGATIVE_INFINITY)) {
       const result: Record<string, FillCandidate> = {};
       for (let slot = 0; slot < index.slots.length; slot += 1) {
         result[index.slotIds[slot]!] = index.candidates[state.assignments[slot]!]!;
@@ -471,9 +507,9 @@ function* searchGenerator(
         state.best = { assignments: result, score: state.score, nodes: state.nodes };
         state.bestScore = state.score;
       }
-      // An explicit quality threshold turns the search into "first publishable
-      // fill wins"; without one, branch and bound keeps maximizing.
-      if (request.qualityThreshold !== undefined && state.score >= request.qualityThreshold) {
+      // An explicit assignment-score bound turns the search into "first
+      // acceptable fill wins"; without one, branch and bound keeps maximizing.
+      if (request.minimumAssignmentScore !== undefined && state.score >= request.minimumAssignmentScore) {
         state.satisfied = true;
       }
     }
@@ -484,13 +520,16 @@ function* searchGenerator(
   // (word-level trail edits): later propagation through this slot then sees
   // the fixed letters and prunes crossings correctly.
   const domain = state.domains[slotIndex]!;
+  const slotLength = index.slots[slotIndex]!.length;
+  const slotClass = index.lengthClasses.get(slotLength)!;
   for (let wordIndex = 0; wordIndex < domain.length; wordIndex += 1) {
     let word = domain[wordIndex]!;
     while (word !== 0) {
       const lowest = word & -word;
       word ^= lowest;
       if (state.cancelled || state.overBudget || state.satisfied) return;
-      const candidateIndex = (wordIndex << 5) + (31 - Math.clz32(lowest));
+      const localIndex = (wordIndex << 5) + (31 - Math.clz32(lowest));
+      const candidateIndex = slotClass.globalByLocal[localIndex]!;
       const candidate = index.candidates[candidateIndex]!;
       const trailBase = state.trail.length;
       state.assignments[slotIndex] = candidateIndex;
@@ -501,11 +540,14 @@ function* searchGenerator(
         if (extra !== 0) removeWordBits(state, slotIndex, w, extra);
       }
 
-      // All-different: a used word may not repeat in another slot.
+      // All-different: a used word may not repeat in another slot. Only
+      // same-length slots can contain the same surface, and they share the
+      // length class's local index space.
       let viable = true;
       for (let other = 0; other < index.slots.length && viable; other += 1) {
         if (other === slotIndex) continue;
-        removeSingleBit(state, other, candidateIndex);
+        if (index.slots[other]!.length !== slotLength) continue;
+        removeSingleBit(state, other, localIndex);
         viable = state.sizes[other]! > 0;
       }
       if (viable) viable = propagateFrom(index, state, [slotIndex]);
@@ -526,21 +568,22 @@ function buildInitialState(
 ): SearchState | { failure: FillResult['failure'] } {
   const domains: Bits[] = [];
   for (const slot of request.slots) {
+    const lengthClass = index.lengthClasses.get(slot.length)!;
+    const domain = new Uint32Array(lengthClass.words);
     const lockWord = request.lockedWords?.[slot.id];
     if (lockWord !== undefined) {
-      const lockedIndex = index.candidateIndexByWord.get(lockWord.trim().toUpperCase());
-      if (lockedIndex === undefined) return { failure: { code: 'unsatisfiable', message: `Lock for slot ${slot.id} has no candidate`, nodes: 0 } };
-      const domain = new Uint32Array(Math.ceil(index.candidates.length / 32));
-      domain[lockedIndex >>> 5] = domain[lockedIndex >>> 5]! | (1 << (lockedIndex & 31));
+      const lockedGlobal = index.candidateIndexByWord.get(lockWord.trim().toUpperCase());
+      if (lockedGlobal === undefined) return { failure: { code: 'unsatisfiable', message: `Lock for slot ${slot.id} has no candidate`, nodes: 0 } };
+      const lockedLocal = lengthClass.localIndexByGlobal.get(lockedGlobal)!;
+      domain[lockedLocal >>> 5] = domain[lockedLocal >>> 5]! | (1 << (lockedLocal & 31));
       domains.push(domain);
       continue;
     }
-    const domain = new Uint32Array(Math.ceil(index.candidates.length / 32));
-    for (const candidateIndex of index.candidatesByLength.get(slot.length) ?? []) {
+    lengthClass.globalByLocal.forEach((candidateIndex, localIndex) => {
       const candidate = index.candidates[candidateIndex]!;
-      if (slot.pattern && [...slot.pattern].some((letter, position) => letter !== '.' && candidate.normalizedWord[position] !== letter)) continue;
-      domain[candidateIndex >>> 5] = domain[candidateIndex >>> 5]! | (1 << (candidateIndex & 31));
-    }
+      if (slot.pattern && [...slot.pattern].some((letter, position) => letter !== '.' && candidate.normalizedWord[position] !== letter)) return;
+      domain[localIndex >>> 5] = domain[localIndex >>> 5]! | (1 << (localIndex & 31));
+    });
     domains.push(domain);
   }
   const state: SearchState = {
