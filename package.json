@@ -26,9 +26,14 @@
         "scan:content": "node scripts/scan-forbidden-content.mjs",
         "e2e": "PLAYWRIGHT_BROWSERS_PATH=$PWD/.browsers playwright test --config apps/web/playwright.config.ts",
         "e2e:install": "PLAYWRIGHT_BROWSERS_PATH=$PWD/.browsers npx playwright install chromium",
-        "test:mutation": "stryker run"
+        "test:mutation": "stryker run",
+        "data:build-lexicon": "node scripts/build-fill-lexicon.mjs && node scripts/build-freq-prior.mjs",
+        "data:sync": "mkdir -p apps/web/public/data && cp packages/construction/data/fill-lexicon-v1.txt packages/construction/data/freq-prior-v1.txt apps/web/public/data/",
+        "topology:extract": "python3 scripts/extract-nyt-topology.py",
+        "topology:judge": "node scripts/judge-nyt-templates.mjs"
     },
     "devDependencies": {
+        "@axe-core/playwright": "^4.13.0",
         "@playwright/test": "^1.62.1",
         "@stryker-mutator/core": "^10.0.0",
         "@stryker-mutator/vitest-runner": "^10.0.0",
