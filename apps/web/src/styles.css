@@ -234,9 +234,6 @@ button:disabled {
 .eyebrow,
 .spine-heading,
 .clue-meta,
-.session-readout,
-.command-label,
-.footer-line,
 .setup-status,
 .setup-steps {
   font-family: var(--font-pattern);
@@ -1070,20 +1067,6 @@ h1 {
   justify-items: start;
 }
 
-.command-group {
-  display: inline-flex;
-  align-items: center;
-  gap: 3px;
-  padding-right: 6px;
-  border-right: 1px solid var(--line);
-}
-
-.command-label {
-  padding: 0 5px;
-  color: var(--ink-muted);
-  white-space: nowrap;
-}
-
 .session-commands button,
 .session-commands .file-command,
 .close-button {
@@ -1285,10 +1268,6 @@ h1 {
   gap: 9px;
 }
 
-.footer-line {
-  display: none;
-}
-
 .sr-only {
   position: absolute;
   width: 1px;
@@ -1451,23 +1430,6 @@ h1 {
     min-height: 46px;
   }
 
-  .masthead-meta {
-    max-width: 55%;
-    justify-content: flex-end;
-    font-size: 0.52rem;
-    text-align: right;
-  }
-
-  .play-header {
-    min-height: 78px;
-    align-items: flex-end;
-    gap: 12px;
-  }
-
-  .play-header > div:first-child {
-    display: block;
-  }
-
   h1 {
     font-size: clamp(1.55rem, 8vw, 2.2rem);
     white-space: normal;
@@ -1475,12 +1437,6 @@ h1 {
 
   .puzzle-subtitle {
     display: none;
-  }
-
-  .session-readout {
-    grid-template-columns: 1fr;
-    justify-items: end;
-    gap: 3px;
   }
 
   .workspace {
@@ -1547,10 +1503,6 @@ h1 {
     display: none;
   }
 
-  .command-label {
-    padding-inline: 3px;
-  }
-
   .session-commands button,
   .session-commands .file-command {
     min-height: 34px;
@@ -1567,11 +1519,6 @@ h1 {
 @media (max-height: 760px) and (min-width: 1120px) {
   .masthead {
     min-height: 44px;
-  }
-
-  .play-header {
-    min-height: 58px;
-    padding-block: 6px;
   }
 
   .workspace {
@@ -1798,4 +1745,106 @@ h1 {
 
 .harness-modes a {
   border-style: dashed;
+}
+
+/* Bilateral seam-facing alignment (docs/plans/06 §6.2): outer-lane copy
+   aligns inward toward the seam, inner-lane copy aligns outward; the Down
+   field mirrors around its own seam instead of copying the left layout. */
+.clue-spine-left .lane-outer .clue-select,
+.clue-spine-right .lane-inner .clue-select {
+  text-align: right;
+}
+
+.clue-spine-left .lane-inner .clue-select,
+.clue-spine-right .lane-outer .clue-select {
+  text-align: left;
+}
+
+.clue-spine-right .lane-outer {
+  grid-column: 3;
+}
+
+.clue-spine-right .lane-inner {
+  grid-column: 1;
+}
+
+.clue-spine-right .lane-outer .answer-pattern {
+  justify-content: flex-start;
+}
+
+.clue-spine-right .lane-inner .answer-pattern {
+  justify-content: flex-end;
+}
+
+/* Designed dark palette (docs/plans/06 §13): a warm-paper inversion with
+   adjusted accents — Across and Down stay distinguishable; the harness
+   theme-dark wrapper and the OS preference share one token set. */
+.theme-dark {
+  color-scheme: dark;
+  --surface-canvas: oklch(0.215 0.012 62);
+  --surface-raised: oklch(0.25 0.014 62);
+  --surface-sunken: oklch(0.185 0.012 62);
+  --surface-grid: oklch(0.9 0.012 62);
+  --surface-grid-block: oklch(0.13 0.01 62);
+  --ink-strong: oklch(0.93 0.012 62);
+  --ink: oklch(0.83 0.014 62);
+  --ink-muted: oklch(0.63 0.02 65);
+  --ink-faint: oklch(0.5 0.02 70);
+  --line-soft: oklch(0.35 0.015 70);
+  --line: oklch(0.43 0.02 70);
+  --line-strong: oklch(0.63 0.02 65);
+  --across: oklch(0.73 0.15 48);
+  --across-strong: oklch(0.81 0.14 50);
+  --across-soft: oklch(0.32 0.06 45);
+  --across-whisper: oklch(0.27 0.04 45);
+  --down: oklch(0.72 0.11 235);
+  --down-strong: oklch(0.8 0.1 235);
+  --down-soft: oklch(0.31 0.05 235);
+  --down-whisper: oklch(0.26 0.035 235);
+  --success: oklch(0.72 0.12 152);
+  --success-soft: oklch(0.3 0.05 152);
+  --error: oklch(0.68 0.17 25);
+  --error-soft: oklch(0.31 0.06 25);
+  --assist: oklch(0.76 0.1 92);
+  --assist-soft: oklch(0.31 0.05 92);
+  --focus-color: oklch(0.75 0.12 235);
+  --grid-shadow: 9px 11px 0 color-mix(in oklch, var(--down) 22%, transparent);
+  --panel-shadow: 0 18px 50px -36px color-mix(in oklch, black 72%, transparent);
+  color: var(--ink);
+  background: var(--surface-canvas);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    color-scheme: dark;
+    --surface-canvas: oklch(0.215 0.012 62);
+    --surface-raised: oklch(0.25 0.014 62);
+    --surface-sunken: oklch(0.185 0.012 62);
+    --surface-grid: oklch(0.9 0.012 62);
+    --surface-grid-block: oklch(0.13 0.01 62);
+    --ink-strong: oklch(0.93 0.012 62);
+    --ink: oklch(0.83 0.014 62);
+    --ink-muted: oklch(0.63 0.02 65);
+    --ink-faint: oklch(0.5 0.02 70);
+    --line-soft: oklch(0.35 0.015 70);
+    --line: oklch(0.43 0.02 70);
+    --line-strong: oklch(0.63 0.02 65);
+    --across: oklch(0.73 0.15 48);
+    --across-strong: oklch(0.81 0.14 50);
+    --across-soft: oklch(0.32 0.06 45);
+    --across-whisper: oklch(0.27 0.04 45);
+    --down: oklch(0.72 0.11 235);
+    --down-strong: oklch(0.8 0.1 235);
+    --down-soft: oklch(0.31 0.05 235);
+    --down-whisper: oklch(0.26 0.035 235);
+    --success: oklch(0.72 0.12 152);
+    --success-soft: oklch(0.3 0.05 152);
+    --error: oklch(0.68 0.17 25);
+    --error-soft: oklch(0.31 0.06 25);
+    --assist: oklch(0.76 0.1 92);
+    --assist-soft: oklch(0.31 0.05 92);
+    --focus-color: oklch(0.75 0.12 235);
+    --grid-shadow: 9px 11px 0 color-mix(in oklch, var(--down) 22%, transparent);
+    --panel-shadow: 0 18px 50px -36px color-mix(in oklch, black 72%, transparent);
+  }
 }
