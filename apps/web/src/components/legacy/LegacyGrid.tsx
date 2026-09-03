@@ -33,6 +33,12 @@ export function LegacyGrid({
   onToggleDirection
 }: LegacyGridProps) {
   const numbersByCellId = new Map<CellId, string>();
+  const solutionByCellId = new Map<CellId, string>();
+  for (const entry of puzzle.entries) {
+    entry.cellIds.forEach((cellId, position) => {
+      solutionByCellId.set(cellId, entry.answer[position] ?? '');
+    });
+  }
   for (const entry of puzzle.entries) {
     const firstCellId = entry.cellIds[0];
     if (!firstCellId) continue;
@@ -129,6 +135,7 @@ export function LegacyGrid({
                     data-cell={cell.column}
                     data-cell-id={cell.id as string}
                     data-row={cell.row}
+                    data-solution={solutionByCellId.get(cell.id) ?? ''}
                     maxLength={cell.rebus !== undefined ? 10 : 1}
                     onClick={() => onSelectCell(cell.id as CellId)}
                     onFocus={() => onSelectCell(cell.id as CellId)}

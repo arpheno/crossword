@@ -57,6 +57,16 @@ function App() {
   const [modelState, setModelState] = useState<ModelState>('uninstalled');
   const [modelBusy, setModelBusy] = useState(false);
   const modelClientRef = useRef<ModelWorkerClient | null>(null);
+  const [showSolvedModal, setShowSolvedModal] = useState(false);
+  const [solvedList, setSolvedList] = useState<readonly { id: string; title: string; activeMs: number; completedAt: string }[]>(
+    () => {
+      try {
+        return JSON.parse(localStorage.getItem('crossword-solved') ?? '[]');
+      } catch {
+        return [];
+      }
+    }
+  );
 
   useEffect(() => {
     let cancelled = false;
@@ -71,6 +81,27 @@ function App() {
   }, [index, puzzle]);
 
   useEffect(() => () => modelClientRef.current?.dispose(), []);
+
+  // completion flow: when the grid fills, record the solve and open the
+  // solved modal (legacy markCurrentPuzzleAsComplete equivalent)
+  const completedRecorded = useRef('');
+  useEffect(() => {
+    if (session.status !== 'complete') return;
+    setShowSolvedModal(true);
+    if (completedRecorded.current === puzzle.id) return;
+    completedRecorded.current = puzzle.id;
+    const record = {
+      id: puzzle.id,
+      title: puzzle.title,
+      activeMs: session.activeMs,
+      completedAt: new Date().toISOString()
+    };
+    setSolvedList((current) => {
+      const next = [record, ...current.filter((item) => item.id !== puzzle.id)].slice(0, 50);
+      localStorage.setItem('crossword-solved', JSON.stringify(next));
+      return next;
+    });
+  }, [session.status, puzzle.id, puzzle.title, session.activeMs]);
 
   // legacy night-mode mechanism: color-scheme on :root flips the ported
   // stylesheet's dark tokens
@@ -320,7 +351,7 @@ function App() {
               <button className="action-button center-action" title="Solution" type="button">
                 <span>Solution</span>
               </button>
-              <button className="action-button orange-action" id="complete-button" title="Mark as Complete" type="button">
+              <button className="action-button orange-action" id="complete-button" title="Mark as Complete" type="button" onClick={() => setShowSolvedModal(true)}>
                 <span>Complete</span>
               </button>
             </div>
@@ -329,7 +360,7 @@ function App() {
           <LegacyGrid
             checkedCellIds={session.checkedCellIds}
             index={index}
-            incorrectCellIds={incorrectCellIds}
+            incorrectCellIds={checkingIncorrect}
             onClear={handleClear}
             onEnter={handleEnter}
             onMove={handleMove}
@@ -359,6 +390,7 @@ function App() {
                 {puzzleLoading ? '…' : '→'}
               </button>
               <div className="menu-spacer" />
+              <button className="icon-button" title="Solved puzzles" type="button" onClick={() => setShowSolvedModal(true)}>S</button>
               <button className="icon-button" title="Model setup" type="button" onClick={() => setSetupOpen(true)}>M</button>
               <div className="theme-switch">
                 <label className="switch">
@@ -389,6 +421,44 @@ function App() {
       </div>
 
       {dataNotice && <p className="data-notice" role="status">{dataNotice}</p>}
+
+      {showSolvedModal && (
+        <div className="modal-overlay" onClick={(event) => { if (event.target === event.currentTarget) setShowSolvedModal(false); }}>
+          <div className="modal-content">
+            <div className="modal-header">
+              <h2>Solved puzzles</h2>
+              <button className="modal-close-button" type="button" onClick={() => setShowSolvedModal(false)}>&times;</button>
+            </div>
+            <div className="modal-body">
+              {session.status === 'complete' && (
+                <p><strong>{puzzle.title}</strong> — complete in {Math.round(session.activeMs / 1000)}s with {checksUsed} checks and {revealsUsed} reveals.</p>
+              )}
+              {solvedList.length === 0 && <p>No solved puzzles yet.</p>}
+              {solvedList.length > 0 && (
+                <ul className="solved-puzzles-list">
+                  {solvedList.map((item) => (
+                    <li className="solved-puzzle-item" key={item.id + item.completedAt}>
+                      <div className="puzzle-info">
+                        <div className="puzzle-header">
+                          <strong className="puzzle-title">{item.title}</strong>
+                          <span className="puzzle-date">{new Date(item.completedAt).toLocaleString()}</span>
+                        </div>
+                        <span className="puzzle-authors">{Math.round(item.activeMs / 1000)}s</span>
+                      </div>
+                    </li>
+                  ))}
+                </ul>
+              )}
+              <div className="setup-actions">
+                <button className="action-button blue-action" type="button" onClick={() => { void handleLoadWeekday(); setShowSolvedModal(false); }}>
+                  New {weekday} puzzle
+                </button>
+                <button className="action-button" type="button" onClick={() => setShowSolvedModal(false)}>Close</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {setupOpen && (
         <div className="modal-overlay" onClick={(event) => { if (event.target === event.currentTarget) setSetupOpen(false); }}>
