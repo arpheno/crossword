@@ -250,37 +250,74 @@ function acrossLengthStats(mask) {
   return lengths;
 }
 
+/**
+ * Plant 2-3 tall vertical block stacks in the top-left quadrant, mirror them
+ * lr into the top half and tb into the bottom half. Stacks cap run lengths
+ * the way human-drawn grids do; scattered single blocks (dust) do not.
+ */
+function plantStacks(rng) {
+  const mask = Array.from({ length: SIZE * SIZE }, () => '.');
+  const stackCount = 2 + Math.floor(rng() * 4);
+  const usedColumns = new Set();
+  for (let s = 0; s < stackCount; s += 1) {
+    const col = 1 + Math.floor(rng() * 6);
+    if (usedColumns.has(col)) continue;
+    usedColumns.add(col);
+    const row = Math.floor(rng() * 3);
+    const height = 2 + Math.floor(rng() * 2);
+    for (let h = 0; h < height; h += 1) {
+      const r = row + h;
+      if (r >= SIZE) break;
+      mask[idx(r, col)] = '#';
+      mask[idx(r, SIZE - 1 - col)] = '#';
+      mask[idx(SIZE - 1 - r, col)] = '#';
+      mask[idx(SIZE - 1 - r, SIZE - 1 - col)] = '#';
+    }
+  }
+  if (rng() < 0.5) {
+    const col = 1 + Math.floor(rng() * 5);
+    const row = 3 + Math.floor(rng() * 3);
+    mask[idx(row, col)] = '#';
+    mask[idx(row, SIZE - 1 - col)] = '#';
+    mask[idx(SIZE - 1 - row, col)] = '#';
+    mask[idx(SIZE - 1 - row, SIZE - 1 - col)] = '#';
+  }
+  return mask;
+}
+
 const found = new Map();
 let attempts = 0;
 const foundList = [];
-while (foundList.length < 60 && attempts < 500_000) {
+while (foundList.length < 80 && attempts < 3_000_000) {
   attempts += 1;
   const rng = mulberry32(attempts * 2654435761);
-  const blockProbability = 0.1 + 0.13 * rng();
-  let mask = mirrorComplete(randomTopHalf(rng, blockProbability));
-  mask = repair(mask);
+  let mask = repair(plantStacks(rng));
   if (!lrSymmetric(mask) || !tbSymmetric(mask)) continue; // repair keeps symmetry; paranoia
   const blocks = blockCount(mask);
-  if (blocks < 24 || blocks > 34) continue;
+  if (blocks < 26 || blocks > 36) continue;
   if (!minRunOk(mask) || !allChecked(mask) || !connected(mask) || !chunky(mask)) continue;
+  // Single-word lexicon: no slot longer than 10 anywhere.
+  let maxRun = 0;
+  for (let i = 0; i < SIZE; i += 1) {
+    for (const [, l] of acrossRuns(mask, i)) if (l > maxRun) maxRun = l;
+    for (const [, l] of downRuns(mask, i)) if (l > maxRun) maxRun = l;
+  }
+  if (maxRun > 10) continue;
   const ds = downScore(mask);
-  const as = acrossScore(mask);
   if (ds < 1.1) continue; // snappy downs
-  if (as < 1.1) continue; // no across-heavy long-run stacking
-  if (longRunCount(mask) > 4) continue; // theme-slot budget: at most ~4 long entries
   const key = rowsOf(mask).join('|');
   if (found.has(key)) continue;
   found.set(key, true);
-  foundList.push({ mask, blocks, ds, as, center: openCenterScore(mask) });
+  foundList.push({ mask, blocks, ds, center: openCenterScore(mask) });
 }
 
-foundList.sort((a, b) => (b.as + b.ds) - (a.as + a.ds) || b.center - a.center);
+foundList.sort((a, b) => (b.ds) - (a.ds) || b.center - a.center);
 console.log(`attempts=${attempts} found=${foundList.length}`);
-for (const { mask, blocks, ds, as, center } of foundList.slice(0, 16)) {
+for (const { mask, blocks, ds, center } of foundList.slice(0, 24)) {
   const downs = downLengthStats(mask);
   const across = acrossLengthStats(mask);
   const avg = (arr) => (arr.reduce((x, y) => x + y, 0) / arr.length).toFixed(2);
-  console.log(`--- blocks=${blocks} downs=${downs.length} avgDown=${avg(downs)} avgAcross=${avg(across)} maxDown=${Math.max(...downs)} maxAcross=${Math.max(...across)} downScore=${ds.toFixed(2)} acrossScore=${as.toFixed(2)} center=${center}`);
+  console.log(`--- blocks=${blocks} downs=${downs.length} avgDown=${avg(downs)} avgAcross=${avg(across)} maxDown=${Math.max(...downs)} maxAcross=${Math.max(...across)} downScore=${ds.toFixed(2)} center=${center}`);
   for (const row of rowsOf(mask)) console.log(row);
   console.log();
 }
