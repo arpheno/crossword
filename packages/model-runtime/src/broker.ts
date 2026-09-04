@@ -14,11 +14,17 @@ export type ModelManifest = Readonly<{
   minimumMemoryMb: number;
   shards: readonly ModelShard[];
   distribution?: 'webllm-mlc';
+  /**
+   * Conservative full-download byte estimate (ADR 0004 §7). Used by the
+   * storage preflight when shard receipts are absent; the UI must present it
+   * as an estimate, never as a measured size.
+   */
+  estimatedBytes?: number;
 }>;
 
 export type RuntimeProbe = Readonly<{
   webgpu: boolean;
-  availableMemoryMb: number;
+  availableMemoryMb: number | null;
   storageQuotaBytes: number;
   storageUsageBytes: number;
 }>;
@@ -43,6 +49,19 @@ export type CandidateRequest = Readonly<{
   targetLengths?: readonly number[];
 }>;
 
+export type SpokenAnswerRequest = Readonly<{
+  spokenAnswer: string;
+  targetLength: number;
+  pattern: string;
+  locale: string;
+  maxSuggestions: number;
+}>;
+
+export type SpokenAnswerCandidate = Readonly<{
+  surface: string;
+  note?: string;
+}>;
+
 export type ClueDraft = Readonly<{
   mechanism: 'direct' | 'standard' | 'oblique' | 'nudge';
   text: string;
@@ -50,25 +69,39 @@ export type ClueDraft = Readonly<{
 }>;
 
 export type ModelState = 'uninstalled' | 'installed' | 'loaded' | 'generating' | 'unloading';
-export type ModelFailureCode = 'unsupported-device' | 'storage-quota' | 'model-not-enabled' | 'invalid-model-output' | 'busy' | 'cancelled';
+export type ModelFailureCode = 'unsupported-device' | 'storage-quota' | 'model-not-enabled' | 'invalid-model-output' | 'busy' | 'cancelled' | 'runtime-error';
 export type BrokerResult<T> = Readonly<{ ok: true; value: T } | { ok: false; error: Readonly<{ code: ModelFailureCode; message: string }> }>;
 
+export type ModelProgressPhase = 'downloading' | 'loading-runtime' | 'generating' | 'unloading' | 'deleting-cache';
+export type ModelProgress = Readonly<{
+  phase: ModelProgressPhase;
+  progress: number | null;
+  text: string;
+}>;
+export type ModelProgressListener = (progress: ModelProgress) => void;
+
 export type LocalModelAdapter = Readonly<{
-  install: (manifest: ModelManifest, signal?: AbortSignal) => Promise<void>;
-  load: (manifest: ModelManifest, signal?: AbortSignal) => Promise<void>;
+  install: (manifest: ModelManifest, signal?: AbortSignal, onProgress?: ModelProgressListener) => Promise<void>;
+  load: (manifest: ModelManifest, signal?: AbortSignal, onProgress?: ModelProgressListener) => Promise<void>;
   generateCandidates: (request: CandidateRequest, signal?: AbortSignal) => Promise<unknown>;
+  resolveSpokenAnswer: (request: SpokenAnswerRequest, signal?: AbortSignal) => Promise<unknown>;
   composeClues: (request: Readonly<{ answer: string; intendedSense: string }>, signal?: AbortSignal) => Promise<unknown>;
   unload: () => Promise<void>;
+  hasCache?: (manifest: ModelManifest) => Promise<boolean>;
+  deleteCache?: (manifest: ModelManifest) => Promise<void>;
 }>;
 
 export type ModelBroker = Readonly<{
   state: () => ModelState;
   probe: () => RuntimeProbe;
-  install: (signal?: AbortSignal) => Promise<BrokerResult<void>>;
-  load: (signal?: AbortSignal) => Promise<BrokerResult<void>>;
+  install: (signal?: AbortSignal, onProgress?: ModelProgressListener) => Promise<BrokerResult<void>>;
+  load: (signal?: AbortSignal, onProgress?: ModelProgressListener) => Promise<BrokerResult<void>>;
   generateCandidates: (request: CandidateRequest, signal?: AbortSignal) => Promise<BrokerResult<readonly CandidateSuggestion[]>>;
+  resolveSpokenAnswer: (request: SpokenAnswerRequest, signal?: AbortSignal) => Promise<BrokerResult<readonly SpokenAnswerCandidate[]>>;
   composeClues: (request: Readonly<{ answer: string; intendedSense: string }>, signal?: AbortSignal) => Promise<BrokerResult<readonly ClueDraft[]>>;
   unload: () => Promise<BrokerResult<void>>;
+  inspectCache: () => Promise<BrokerResult<boolean>>;
+  deleteCache: (signal?: AbortSignal) => Promise<BrokerResult<void>>;
 }>;
 
 const candidateRoles: readonly CandidateRole[] = ['theme', 'long', 'general', 'glue', 'stretch'];
@@ -76,6 +109,10 @@ const clueMechanisms = ['direct', 'standard', 'oblique', 'nudge'] as const;
 const MAX_SUGGESTIONS = 64;
 const MAX_TEXT_LENGTH = 500;
 const MAX_TARGET_LENGTHS = 8;
+const MAX_SPOKEN_ANSWER_LENGTH = 200;
+const MAX_SPOKEN_SUGGESTIONS = 8;
+export const MIN_SPOKEN_TARGET_LENGTH = 1;
+export const MAX_SPOKEN_TARGET_LENGTH = 64;
 
 function success<T>(value: T): BrokerResult<T> {
   return { ok: true, value };
@@ -94,6 +131,7 @@ function isManifestValid(manifest: ModelManifest): boolean {
     && (manifest.distribution === undefined || manifest.distribution === 'webllm-mlc')
     && Number.isInteger(manifest.minimumMemoryMb)
     && manifest.minimumMemoryMb > 0
+    && (manifest.estimatedBytes === undefined || (Number.isInteger(manifest.estimatedBytes) && (manifest.estimatedBytes as number) > 0))
     && manifest.shards.every((shard) => Boolean(shard.url) && /^[a-f0-9]{64}$/.test(shard.sha256) && Number.isInteger(shard.bytes) && shard.bytes > 0);
 }
 
@@ -129,6 +167,15 @@ function isClueDraft(value: unknown): value is ClueDraft {
     && draft.difficulty <= 1;
 }
 
+function isSpokenAnswerCandidate(value: unknown): value is SpokenAnswerCandidate {
+  if (typeof value !== 'object' || value === null || Array.isArray(value)) return false;
+  const suggestion = value as Record<string, unknown>;
+  return typeof suggestion.surface === 'string'
+    && suggestion.surface.length > 0
+    && suggestion.surface.length <= MAX_TEXT_LENGTH
+    && (suggestion.note === undefined || (typeof suggestion.note === 'string' && suggestion.note.length <= MAX_TEXT_LENGTH));
+}
+
 function isCancelled(signal?: AbortSignal): boolean {
   return signal?.aborted === true;
 }
@@ -145,35 +192,91 @@ function isCandidateRequestValid(request: CandidateRequest): boolean {
     ));
 }
 
+function isSpokenAnswerRequestValid(request: SpokenAnswerRequest): boolean {
+  return typeof request.spokenAnswer === 'string'
+    && request.spokenAnswer.trim().length > 0
+    && request.spokenAnswer.length <= MAX_SPOKEN_ANSWER_LENGTH
+    && Number.isInteger(request.targetLength)
+    && request.targetLength >= MIN_SPOKEN_TARGET_LENGTH
+    && request.targetLength <= MAX_SPOKEN_TARGET_LENGTH
+    && typeof request.pattern === 'string'
+    && request.pattern.length === request.targetLength
+    && /^[A-Z.]+$/.test(request.pattern)
+    && typeof request.locale === 'string'
+    && request.locale.trim().length > 0
+    && request.locale.length <= 35
+    && Number.isInteger(request.maxSuggestions)
+    && request.maxSuggestions >= 1
+    && request.maxSuggestions <= MAX_SPOKEN_SUGGESTIONS;
+}
+
 export function createModelBroker(manifest: ModelManifest, adapter: LocalModelAdapter, runtime: RuntimeProbe): ModelBroker {
   if (!isManifestValid(manifest)) throw new Error('Invalid model manifest');
   let currentState: ModelState = 'uninstalled';
 
   const canInstall = (): BrokerResult<void> => {
-    if (!runtime.webgpu || runtime.availableMemoryMb < manifest.minimumMemoryMb) return failure('unsupported-device', 'This device does not meet the local model requirements');
-    const requiredBytes = manifest.shards.reduce((total, shard) => total + shard.bytes, 0);
+    if (!runtime.webgpu || (runtime.availableMemoryMb !== null && runtime.availableMemoryMb < manifest.minimumMemoryMb)) return failure('unsupported-device', 'This device does not meet the local model requirements');
+    // Shard receipts are authoritative; the manifest estimate (ADR 0004 §7)
+    // keeps the preflight honest when the pinned runtime owns the bytes.
+    const shardBytes = manifest.shards.reduce((total, shard) => total + shard.bytes, 0);
+    const requiredBytes = Math.max(shardBytes, manifest.estimatedBytes ?? 0);
     if (runtime.storageQuotaBytes - runtime.storageUsageBytes < requiredBytes) return failure('storage-quota', 'There is not enough local storage for the pinned model');
     return success(undefined);
   };
 
+  // One atomic prepare at a time (ADR 0004 §2): overlapping install calls
+  // join the in-flight prepare instead of racing a second engine into
+  // existence. Each caller keeps its own cancellation outcome.
+  let prepareInFlight: Promise<BrokerResult<void>> | null = null;
+
   return {
     state: () => currentState,
     probe: () => runtime,
-    async install(signal) {
+    async install(signal, onProgress) {
+      // Atomic prepare (ADR 0004 §2): one engine, one prepare. A resident or
+      // already-cached install must not re-enter the adapter and must not
+      // create a second engine.
+      if (currentState === 'installed' || currentState === 'loaded') return success(undefined);
+      if (currentState === 'generating' || currentState === 'unloading') return failure('busy', 'The local model is busy');
       const capability = canInstall();
       if (!capability.ok) return capability;
       if (isCancelled(signal)) return failure('cancelled', 'Model installation cancelled');
-      await adapter.install(manifest, signal);
-      if (isCancelled(signal)) return failure('cancelled', 'Model installation cancelled');
-      currentState = 'installed';
-      return success(undefined);
+      if (prepareInFlight) {
+        const joined = await prepareInFlight;
+        if (isCancelled(signal)) return failure('cancelled', 'Model installation cancelled');
+        return joined;
+      }
+      const prepare = (async (): Promise<BrokerResult<void>> => {
+        try {
+          await adapter.install(manifest, signal, onProgress);
+        } catch (error) {
+          if (isCancelled(signal)) return failure('cancelled', 'Model installation cancelled');
+          return failure('runtime-error', error instanceof Error ? error.message : 'Model installation failed');
+        }
+        // No post-success cancellation check: the adapter owns that boundary and
+        // disposes before surfacing a cancellation. A resolved install really is
+        // cached AND resident, so the honest state is `loaded`.
+        currentState = 'loaded';
+        return success(undefined);
+      })();
+      prepareInFlight = prepare;
+      try {
+        return await prepare;
+      } finally {
+        if (prepareInFlight === prepare) prepareInFlight = null;
+      }
     },
-    async load(signal) {
+    async load(signal, onProgress) {
       if (currentState === 'uninstalled') return failure('model-not-enabled', 'Install the pinned local model before loading it');
       if (currentState === 'generating' || currentState === 'unloading') return failure('busy', 'The local model is busy');
       if (currentState === 'loaded') return success(undefined);
       if (isCancelled(signal)) return failure('cancelled', 'Model loading cancelled');
-      await adapter.load(manifest, signal);
+      try {
+        await adapter.load(manifest, signal, onProgress);
+      } catch (error) {
+        if (isCancelled(signal)) return failure('cancelled', 'Model loading cancelled');
+        return failure('runtime-error', error instanceof Error ? error.message : 'Model loading failed');
+      }
       if (isCancelled(signal)) return failure('cancelled', 'Model loading cancelled');
       currentState = 'loaded';
       return success(undefined);
@@ -185,9 +288,36 @@ export function createModelBroker(manifest: ModelManifest, adapter: LocalModelAd
       if (isCancelled(signal)) return failure('cancelled', 'Candidate generation cancelled');
       currentState = 'generating';
       try {
-        const output = await adapter.generateCandidates(request, signal);
+        let output: unknown;
+        try {
+          output = await adapter.generateCandidates(request, signal);
+        } catch (error) {
+          if (isCancelled(signal)) return failure('cancelled', 'Candidate generation cancelled');
+          return failure('runtime-error', error instanceof Error ? error.message : 'Candidate generation failed');
+        }
         if (isCancelled(signal)) return failure('cancelled', 'Candidate generation cancelled');
         if (!Array.isArray(output) || output.length > request.maxSuggestions || !output.every(isCandidateSuggestion)) return failure('invalid-model-output', 'The local model returned an invalid candidate bag');
+        return success(output);
+      } finally {
+        currentState = 'loaded';
+      }
+    },
+    async resolveSpokenAnswer(request, signal) {
+      if (currentState === 'generating' || currentState === 'unloading') return failure('busy', 'The local model is busy');
+      if (currentState !== 'loaded') return failure('model-not-enabled', 'Load the local model before resolving a spoken answer');
+      if (!isSpokenAnswerRequestValid(request)) return failure('invalid-model-output', 'Spoken answer request contains invalid bounded constraints');
+      if (isCancelled(signal)) return failure('cancelled', 'Spoken answer resolution cancelled');
+      currentState = 'generating';
+      try {
+        let output: unknown;
+        try {
+          output = await adapter.resolveSpokenAnswer(request, signal);
+        } catch (error) {
+          if (isCancelled(signal)) return failure('cancelled', 'Spoken answer resolution cancelled');
+          return failure('runtime-error', error instanceof Error ? error.message : 'Spoken answer resolution failed');
+        }
+        if (isCancelled(signal)) return failure('cancelled', 'Spoken answer resolution cancelled');
+        if (!Array.isArray(output) || output.length > request.maxSuggestions || !output.every(isSpokenAnswerCandidate)) return failure('invalid-model-output', 'The local model returned invalid spoken-answer candidates');
         return success(output);
       } finally {
         currentState = 'loaded';
@@ -199,7 +329,13 @@ export function createModelBroker(manifest: ModelManifest, adapter: LocalModelAd
       if (isCancelled(signal)) return failure('cancelled', 'Clue generation cancelled');
       currentState = 'generating';
       try {
-        const output = await adapter.composeClues(request, signal);
+        let output: unknown;
+        try {
+          output = await adapter.composeClues(request, signal);
+        } catch (error) {
+          if (isCancelled(signal)) return failure('cancelled', 'Clue generation cancelled');
+          return failure('runtime-error', error instanceof Error ? error.message : 'Clue generation failed');
+        }
         if (isCancelled(signal)) return failure('cancelled', 'Clue generation cancelled');
         if (!Array.isArray(output) || output.length === 0 || output.length > 4 || !output.every(isClueDraft)) return failure('invalid-model-output', 'The local model returned invalid clue drafts');
         return success(output);
@@ -216,8 +352,37 @@ export function createModelBroker(manifest: ModelManifest, adapter: LocalModelAd
         currentState = 'installed';
         return success(undefined);
       } catch (error) {
+        // Typed-result convention (RTO-P1-1). Residency was not provably
+        // released, so the state stays conservatively `loaded` and the caller
+        // receives the failure instead of an unhandled throw.
         currentState = 'loaded';
-        throw error;
+        return failure('runtime-error', error instanceof Error ? error.message : 'Model unload failed');
+      }
+    },
+    async inspectCache() {
+      if (!adapter.hasCache) return failure('runtime-error', 'This model runtime cannot inspect its browser cache');
+      try {
+        return success(await adapter.hasCache(manifest));
+      } catch (error) {
+        return failure('runtime-error', error instanceof Error ? error.message : 'Unable to inspect the model cache');
+      }
+    },
+    async deleteCache(signal) {
+      if (!adapter.deleteCache) return failure('runtime-error', 'This model runtime cannot delete its browser cache');
+      if (isCancelled(signal)) return failure('cancelled', 'Model cache deletion cancelled');
+      if (currentState === 'generating' || currentState === 'unloading') return failure('busy', 'The local model is busy');
+      try {
+        if (currentState === 'loaded') {
+          const unloaded = await this.unload();
+          if (!unloaded.ok) return unloaded;
+        }
+        await adapter.deleteCache(manifest);
+        currentState = 'uninstalled';
+        return success(undefined);
+      } catch (error) {
+        // A cancelled deletion is reported as cancelled, not as a runtime fault.
+        if (isCancelled(signal)) return failure('cancelled', 'Model cache deletion cancelled');
+        return failure('runtime-error', error instanceof Error ? error.message : 'Model cache deletion failed');
       }
     }
   };

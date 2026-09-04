@@ -52,7 +52,9 @@ describe('model lifecycle telemetry', () => {
     const broker = createModelBroker(manifest, adapter(events), runtime);
     await broker.install();
     await expect(broker.deleteCache()).resolves.toEqual({ ok: true, value: undefined });
-    expect(events).toEqual(['install', 'delete']);
+    // ADR 0004 §2: install is an atomic prepare, so the engine is resident and
+    // delete-cache must release it before deleting the cache.
+    expect(events).toEqual(['install', 'unload', 'delete']);
     expect(broker.state()).toBe('uninstalled');
   });
 });
