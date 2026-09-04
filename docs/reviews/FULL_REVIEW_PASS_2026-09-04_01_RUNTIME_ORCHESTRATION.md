@@ -226,4 +226,21 @@ Add a closure entry here with the transition-table version, commit, and exact te
 
 ## Closure evidence
 
-Open.
+Contract: ADR 0004 (`docs/adr/0004-model-operation-lifecycle.md`) — transition table over cache/residency/broker state, atomic-prepare decision, single-command worker arbiter, request-scoped operation events, typed failures, bounded cancellation, honest storage preflight, idempotent adapter teardown.
+
+Closed by this increment (runtime boundary):
+
+- **RTO-P0-2** — `requestId` is preserved end to end; the client emits start/progress/terminal events scoped by `requestId` and operation kind, drops stale events, and keeps two owners isolated. Tests: `apps/web/src/workers/modelClient.operations.test.ts` (`emits start, request-scoped progress…`, `keeps two owners isolated…`, `drops progress for settled requestIds`). Commit `bc56978`.
+- **RTO-P0-3** — the model worker is a single-command FIFO arbiter (`apps/web/src/workers/modelJobQueue.ts`); queued cancels settle without running; duplicate IDs rejected; the broker joins an in-flight prepare and the adapter refuses a second engine. Tests: `modelJobQueue.test.ts`, `broker.lifecycle.test.ts` (`creates at most one engine under overlapping prepares`, `refuses install while a generation owns the engine`). Commits `8a32e52`, `bc56978`.
+- **RTO-P0-4** — install is an atomic prepare (WebLLM has no download-only API): success leaves the broker `loaded` (cached AND resident); `installed` means cached-not-resident after unload. Tests: `broker.lifecycle.test.ts` (`reports a resident engine after atomic prepare install`), `webllmAdapter.ownership.test.ts`, `broker.edge.test.ts` (fixtures aligned with ADR §2).
+- **RTO-P1-1** — `unload` returns a typed `runtime-error` failure and keeps conservative `loaded` residency. Test: `broker.edge.test.ts` (`keeps the broker usable when unload fails`). Commit `8a32e52`.
+- **RTO-P1-2** — adapter teardown unloads the engine and terminates the nested worker exactly once; repeated prepare/unload cycles keep live workers flat; aborted attempts dispose via identity-keyed late rescue. Tests: `webllmAdapter.ownership.test.ts` (`terminates the nested engine worker exactly once on unload`, `keeps live worker count flat…`, `rejects promptly, disposes the attempt…`, `disposes a just-created resident engine…`). Commit `8a32e52`.
+- **RTO-P1-3** — a fatal worker error rejects pending operations with `ModelClientError('worker-fatal')`, emits terminal `failed` events, notifies `onFatal`, and refuses further commands until a fresh client is constructed. Test: `modelClient.operations.test.ts` (`fails pending operations with typed codes…`). Commit `bc56978`.
+- **RTO-P1-4** — `ModelManifest.estimatedBytes` (validated in broker + protocol) feeds the storage preflight; the pin carries a conservative 1.2 GB estimate. Tests: `broker.lifecycle.test.ts` (`preflights storage against the manifest byte estimate…`), `workerProtocol.test.ts` (`accepts a positive integer byte estimate…`). Commits `8a32e52`, `bc56978`.
+- **RTO-P1-5** — cooperative cancellation gets a bounded grace (default 8 s) after which the client terminates the worker, rejects the target as `cancelled`, others as `worker-fatal`, and notifies `onFatal`. Tests: `modelClient.operations.test.ts` (`forces worker replacement after the cooperative grace period`, `does not force replacement when the worker settles inside the grace period`). Commit `bc56978`.
+
+Deliberate test-contract changes mandated by the ADR (not weakenings): `broker.edge.test.ts` cancellation-after-adapter fixture now mirrors the real adapter boundary (dispose + throw), and the unload-failure test expects the typed result per RTO-P1-1.
+
+Still open for Increment 6 (App/settings integrator): controller/UI consumption of `subscribeOperations` (RTO-P0-1 acceptance — no permanent `generating` after success, cached/resident/busy/failed/unavailable distinctions), fresh-client rebuild on `onFatal`, and estimate labeling. `subscribeProgress` remains as a deprecated bridge until that migration.
+
+Verification: `npm --workspace @crossword/model-runtime run test` — 41 passed; `npm --workspace @crossword/web run test` — 68 passed; `npm run web:build` — green; full pre-commit gate (make test, build, content scan, coverage, Playwright) passed for commits `8a32e52` and `bc56978`.
