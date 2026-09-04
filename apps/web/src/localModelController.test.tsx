@@ -4,7 +4,7 @@ import { act } from 'react';
 import { createRoot } from 'react-dom/client';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { BrokerResult, ModelProgress, ModelState } from '@crossword/model-runtime';
-import type { ModelWorkerClient } from './workers/modelClient';
+import type { ModelOperationEvent, ModelWorkerClient } from './workers/modelClient';
 import { useLocalModelController, type LocalModelController } from './localModelController';
 
 const { createClient } = vi.hoisted(() => ({ createClient: vi.fn() }));
@@ -22,6 +22,7 @@ function fakeClient(options: { cached?: boolean; failInstall?: boolean } = {}): 
   let currentState: ModelState = 'uninstalled';
   const progressListeners = new Set<(event: ModelProgress) => void>();
   const stateListeners = new Set<(state: ModelState) => void>();
+  const operationListeners = new Set<(event: ModelOperationEvent) => void>();
   const install = vi.fn(async (signal?: AbortSignal) => {
     if (options.failInstall) return { ok: false, error: { code: 'runtime-error', message: 'Fixture download failed' } } as const;
     progressListeners.forEach((listener) => listener({ phase: 'downloading', progress: 0.5, text: 'Fetching fixture' }));
@@ -44,7 +45,9 @@ function fakeClient(options: { cached?: boolean; failInstall?: boolean } = {}): 
     state: () => currentState,
     subscribeProgress: (listener) => { progressListeners.add(listener); return () => progressListeners.delete(listener); },
     subscribeState: (listener) => { stateListeners.add(listener); return () => stateListeners.delete(listener); },
+    subscribeOperations: (listener) => { operationListeners.add(listener); return () => operationListeners.delete(listener); },
     cancel: vi.fn(),
+    isFatal: () => false,
     dispose: vi.fn(),
     emitProgress: (event) => progressListeners.forEach((listener) => listener(event)),
     emitState: (state) => { currentState = state; stateListeners.forEach((listener) => listener(state)); },

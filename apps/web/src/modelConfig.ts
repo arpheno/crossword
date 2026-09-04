@@ -13,7 +13,12 @@ export const localModelManifest: ModelManifest = {
   promptVersion: 'candidate-v2',
   minimumMemoryMb: 2_048,
   shards: [],
-  distribution: 'webllm-mlc'
+  distribution: 'webllm-mlc',
+  // Conservative upper bound for the Llama-3.2-1B q4f16_1 MLC download
+  // (~0.9 GB of weights plus runtime headroom). The preflight uses this when
+  // shard receipts are absent; the UI must present it as an estimate, never a
+  // measured size (ADR 0004 §7).
+  estimatedBytes: 1_200_000_000
 };
 
 export function browserRuntimeProbe(): RuntimeProbe {
