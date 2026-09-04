@@ -20,7 +20,9 @@ export function browserRuntimeProbe(): RuntimeProbe {
   const browserNavigator = navigator as Navigator & { deviceMemory?: number };
   return {
     webgpu: 'gpu' in navigator,
-    availableMemoryMb: typeof browserNavigator.deviceMemory === 'number' ? browserNavigator.deviceMemory * 1024 : 0,
+    // `deviceMemory` is optional. Preserve “unknown” instead of turning it
+    // into zero and incorrectly blocking capable browsers.
+    availableMemoryMb: typeof browserNavigator.deviceMemory === 'number' ? browserNavigator.deviceMemory * 1024 : null,
     storageQuotaBytes: 0,
     storageUsageBytes: 0
   };
