@@ -16,6 +16,8 @@ export type ContinuityExportInput = Readonly<{
   puzzles: readonly PuzzleDocument[];
   sessions: readonly SolveSessionSnapshot[];
   events?: readonly SolveEvent[];
+  /** Solved-day metadata (ADR 0005 §6). Absent means empty on import. */
+  solvedDays?: readonly string[];
 }>;
 
 export type ContinuityArchive = Readonly<{
@@ -27,6 +29,7 @@ export type ContinuityArchive = Readonly<{
   puzzles: readonly PuzzleDocument[];
   sessions: readonly SolveSessionSnapshot[];
   events: readonly SolveEvent[];
+  solvedDays?: readonly string[];
   integrity: Readonly<{ algorithm: 'sha256'; value: string }>;
 }>;
 
@@ -38,8 +41,21 @@ export type ContinuityPreview = Readonly<{
   eventCount: number;
 }>;
 
+export type ContinuityMergeReport = Readonly<{
+  puzzlesAdded: number;
+  puzzlesKeptExisting: number;
+  sessionsAdded: number;
+  sessionsUpdated: number;
+  sessionsKeptExisting: number;
+  eventsAdded: number;
+}>;
+
+export type ContinuityGraphIssue = Readonly<{ path: string; code: string }>;
+
+const SOLVED_DAY_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
+
 const MAX_EXPORT_BYTES = 10 * 1024 * 1024;
-const ARCHIVE_KEYS = new Set(['kind', 'schemaVersion', 'exportedAt', 'preferences', 'profiles', 'puzzles', 'sessions', 'events', 'integrity']);
+const ARCHIVE_KEYS = new Set(['kind', 'schemaVersion', 'exportedAt', 'preferences', 'profiles', 'puzzles', 'sessions', 'events', 'solvedDays', 'integrity']);
 
 function isJsonValue(value: unknown, depth = 0): value is JsonValue {
   if (depth > 20 || value === null) return value === null;
@@ -72,7 +88,8 @@ function archiveBody(input: ContinuityExportInput, exportedAt: string) {
     profiles: input.profiles,
     puzzles: input.puzzles,
     sessions: input.sessions,
-    events: input.events ?? []
+    events: input.events ?? [],
+    solvedDays: input.solvedDays ?? []
   };
 }
 
@@ -88,11 +105,55 @@ export async function createContinuityExport(
   return JSON.stringify(archive);
 }
 
+function isSolvedDays(value: unknown): value is readonly string[] {
+  return Array.isArray(value) && value.length <= 4000 && value.every((day) => typeof day === 'string' && SOLVED_DAY_PATTERN.test(day));
+}
+
+/**
+ * Graph-wide archive validation (ADR 0005 §4). Pure, runs before any write
+ * transaction, and reports stable paths/codes without echoing entry content.
+ */
+export function validateArchiveGraph(archive: ContinuityArchive): readonly ContinuityGraphIssue[] {
+  const issues: ContinuityGraphIssue[] = [];
+  const puzzleIds = new Set<string>();
+  archive.puzzles.forEach((puzzle, index) => {
+    if (puzzleIds.has(puzzle.id)) issues.push({ path: `puzzles[${index}]`, code: 'duplicate-id' });
+    puzzleIds.add(puzzle.id);
+  });
+  const cellIdsByPuzzle = new Map<string, Set<string>>(archive.puzzles.map((puzzle) => [puzzle.id, new Set(puzzle.cells.map((cell) => cell.id))]));
+  const seenSessionPuzzles = new Set<string>();
+  archive.sessions.forEach((session, index) => {
+    if (seenSessionPuzzles.has(session.puzzleId)) issues.push({ path: `sessions[${index}]`, code: 'duplicate-session-id' });
+    seenSessionPuzzles.add(session.puzzleId);
+    const cells = cellIdsByPuzzle.get(session.puzzleId);
+    if (!cells) {
+      issues.push({ path: `sessions[${index}]`, code: 'missing-puzzle-reference' });
+      return;
+    }
+    for (const cellId of Object.keys(session.entered)) {
+      if (!cells.has(cellId)) issues.push({ path: `sessions[${index}].entered.${cellId}`, code: 'unknown-cell' });
+    }
+    for (const cellId of session.checkedCellIds) {
+      if (!cells.has(cellId)) issues.push({ path: `sessions[${index}].checkedCellIds`, code: 'unknown-cell' });
+    }
+    for (const cellId of session.revealedCellIds) {
+      if (!cells.has(cellId)) issues.push({ path: `sessions[${index}].revealedCellIds`, code: 'unknown-cell' });
+    }
+  });
+  const eventIds = new Set<string>();
+  archive.events.forEach((event, index) => {
+    if (eventIds.has(event.id)) issues.push({ path: `events[${index}]`, code: 'duplicate-event-id' });
+    eventIds.add(event.id);
+  });
+  return issues;
+}
+
 function validateArchive(value: unknown): value is Omit<ContinuityArchive, 'integrity'> & { integrity: { algorithm: 'sha256'; value: string } } {
   if (typeof value !== 'object' || value === null || Array.isArray(value)) return false;
   const candidate = value as Record<string, unknown>;
   if (Object.keys(candidate).some((key) => !ARCHIVE_KEYS.has(key))) return false;
   if (candidate.kind !== 'crossword-continuity' || candidate.schemaVersion !== 1 || typeof candidate.exportedAt !== 'string' || !isJsonValue(candidate.preferences) || !isJsonValue(candidate.profiles) || !Array.isArray(candidate.puzzles) || !Array.isArray(candidate.sessions) || !Array.isArray(candidate.events)) return false;
+  if (candidate.solvedDays !== undefined && !isSolvedDays(candidate.solvedDays)) return false;
   if (!candidate.puzzles.every(validatePuzzle) || !candidate.sessions.every(validateSessionSnapshot) || !candidate.events.every(validateSolveEvent)) return false;
   if (typeof candidate.integrity !== 'object' || candidate.integrity === null || Array.isArray(candidate.integrity)) return false;
   const integrity = candidate.integrity as Record<string, unknown>;
@@ -107,11 +168,17 @@ export async function parseContinuityExport(serialized: string): Promise<Continu
   } catch {
     throw new Error('Continuity archive is not valid JSON');
   }
+  if (typeof value === 'object' && value !== null && !Array.isArray(value) && (value as Record<string, unknown>).solvedDays !== undefined && !isSolvedDays((value as Record<string, unknown>).solvedDays)) {
+    throw new Error('Continuity archive graph is invalid: solvedDays invalid-solved-day');
+  }
   if (!validateArchive(value)) throw new Error('Continuity archive schema or puzzle content is invalid');
   const { integrity, ...body } = value;
   const expected = await sha256(canonicalJson(body as unknown as JsonValue));
   if (expected !== integrity.value) throw new Error('Continuity archive integrity check failed');
-  return value as ContinuityArchive;
+  const archive = value as ContinuityArchive;
+  const [firstIssue] = validateArchiveGraph(archive);
+  if (firstIssue) throw new Error(`Continuity archive graph is invalid: ${firstIssue.path} ${firstIssue.code}`);
+  return archive;
 }
 
 export async function previewContinuityExport(serialized: string): Promise<ContinuityPreview> {

@@ -1,19 +1,27 @@
 export {
-  createIndexedDbSessionRepository
+  createIndexedDbSessionRepository,
+  type RevisionedSessionRepository,
+  type SessionWriteResult
 } from './sessionRepository';
 export type { SessionRepository } from './sessionRepository';
 export { createIndexedDbPuzzleRepository } from './puzzleRepository';
 export type { PuzzleRepository } from './puzzleRepository';
-export { createIndexedDbContinuityRepository } from './continuityRepository';
-export type { ContinuityRepository } from './continuityRepository';
+export {
+  createIndexedDbContinuityRepository,
+  computeMergeReport,
+  type ContinuityRepository,
+  type RevisionedContinuityRepository
+} from './continuityRepository';
 export {
   createContinuityExport,
   parseContinuityExport,
-  previewContinuityExport
+  previewContinuityExport,
+  validateArchiveGraph,
+  type ContinuityArchive,
+  type ContinuityExportInput,
+  type ContinuityGraphIssue,
+  type ContinuityMergeReport,
+  type ContinuityPreview,
+  type JsonValue
 } from './archive';
-export type {
-  ContinuityArchive,
-  ContinuityExportInput,
-  ContinuityPreview,
-  JsonValue
-} from './archive';
+export { DATABASE_VERSION, STORE_NAMES, openCrosswordDatabase, type DatabaseHandle } from './database';
