@@ -15,6 +15,9 @@ export default defineConfig({
     }
   },
   build: {
-    target: 'es2022'
+    target: 'es2022',
+    // Emit the exact build manifest so the service worker can precache every
+    // hashed artifact of the promoted build (ADR 0006).
+    manifest: true
   }
 });
