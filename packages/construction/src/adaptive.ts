@@ -16,12 +16,13 @@
  */
 
 export type LearnerMemoryState = Readonly<{
-  /** Inherent word difficulty, 1..10. */
-  difficulty: number;
   /** Memory stability in days. */
   stability: number;
   /** Last exposure, epoch milliseconds. */
   lastReviewAtMs: number;
+  // PP-P1-2 (ADR 0008): an inherent-difficulty field was removed because no
+  // validated rule consumed it. Reintroduce only with a documented, tested
+  // calibration rule.
 }>;
 
 export type LearnerProfile = Readonly<{

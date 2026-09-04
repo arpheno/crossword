@@ -5,6 +5,7 @@ import {
   type ContinuityArchive,
   type ContinuityMergeReport
 } from './archive';
+import { neutralLearnerProfile, parseLearnerProfile, type LearnerProfileV1 } from '@crossword/domain';
 
 /** Working view of the stored continuity graph (no integrity seal). */
 type ContinuitySnapshot = Omit<ContinuityArchive, 'integrity'>;
@@ -24,6 +25,10 @@ export interface RevisionedContinuityRepository extends ContinuityRepository {
   exportAll(): Promise<string>;
   loadSession(puzzleId: string): Promise<unknown>;
   loadSolvedDays(): Promise<readonly string[]>;
+  /** Typed, strictly validated learner profile accessors (ADR 0008). */
+  loadLearnerProfile(): Promise<LearnerProfileV1 | undefined>;
+  saveLearnerProfile(profile: LearnerProfileV1): Promise<void>;
+  resetLearnerProfile(nowIso: string): Promise<LearnerProfileV1>;
 }
 
 const DATABASE_NAME = 'crossword';
@@ -76,6 +81,23 @@ function memoryRepository(): RevisionedContinuityRepository {
     },
     loadSession: async (puzzleId) => state?.archive.sessions.find((session) => session.puzzleId === puzzleId),
     loadSolvedDays: async () => state?.archive.solvedDays ?? [],
+    loadLearnerProfile: async () => {
+      const record = (state?.archive.profiles as Record<string, unknown> | undefined)?.['learner-profile'];
+      return record !== undefined ? parseLearnerProfile(record) : undefined;
+    },
+    async saveLearnerProfile(profile) {
+      const validated = parseLearnerProfile(profile);
+      if (!validated) throw new Error('Cannot persist an invalid learner profile');
+      const current = state?.archive;
+      if (current) {
+        state = { archive: { ...current, profiles: { ...(current.profiles as Record<string, unknown>), 'learner-profile': validated } as unknown as ContinuityArchive['profiles'] } };
+      }
+    },
+    async resetLearnerProfile(nowIso) {
+      const next = neutralLearnerProfile((await this.loadLearnerProfile())?.id ?? 'household', nowIso);
+      await this.saveLearnerProfile(next);
+      return next;
+    },
     close: async () => undefined
   };
 }
@@ -136,6 +158,14 @@ export function createIndexedDbContinuityRepository(
       for (const session of archive.sessions) sessions.put(session);
       events.put({ id: 'current', events: archive.events });
       preferences.put({ id: 'current', value: archive.preferences });
+      // Split the archive's profile collection back into its records; the
+      // learner profile is restored through the strict parser (ADR 0008).
+      const profileRecord = archive.profiles as Record<string, unknown>;
+      const learnerProfile = profileRecord['learner-profile'];
+      if (learnerProfile !== undefined) {
+        const validated = parseLearnerProfile(learnerProfile);
+        if (validated) profiles.put({ id: 'learner-profile', value: validated });
+      }
       profiles.put({ id: 'current', value: archive.profiles });
       preferences.put({ id: 'solved-days', value: archive.solvedDays ?? [] });
       await complete;
@@ -170,14 +200,21 @@ export function createIndexedDbContinuityRepository(
     const events = await requestResult<{ id: string; events: readonly unknown[] } | undefined>(read.objectStore(STORE_NAMES.events).get('current'));
     const preferences = await requestResult<{ id: string; value: unknown } | undefined>(read.objectStore(STORE_NAMES.preferences).get('current'));
     const profiles = await requestResult<{ id: string; value: unknown } | undefined>(read.objectStore(STORE_NAMES.profiles).get('current'));
+    // ADR 0008: the export covers EVERY profile store, including the typed
+    // learner profile, so a backup is complete and reset is checkable.
+    const learnerProfile = await requestResult<{ id: string; value: unknown } | undefined>(read.objectStore(STORE_NAMES.profiles).get('learner-profile'));
     const solvedDays = await requestResult<{ id: string; value: readonly string[] } | undefined>(read.objectStore(STORE_NAMES.preferences).get('solved-days'));
     await transactionComplete(read);
+    const profileCollection = {
+      ...((profiles?.value ?? {}) as Record<string, unknown>),
+      ...(learnerProfile ? { 'learner-profile': learnerProfile.value } : {})
+    };
     return {
       kind: 'crossword-continuity',
       schemaVersion: 1,
       exportedAt: '',
       preferences: (preferences?.value ?? {}) as ContinuityArchive['preferences'],
-      profiles: (profiles?.value ?? {}) as ContinuityArchive['profiles'],
+      profiles: profileCollection as ContinuityArchive['profiles'],
       puzzles: puzzles as ContinuityArchive['puzzles'],
       sessions: sessions as ContinuityArchive['sessions'],
       events: (events?.events as ContinuityArchive['events']) ?? [],
@@ -236,6 +273,29 @@ export function createIndexedDbContinuityRepository(
       const record = await requestResult<{ id: string; value: readonly string[] } | undefined>(transaction.objectStore(STORE_NAMES.preferences).get('solved-days'));
       await complete;
       return record?.value ?? [];
+    },
+    async loadLearnerProfile() {
+      const handle = await openHandle();
+      const transaction = handle.connection.transaction(STORE_NAMES.profiles, 'readonly');
+      const complete = transactionComplete(transaction);
+      const record = await requestResult<{ id: string; value: unknown } | undefined>(transaction.objectStore(STORE_NAMES.profiles).get('learner-profile'));
+      await complete;
+      return record ? parseLearnerProfile(record.value) : undefined;
+    },
+    async saveLearnerProfile(profile) {
+      // Strict validation at the boundary: a drifted shape never reaches storage.
+      const validated = parseLearnerProfile(profile);
+      if (!validated) throw new Error('Cannot persist an invalid learner profile');
+      const handle = await openHandle();
+      const transaction = handle.connection.transaction(STORE_NAMES.profiles, 'readwrite');
+      transaction.objectStore(STORE_NAMES.profiles).put({ id: 'learner-profile', value: validated });
+      await transactionComplete(transaction);
+    },
+    async resetLearnerProfile(nowIso) {
+      const existing = await this.loadLearnerProfile();
+      const next = neutralLearnerProfile(existing?.id ?? 'household', nowIso);
+      await this.saveLearnerProfile(next);
+      return next;
     },
     async close() {
       if (!handlePromise) return;

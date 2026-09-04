@@ -1,4 +1,15 @@
 export {
+  parseLearnerProfile,
+  neutralLearnerProfile,
+  resetLearnerProfile,
+  profileForConstruction
+} from './learnerProfile';
+export type {
+  LearnerConsent,
+  LearnerProfileV1,
+  PreferenceWeight
+} from './learnerProfile';
+export {
   assertValidPuzzle,
   createFixturePuzzle,
   createLargeFixturePuzzle,
@@ -7,7 +18,9 @@ export {
   getCellPosition,
   getEntryForCell,
   indexPuzzle,
+  isSupportedCrosswordAnswer,
   parsePuzzle,
+  normalizeCrosswordAnswer,
   serializePuzzle,
   validatePuzzle
 } from './puzzle';
@@ -35,6 +48,7 @@ export type {
 export {
   checkSession,
   clearCell,
+  clearEnteredCells,
   createSession,
   enterLetter,
   enterRebus,
@@ -50,11 +64,22 @@ export {
   toggleDirection,
   updateActiveTime,
   validateSessionSnapshot,
-  validateSolveEvent
+  validateSolveEvent,
+  clearIncorrect,
+  hideCheck,
+  checksUsed,
+  entrySolveState,
+  revealsUsed,
+  scoreForSession,
 } from './session';
 export type {
   CheckResult,
   CheckScope,
+  CellEvaluation,
+  CheckPresentation,
+  AssistanceReceipt,
+  EntrySolveState,
+  EvaluationState,
   EntryStep,
   MoveKey,
   Selection,

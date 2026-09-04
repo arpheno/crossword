@@ -8,13 +8,13 @@ const DAY_MS = 86_400_000;
 
 describe('FSRS retrievability', () => {
   it('decays with elapsed time and never goes below zero', () => {
-    const state = { difficulty: 5, stability: 3, lastReviewAtMs: 0 };
+    const state = { stability: 3, lastReviewAtMs: 0 };
     expect(computeRetrievability(state, DAY_MS)).toBeGreaterThan(computeRetrievability(state, 10 * DAY_MS));
     expect(computeRetrievability(state, 1000 * DAY_MS)).toBeGreaterThanOrEqual(0);
   });
 
   it('starts near one for fresh reviews', () => {
-    const state = { difficulty: 5, stability: 10, lastReviewAtMs: 0 };
+    const state = { stability: 10, lastReviewAtMs: 0 };
     expect(computeRetrievability(state, 1000)).toBeGreaterThan(0.99);
   });
 });
@@ -34,7 +34,7 @@ describe('adaptive score', () => {
     memory: {
       // Last seen 30 days ago with 1-day stability: retrievability far below
       // the 0.88 target, so the word is dramatically overdue for review.
-      CAT: { difficulty: 4, stability: 1, lastReviewAtMs: -27 * DAY_MS }
+      CAT: { stability: 1, lastReviewAtMs: -27 * DAY_MS }
     }
   };
 
@@ -50,7 +50,7 @@ describe('adaptive score', () => {
 
   it('penalizes words seen within the last hours (fatigue)', () => {
     const branching = () => 3;
-    const tiredProfile = { theta: 0.5, nowMs: 3 * DAY_MS, memory: { CAT: { difficulty: 4, stability: 900, lastReviewAtMs: 3 * DAY_MS - 3_600_000 } } };
+    const tiredProfile = { theta: 0.5, nowMs: 3 * DAY_MS, memory: { CAT: { stability: 900, lastReviewAtMs: 3 * DAY_MS - 3_600_000 } } };
     const tired = adaptiveScore({ lemma: 'CAT', baseSurprisal: 4 }, 0, tiredProfile, branching, DEFAULT_WEIGHTS);
     const rested = adaptiveScore({ lemma: 'DOG', baseSurprisal: 4 }, 0, tiredProfile, branching, DEFAULT_WEIGHTS);
     expect(tired).toBeLessThan(rested);
