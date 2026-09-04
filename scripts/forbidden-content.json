@@ -56,14 +56,6 @@
       "until": "M4.1 release allowlist"
     },
     {
-      "path": "apps/web/dist",
-      "patterns": [
-        "legacy-provider-route"
-      ],
-      "reason": "Local development bundle still contains the continuity loader; release candidates are built from the M4.1 allowlist and re-scanned without this exemption.",
-      "until": "M4.1 release allowlist"
-    },
-    {
       "path": "apps/web/e2e",
       "patterns": [
         "legacy-provider-route"
