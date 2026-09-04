@@ -182,4 +182,18 @@ The evaluation artifact and ablation output are required evidence in addition to
 
 ## Closure evidence
 
-Open.
+Contract: ADR 0008 (`docs/adr/0008-personalization-contract.md`) — minimal versioned profile, strict schema, consent gate, privacy rules, removed unused state.
+
+Closed:
+
+- **PP-P1-1** — `packages/domain/src/learnerProfile.ts` owns `LearnerProfileV1`: strict parser rejecting unknown fields, wrong versions, out-of-range weights, malformed timestamps, oversized collections; neutral defaults invent nothing; reset is complete and tested. Tests: `learnerProfile.test.ts` (5), `learnerProfileStore.test.ts` (3). Commit `a7913dd`.
+- **PP-P1-2** — `LearnerMemoryState.difficulty` removed from `packages/construction/src/adaptive.ts`; fixtures updated. Commit `a7913dd`.
+- **PP-P1-3** (contract tests) — `learnerProfileConstraints.test.ts` pins that an aggressive profile preserves the candidate set, keeps scores bounded 0..1, stays deterministic, and that neutral/no-profile behavior is identical to baseline; `filledCrossLetters = 0` at ranking is documented as the truthful pre-fill context (ADR 0008 §5). Commit `a7913dd`.
+- **PP-P0-1** (partial) — the typed profile can be created, parsed, exported (exportAll includes the learner-profile record), imported (replace restores it through the strict parser), and reset; construction receives an explicit `undefined` through `profileForConstruction` until a calibrated rule exists, so no UI may claim personalization. Commit `a7913dd`.
+- **PP-P1-4** (partial) — ADR 0008 §3 pins no-audio, no-transcript retention, local-only export behavior; consent field exists with `disabled` as the shipped safe default.
+
+DECISION REQUIRED (owner): consent default confirmation (ADR 0008); which V1 fields may eventually feed construction with ablation evidence; transcript retention if ever reconsidered.
+
+Still open: PP-P0-2 event-coverage/calibration before any inference; PP-P1-5/PP-P1-6 provenance and sense grounding (shared with Increment 5); profile inspect/edit/reset UI (Increment 6).
+
+Verification: `npm --workspace @crossword/domain run test` — 31 passed; `npm --workspace @crossword/persistence run test` — 29 passed; `npm --workspace @crossword/application run test` — 34 passed; `npm --workspace @crossword/construction run test` — 51 passed; full pre-commit gate passed for commit `a7913dd`.
