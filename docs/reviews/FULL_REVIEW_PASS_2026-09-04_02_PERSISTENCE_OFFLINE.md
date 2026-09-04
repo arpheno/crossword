@@ -211,4 +211,20 @@ The browser gate must include both a first-install offline run and an old-to-new
 
 ## Closure evidence
 
-Open.
+Contract: ADR 0005 (`docs/adr/0005-persistence-ownership.md`) — database ownership, monotonic write serialization, conflict detection, graph-wide archive validation, replace/merge/import-one semantics, solved-day boundary. ADR 0006 (`docs/adr/0006-cache-ownership.md`) — CacheStorage ownership table and precache manifest.
+
+Closed:
+
+- **PO-P0-1** — activation deletes only obsolete `crossword-shell-v*` caches; speech (`transformers-cache`), WebLLM, and foreign caches survive. Test: `apps/web/src/sw.test.ts` (`activation deletes only obsolete shell caches it owns`). Commit `PWA-2C`.
+- **PO-P0-2** (build artifact) — `apps/web/scripts/generate-sw-precache.mjs` injects the exact Vite build manifest (hashed scripts, styles, worker chunks, lexicon data, boot assets) into `dist/sw.js`; navigation fallback serves cached HTML only for `mode === 'navigate'`; a missing module offline fails as a network error instead of HTML. Tests: `sw.test.ts` (`install precaches the injected manifest…`, `never answers a missing module request…`, `answers navigation requests from the cached shell…`), `generate-sw-precache.test.mjs`. Commit `PWA-2C`.
+- **PO-P1-1** — `trySave` serializes per-puzzle writes by monotonic revision; an older asynchronous completion is refused (`stale-write`) and cannot beat a newer committed revision; the transaction re-checks stored revisions. Tests: `sessionWrites.test.ts` (`commits increasing revisions…`, `never lets an older asynchronous write beat a newer committed revision`, `treats an equal-revision re-save…`). Commit `PERSIST-2AB`.
+- **PO-P1-3** — `packages/persistence/src/database.ts` is the single owner of name/version/stores/migrations; `versionchange` closes the connection; `blocked` is surfaced via callback; v1→v3 migration tested. Tests: `database.test.ts` (4 tests). Commit `PERSIST-2AB`.
+- **PO-P1-4** — `validateArchiveGraph` (pure, pre-transaction) enumerates duplicate puzzle ids, duplicate session ids, missing puzzle references, unknown cell references, and duplicate event ids with stable `path code` errors; one invalid record rejects the archive. Tests: `continuityOperations.test.ts` (5 graph tests). Commit `PERSIST-2AB`.
+- **PO-P1-5** — `replace` (atomic full restore), `merge` (additive, existing records win id collisions, newest-revision-wins sessions, preferences/profiles untouched, typed report), `importOne` (one named puzzle + its session, typed failure when missing) are separate named operations; `previewContinuityExport` reports counts/version. Tests: `continuityOperations.test.ts` (merge/import/missing-puzzle). Commit `PERSIST-2AB`.
+- **PO-P1-6** (persistence boundary) — `solvedDays` joins the archive format (additive, optional, validated) and is stored/restored by replace/export. Test: `continuityOperations.test.ts` (`round-trips solved-day metadata…`). Commit `PERSIST-2AB`.
+
+DECISION REQUIRED (PO-P1-2 full policy): conflict detection (newest-revision-wins with typed `conflict` result) is implemented as the shared safety floor. Choosing between (a) `navigator.locks` single-writer with a visible read-only secondary tab and (b) a full conflict UX with per-side export remains an owner decision; invisible last-writer-wins stays forbidden.
+
+Still open for Increment 6 (App integrator): PO-P0-3 hydration gate UI, PO-P1-7 puzzle library reopen, PO-P1-8 update-ready UI consuming `crossword-sw-update` with pending-write flush, PO-P1-9 construction-offline readiness receipt, legacy localStorage solved-day migration, archive preview/merge/replace UI. Cold-first-install and old-to-new upgrade Playwright journeys remain to be authored against the settled worker.
+
+Verification: `npm --workspace @crossword/persistence run test` — 26 passed; `npm --workspace @crossword/web run test` — 77 passed; `npm run web:build` (with precache injection) — green; pre-commit full gate passed for commits `05c3f7e` (persistence) and `eb4fa9f` (PWA).
