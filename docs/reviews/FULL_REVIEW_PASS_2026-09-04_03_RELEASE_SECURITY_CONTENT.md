@@ -172,4 +172,28 @@ The release gate must run the scanner against a freshly built immutable artifact
 
 ## Closure evidence
 
-Open.
+## Closure evidence
+
+Contract: ADR 0007 (`docs/adr/0007-release-boundary.md`) — release graph isolation, two named scan gates, prompt injection boundaries.
+
+Closed:
+
+- **RS-P0-1** — every production build (`vite build`, any mode except the dev server) alias-swaps `./nytApi` for `apps/web/src/nytApi.releaseStub.ts`, which contains no route literals and rejects bridge calls with a typed error. The exact built artifact scans with ZERO exemptions: `[scan:release] scanned 12 file(s); 0 violation(s); 0 exempt`, and `grep random_crossword apps/web/dist/assets/*.js` is empty. The local development bridge remains available through the dev server + Flask bridge. Commit `61849c5`.
+- **RS-P1-1** — the scanner now runs two named gates (`source`, `release`), each file scanned exactly once; the `apps/web/dist` exemption is deleted from the policy; remaining source exemptions are documented with reasons and expiry milestones. Commit `61849c5`.
+- **RS-P1-6** — candidate, clue, and spoken-answer prompts serialize every untrusted field as delimited JSON with `<`/`>` unicode-escaped (a plain `JSON.stringify` delimiter was proven forgeable by the adversarial fixture). Tests: `packages/model-runtime/src/webllmAdapter.promptSecurity.test.ts` (2 adversarial fixtures: no payload text outside the block; no early delimiter close). Commit `61849c5`.
+- **RS-P1-2** (partial) — a seeded negative fixture per forbidden policy class (provider hosts, syndication, xwordinfo, local inference, loopback port, legacy route) runs on every scan and fails the gate on a false negative; a clean fixture guards against false positives.
+- **RS-P1-5** (partial, reversible tooling) — `scripts/generate-sbom.mjs` emits `reports/sbom.json` (CycloneDX-style, pinned to the commit) including an explicit model-receipt gap marker.
+
+DECISION REQUIRED (owner-reserved; recorded in ADR 0007):
+
+- RS-P1-3 deployment target and header mechanism (CSP/Permissions-Policy/referrer/framing proposal not encoded).
+- RS-P1-5 project license, production lexicon approval, model license/source/redistribution receipts, dependency-audit exceptions policy.
+
+Still open:
+
+- RS-P1-4 CI branch coverage: `.github/workflows/ci.yml` and `Makefile` were carrying another agent's uncommitted changes during this increment, so the workflow was not edited. Required change: add `v2` to `on.push.branches`, and a promotion step running `npm run web:build:release` + `npm run scan:content:release` (root package.json script wiring is also blocked by a concurrent `overrides` hunk in the root `package.json`; invoke `node scripts/scan-forbidden-content.mjs --scope release` directly until it lands).
+- RS-P1-2 remainder: binary-asset allowlist receipts, provenance/license ledger validation, source-map scanning policy.
+- RS-P1-7 provenance placeholders (App-supplied model id, prompt-version constants) — Increment 6 with the App integrator.
+- RS-P1-8 archive-replacement preview UI — Increment 6.
+
+Verification: `node scripts/scan-forbidden-content.mjs` — source 147 files/0 violations/4 exempt, release 12 files/0 violations/0 exempt, self-test pass; `npm run web:build` — green; `npm --workspace @crossword/model-runtime run test` — 43 passed; full pre-commit gate passed for commit `61849c5`.
