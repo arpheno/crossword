@@ -4,6 +4,7 @@ import App from './App';
 import { HarnessPage } from './harness/HarnessPage';
 import { resolveHarnessFixture, resolveHarnessMode } from './harness/fixtures';
 import './legacy.css';
+import './modelSetupHype.css';
 
 const root = document.getElementById('root');
 
