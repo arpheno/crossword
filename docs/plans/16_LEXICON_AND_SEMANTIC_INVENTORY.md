@@ -1,8 +1,8 @@
 # Lexicon and semantic inventory: research review and implementation plan
 
-Status: proposed implementation plan, 2026-09-05. This document reviews the
-user-supplied Gemini report against primary sources and the current working tree.
-It does not implement a new lexicon or approve a public data release.
+Status: implementation checkpoint, 2026-09-05. This document reviews the
+user-supplied Gemini report against primary sources and records the first
+landed implementation slice. It does not approve a new source release.
 
 Adopt a layered vocabulary inventory with explicit meanings, source receipts,
 independent familiarity signals, and a small editorial correction loop. Start
@@ -35,8 +35,8 @@ household privacy boundary.
 | Separate construction/semantic exports | Worker boundaries already exist | Export compact fill records and fetch only the semantic records needed for clue work |
 
 The next milestone is a better vocabulary foundation and a complete review loop.
-It does not require a new solver, a full knowledge graph, model training, or a
-large editorial dashboard.
+The landed slice supplies the contracts and gates for that work; it does not
+pretend that unpinned downloads or unreviewed senses are ready for publication.
 
 ## 2. Source review and corrections
 
@@ -372,16 +372,34 @@ exists, disable the reviewed-generation release path while retaining ordinary
 solving. Never roll back public output to the private NYT prior, a silent
 quarantine bypass, or a dictionary whose source approval is unresolved.
 
-## 7. Evidence from reviewing this plan
+## 7. Evidence and implementation status
 
-The documentation checkpoint ran `make doctor` and the required pre-commit
-unit/property, TypeScript/build, staged-diff, and content checks successfully.
-Document links, code fences, and whitespace were also checked. No new lexicon,
-clue-generation, or fill-performance experiment was run.
+The first slice is now implemented and checkpointed:
 
-The build provided direct evidence for L0: it emitted
-`apps/web/dist/data/freq-prior-v1.txt` while the existing release content scanner
-reported zero violations. Passing the current signature scan therefore does
-not establish provider-independent data provenance. L0 must add an artifact
-inventory/receipt check and an explicit negative case for this prior; normal
-English word overlap is not an appropriate forbidden-content detector.
+- **L0:** the browser fetches only `fill-lexicon-v1.txt`; the private frequency
+  prior is absent from public data sync and service-worker precache. The release
+  build runs `scripts/verify-release-artifacts.mjs`, which checks the lexicon
+  digest/count and rejects private artifacts or service-worker references.
+- **L1/L2:** `tools/lexicon/source-ledger.json` records the verified CWL pin and
+  candidate ESDB, wordfreq, Wiktextract, Wikidata, and excluded Spread the
+  Wordlist decisions. `build-inventory.mjs` streams CWL/ESDB/Wiktextract inputs,
+  preserves source receipts, and refuses unpinned hashes.
+- **L3/L4:** `packages/construction/src/inventory.ts` defines separate answer,
+  lexeme, sense, fact, signal, source, and editorial records. Only validated
+  `accepted` records enter `loadLexicon`; approved records retain their
+  `lexemeId`, grounded `senseId`, and source IDs.
+- **L6:** fill failures expose slot-level domain diagnostics and an optional
+  callback, so constraint scarcity is reviewable without treating a score
+  timeout as a vocabulary defect.
+
+`make pre-commit` passed for the implementation checkpoints, including Python
+tests, Jest/Vitest suites, TypeScript/build checks, release content scanning,
+Playwright (40 tests), coverage gates, and mutation testing at or above the
+repository's 70% break threshold. Focused adapter, provenance, artifact, and
+solver-diagnostic tests also pass.
+
+The following work remains intentionally evidence-gated: downloading and
+pinning real ESDB/wordfreq/Wiktextract snapshots, supplying an explicit review
+decision file, grounding clue/catalog records, and running the one-puzzle then
+ten-puzzle editorial pilot. `verify-source-ledger.mjs --release` remains closed
+until those decisions and receipts exist; no unreviewed inventory is shipped.

@@ -45,6 +45,7 @@ describe('CSP edge contracts', () => {
     expect(result.status).toBe('failed');
     expect(result.failure?.code).toBe('invalid-request');
     expect(result.failure?.nodes).toBe(0);
+    expect(result.diagnostics?.[0]?.code).toBe('invalid-request');
   });
 
   it('keeps async progress coherent while yielding through a deep search', async () => {
