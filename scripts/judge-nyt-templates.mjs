@@ -15,7 +15,7 @@ const { loadLexicon } = await import('../packages/construction/src/lexicon.ts');
 const { solveFill } = await import('../packages/construction/src/csp.ts');
 
 const MASKS = '/tmp/nyt_topo/masks';
-const DAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
+const DAYS = (process.env.DAYS ?? 'Monday,Tuesday,Wednesday,Thursday,Friday,Saturday,Sunday').split(',').filter(Boolean);
 const SIZE_BY_DAY = { Monday: 15, Tuesday: 15, Wednesday: 15, Thursday: 15, Friday: 15, Saturday: 15, Sunday: 21 };
 const SAMPLES_PER_DAY = Number(process.env.SAMPLES ?? 40);
 const NODE_BUDGET = Number(process.env.NODES ?? 60_000);

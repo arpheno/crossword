@@ -1,0 +1,9 @@
+#!/bin/sh
+
+set -eu
+
+ROOT=$(git rev-parse --show-toplevel)
+cd "$ROOT"
+
+echo "[crossword] pre-commit quality gate"
+exec make pre-commit

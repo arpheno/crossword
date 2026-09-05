@@ -67,6 +67,8 @@ make test        # Run tests
 make test-js-cov  # Run V8 coverage for maintained TypeScript packages
 make e2e-ci       # Run CI-safe Playwright journeys and paint guards
 make mutation-test # Enforce the deterministic construction mutation floor
+make qa            # Run the complete local quality gate
+make install-hooks # Enable the repository pre-commit hook
 make build       # Rebuild ignored legacy browser assets
 make test-cov    # Run tests with coverage
 make clean       # Clean cache files
