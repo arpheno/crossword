@@ -47,3 +47,17 @@ export { curatedTemplateBank, templateById } from './templateBank';
 export type { TopologyTemplate } from './templateBank';
 export type { ConstructorWorkerRequest, ConstructorWorkerResponse } from './workerProtocol';
 export { parseConstructorWorkerRequest, parseConstructorWorkerResponse } from './workerProtocol';
+export { FILL_CONTRACT_VERSION } from './engines/fillEngine';
+export type { FillEngine, FillEngineOptions } from './engines/fillEngine';
+export { TsFillEngine } from './engines/tsFillEngine';
+export {
+  WasmFillEngine,
+  createWasmFillEngine
+} from './engines/wasmFillEngine';
+export type {
+  WasmEngineHandle,
+  WasmEngineModule,
+  WasmModuleLoader,
+  WasmSolveHandle,
+  WasmStep
+} from './engines/wasmFillEngine';
