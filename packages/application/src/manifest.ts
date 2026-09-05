@@ -32,6 +32,7 @@ export type AssembleManifestRequest = Readonly<{
   wordScores: Readonly<Record<string, number>>;
   /** Entry id -> clue ladder (mechanism/text/difficulty). */
   clueVariants: Readonly<Record<string, readonly { mechanism: string; text: string; difficulty: number }[]>>;
+  clueMix?: Readonly<{ direct: number; standard: number; oblique: number }>;
   provenanceRecords: readonly ProvenanceRecord[];
   generation: PuzzleDocument['generation'];
   quality: PuzzleDocument['quality'];
@@ -61,7 +62,7 @@ export function assembleDraftManifest(request: AssembleManifestRequest): DraftMa
     shaded: false
   }));
 
-  const entries: Entry[] = topology.entries.map((entry) => {
+  const entries: Entry[] = topology.entries.map((entry, entryIndex) => {
     const word = words[entry.id];
     if (word === undefined || word.length !== entry.length) {
       throw new Error(`Missing fill word for slot ${entry.id}`);
@@ -72,7 +73,11 @@ export function assembleDraftManifest(request: AssembleManifestRequest): DraftMa
       direction: entry.direction,
       cellIds: entry.cellIds.map((cellId) => cellId as CellId),
       answer: word,
-      clue: primaryClue(clueVariants[entry.id] ?? [], word)
+      clue: primaryClue(
+        clueVariants[entry.id] ?? [],
+        word,
+        request.clueMix ? mechanismForIndex(topology.entries.length, entryIndex, request.clueMix) : undefined
+      )
     };
   });
 
@@ -115,9 +120,33 @@ export function assembleDraftManifest(request: AssembleManifestRequest): DraftMa
   return puzzle;
 }
 
-function primaryClue(variants: readonly { mechanism: string; text: string }[], word: string): string {
-  const standard = variants.find((variant) => variant.mechanism === 'standard') ?? variants[0];
-  if (standard && standard.text.trim().length > 0) return standard.text;
+function mechanismForIndex(
+  entryCount: number,
+  entryIndex: number,
+  mix: Readonly<{ direct: number; standard: number; oblique: number }>
+): 'direct' | 'standard' | 'oblique' {
+  const direct = Math.max(0, mix.direct);
+  const standard = Math.max(0, mix.standard);
+  const oblique = Math.max(0, mix.oblique);
+  const total = direct + standard + oblique;
+  if (total === 0 || entryCount === 0) return 'standard';
+  const position = ((entryIndex + 0.5) / entryCount) * total;
+  if (position < direct) return 'direct';
+  if (position < direct + standard) return 'standard';
+  return 'oblique';
+}
+
+function primaryClue(
+  variants: readonly { mechanism: string; text: string }[],
+  word: string,
+  preferredMechanism?: 'direct' | 'standard' | 'oblique'
+): string {
+  const preferred = preferredMechanism
+    ? variants.find((variant) => variant.mechanism === preferredMechanism && variant.text.trim().length > 0)
+    : undefined;
+  const standard = variants.find((variant) => variant.mechanism === 'standard' && variant.text.trim().length > 0);
+  const fallback = preferred ?? standard ?? variants.find((variant) => variant.text.trim().length > 0);
+  if (fallback) return fallback.text;
   return `Answer of ${word.length} letters`;
 }
 

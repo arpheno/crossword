@@ -28,6 +28,13 @@ export type DayRecipe = Readonly<{
   themeLocks: 0 | 2 | 3;
   /** Fill-quality threshold the complete fill must meet. */
   qualityThreshold: number;
+  /**
+   * Search-time editorial floor (review 2.1): an entry scoring below the
+   * floor is "poor"; at most `poorEntryLimit` poor entries are allowed in a
+   * complete fill. Enforced during search, not just after it.
+   */
+  poorEntryFloor: number;
+  poorEntryLimit: number;
   /** Search budget per attempt (nodes). */
   maxNodes: number;
   /** Seeded restart attempts before the day is declared unavailable today. */
@@ -49,6 +56,8 @@ const MONDAY: DayRecipe = {
   templateIds: ['human-15x15', 'pinwheel-33', 'stagger-32'],
   themeLocks: 0,
   qualityThreshold: 0.55,
+  poorEntryFloor: 0.45,
+  poorEntryLimit: 6,
   maxNodes: 150_000,
   maxRestarts: 3,
   clueMix: { direct: 0.6, standard: 0.35, oblique: 0.05 },
@@ -67,6 +76,8 @@ const TUESDAY: DayRecipe = {
 const WEDNESDAY: DayRecipe = {
   ...MONDAY,
   day: 'wednesday',
+  poorEntryFloor: 0.45,
+  poorEntryLimit: 5,
   templateIds: ['human-15x15', 'side-towers-31'],
   clueMix: { direct: 0.25, standard: 0.5, oblique: 0.25 },
   note: 'Balanced knowledge and word intelligence; medium grids.'
@@ -87,6 +98,8 @@ const FRIDAY: DayRecipe = {
   templateIds: ['human-15x15', 'side-towers-31'],
   clueMix: { direct: 0.1, standard: 0.4, oblique: 0.45 },
   qualityThreshold: 0.62,
+  poorEntryFloor: 0.45,
+  poorEntryLimit: 4,
   note: 'Themeless-leaning: longer answers, oblique clueing, fair crossings.'
 };
 
@@ -95,6 +108,8 @@ const SATURDAY: DayRecipe = {
   day: 'saturday',
   templateIds: ['human-15x15', 'side-towers-31'],
   qualityThreshold: 0.68,
+  poorEntryFloor: 0.45,
+  poorEntryLimit: 4,
   maxNodes: 250_000,
   clueMix: { direct: 0.1, standard: 0.35, oblique: 0.55 },
   note: 'The most oblique clueing and broadest vocabulary, with fair crossings.'
@@ -107,6 +122,8 @@ const SUNDAY: DayRecipe = {
   templateIds: [],
   themeLocks: 3,
   qualityThreshold: 0.6,
+  poorEntryFloor: 0.45,
+  poorEntryLimit: 5,
   maxNodes: 600_000,
   maxRestarts: 3,
   clueMix: { direct: 0.1, standard: 0.4, oblique: 0.5 },

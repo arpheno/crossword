@@ -4,6 +4,7 @@ import path from 'node:path';
 import { describe, expect, it } from 'vitest';
 
 import { loadLexicon, solveFill, type FillRequest, type Lexicon } from '@crossword/construction';
+import { createRealPuzzle } from '@crossword/domain';
 import { createFakeLocalModelAdapter, type ModelBroker } from '@crossword/model-runtime';
 import { constructPuzzle } from './constructPuzzle';
 import { DAY_RECIPES } from './recipes';
@@ -26,9 +27,18 @@ function labLexicon(maxLength = 15): Lexicon {
   return loadLexicon(text, { maxLength });
 }
 
-function brokerFor(onGenerate?: () => void): ModelBroker {
+function fixtureLexicon(): Lexicon {
+  const puzzle = createRealPuzzle();
+  const words = [...new Set(puzzle.entries.map((entry) => entry.answer))].join('\n');
+  return loadLexicon(words, { maxLength: 15 });
+}
+
+function brokerFor(
+  onGenerate?: () => void,
+  suggestions: readonly import('@crossword/model-runtime').CandidateSuggestion[] = SUGGESTIONS
+): ModelBroker {
   const adapter = createFakeLocalModelAdapter({
-    suggestions: [...SUGGESTIONS],
+    suggestions: [...suggestions],
     clueDrafts: [...CLUE_DRAFTS]
   });
   return {
@@ -42,12 +52,15 @@ function brokerFor(onGenerate?: () => void): ModelBroker {
       const value = (await adapter.generateCandidates(request)) as readonly import('@crossword/model-runtime').CandidateSuggestion[];
       return { ok: true as const, value };
     },
+    resolveSpokenAnswer: async () => ({ ok: true as const, value: [] }),
     composeClues: async (request, signal) => {
       void signal;
       const value = (await adapter.composeClues(request)) as readonly import('@crossword/model-runtime').ClueDraft[];
       return { ok: true as const, value };
     },
-    unload: async () => ({ ok: true, value: undefined })
+    unload: async () => ({ ok: true, value: undefined }),
+    inspectCache: async () => ({ ok: true, value: true }),
+    deleteCache: async () => ({ ok: true, value: undefined })
   };
 }
 
@@ -55,24 +68,33 @@ function solveSync(request: FillRequest) {
   return solveFill({ ...request, maxNodes: 60_000 });
 }
 
+function fixtureRecipe() {
+  return {
+    ...DAY_RECIPES.monday,
+    templateIds: ['human-15x15'],
+    maxNodes: 60_000,
+    qualityThreshold: 0,
+    poorEntryFloor: 0.45,
+    poorEntryLimit: 78,
+    maxRestarts: 1
+  } as const;
+}
+
 describe('constructPuzzle end to end (fake model, lab lexicon)', () => {
   it('publishes a valid, integrity-pinned manifest through the whole pipeline', async () => {
-    const lexicon = labLexicon();
+    const lexicon = fixtureLexicon();
+    const progress: string[] = [];
     const result = await constructPuzzle(
       brokerFor(),
       { solve: solveSync },
       {
-        recipe: {
-          ...DAY_RECIPES.monday,
-          templateIds: ['human-15x15'],
-          maxNodes: 60_000,
-          qualityThreshold: 0.4,
-          maxRestarts: 1
-        },
+        recipe: fixtureRecipe(),
         seed: 'fixture-e2e',
         lexicon,
         modelId: 'fake-adapter'
-      }
+      },
+      undefined,
+      (event) => progress.push(event.phase)
     );
 
     if (!result.ok) throw new Error(`expected ok, got ${JSON.stringify(result.error)}`);
@@ -81,7 +103,54 @@ describe('constructPuzzle end to end (fake model, lab lexicon)', () => {
     expect(result.puzzle.entries.length).toBeGreaterThan(50);
     expect(result.puzzle.clues).toHaveLength(result.puzzle.entries.length);
     expect(result.puzzle.quality.score).toBeGreaterThan(0);
+    expect(result.puzzle.generation.fill).toMatchObject({
+      terminationReason: 'satisfied',
+      provenOptimal: false,
+      nodesExplored: expect.any(Number),
+      incumbentScore: expect.any(Number),
+      elapsedMs: expect.any(Number)
+    });
+    expect(progress).toEqual(expect.arrayContaining(['topology', 'model', 'lexicon', 'fill', 'clues', 'publishing']));
     expect(result.templateId).toBe('human-15x15');
+    const clueCounts: Record<string, number> = Object.fromEntries(
+      result.puzzle.entries.map((entry) => [entry.clue, 0] as const)
+    );
+    for (const entry of result.puzzle.entries) clueCounts[entry.clue] = (clueCounts[entry.clue] ?? 0) + 1;
+    expect(clueCounts).toEqual({
+      'Fixture direct clue': 47,
+      'Fixture standard clue': 27,
+      'Fixture oblique clue': 4
+    });
+  }, 120_000);
+
+  it('lets eligible model ideas influence fill ranking without bypassing the lexicon', async () => {
+    const eligibleRequests: FillRequest[] = [];
+    const ineligibleRequests: FillRequest[] = [];
+    const capture = (requests: FillRequest[]) => ({
+      solve: (request: FillRequest) => {
+        requests.push(request);
+        return solveSync(request);
+      }
+    });
+    const eligible = await constructPuzzle(
+      brokerFor(undefined, [{ ...SUGGESTIONS[0]!, surface: 'ABAB' }]),
+      capture(eligibleRequests),
+      { recipe: fixtureRecipe(), seed: 'model-ranking', lexicon: fixtureLexicon(), modelId: 'fake-adapter' }
+    );
+    const ineligible = await constructPuzzle(
+      brokerFor(undefined, [{ ...SUGGESTIONS[0]!, surface: 'ZZZZ' }]),
+      capture(ineligibleRequests),
+      { recipe: fixtureRecipe(), seed: 'model-ranking', lexicon: fixtureLexicon(), modelId: 'fake-adapter' }
+    );
+
+    expect(eligible.ok).toBe(true);
+    expect(ineligible.ok).toBe(true);
+    const eligibleAbab = eligibleRequests[0]?.candidates.find((candidate) => candidate.word === 'ABAB');
+    const ineligibleAbab = ineligibleRequests[0]?.candidates.find((candidate) => candidate.word === 'ABAB');
+    expect(eligibleAbab).toBeDefined();
+    expect(ineligibleAbab).toBeDefined();
+    expect(eligibleAbab!.score).toBeGreaterThan(ineligibleAbab!.score);
+    expect(ineligibleRequests[0]?.candidates.some((candidate) => candidate.word === 'ZZZZ')).toBe(false);
   }, 120_000);
 
   it('rejects a fill whose editorial score misses the recipe bar (P0 gate regression)', async () => {
@@ -94,10 +163,12 @@ describe('constructPuzzle end to end (fake model, lab lexicon)', () => {
           templateIds: ['human-15x15'],
           maxNodes: 60_000,
           qualityThreshold: 0.99, // unreachable editorial bar
+          poorEntryFloor: 0,
+          poorEntryLimit: 78,
           maxRestarts: 1
         },
         seed: 'fixture-e2e',
-        lexicon: labLexicon(),
+        lexicon: fixtureLexicon(),
         modelId: 'fake-adapter'
       }
     );
