@@ -15,6 +15,7 @@ export type FillIntersection = Readonly<{
 export type FillCandidate = Readonly<{
   word: string;
   score: number;
+  qualityScore?: number;
   lexemeId: string;
   senseId?: string;
   sourceIds: readonly string[];
@@ -40,6 +41,15 @@ export type FillRequest = Readonly<{
    * 0..1 quality gate, which lives in the application layer (`scoreFill`).
    */
   minimumAssignmentScore?: number;
+  /**
+   * Search-time editorial constraint (review 2.1, minimal form): at most
+   * `poorEntryLimit` assigned entries may score below `poorEntryFloor`.
+   * Maintained incrementally during search so bad-entry-heavy branches prune
+   * immediately instead of failing the post-hoc gate after burning the node
+   * budget.
+   */
+  poorEntryFloor?: number;
+  poorEntryLimit?: number;
   excludedWords?: readonly string[];
 }>;
 
@@ -59,6 +69,8 @@ export type FillSolution = Readonly<{
   nodes: number;
 }>;
 
+export type FillTermination = 'exhausted' | 'satisfied' | 'cancelled' | 'node-limit' | 'unsatisfiable';
+
 export type FillResult = Readonly<{
   status: 'solved' | 'failed';
   solution?: FillSolution;
@@ -67,6 +79,22 @@ export type FillResult = Readonly<{
     message: string;
     nodes: number;
   }>;
+  /**
+   * Why the search stopped. 'exhausted' + a solution means branch and bound
+   * completed with an admissible bound: the incumbent is proven optimal.
+   * 'satisfied' means first-acceptable stopping; 'node-limit' and
+   * 'cancelled' are anytime incumbents or clean failures.
+   */
+  termination: FillTermination;
+  /** Stable name for consumers that do not want the shorter legacy alias. */
+  terminationReason: FillTermination;
+  provenOptimal?: boolean;
+  /** Number of search nodes actually entered, including the final incumbent. */
+  nodesExplored: number;
+  /** Admissible upper bound on the best assignment score at termination. */
+  bestBound?: number;
+  /** Additive score gap between `bestBound` and the incumbent, when available. */
+  gap?: number;
 }>;
 
 export type FillOptions = Readonly<{
@@ -114,6 +142,7 @@ type IndexedRequest = Readonly<{
   excludedWords: ReadonlySet<string>;
   candidateIndexByWord: ReadonlyMap<string, number>;
   scoreByIndex: Readonly<Float64Array>;
+  qualityScoreByIndex: Readonly<Float64Array>;
   tieBreakByIndex: Readonly<Uint32Array>;
   bestScoreByLength: ReadonlyMap<number, number>;
 }>;
@@ -159,7 +188,7 @@ function createIndex(request: FillRequest): IndexedRequest | { failure: FillResu
   const excluded = request.excludedWords;
   const registerCandidate = (candidate: FillCandidate): void => {
     const normalizedWord = candidate.word.trim().toUpperCase();
-    if (!/^[A-Z]+$/.test(normalizedWord) || !Number.isFinite(candidate.score) || !candidate.lexemeId || candidate.sourceIds.length === 0) return;
+    if (!/^[A-Z]+$/.test(normalizedWord) || !Number.isFinite(candidate.score) || (candidate.qualityScore !== undefined && !Number.isFinite(candidate.qualityScore)) || !candidate.lexemeId || candidate.sourceIds.length === 0) return;
     if (excluded?.some((word) => word.toUpperCase() === normalizedWord)) return;
     if (candidateIndexByWord.has(normalizedWord)) return; // first record wins; duplicates drop
     const index = candidates.length;
@@ -221,6 +250,15 @@ function createIndex(request: FillRequest): IndexedRequest | { failure: FillResu
     });
   }
 
+  // Every slot length must have at least one candidate; a slot whose length
+  // class is empty can never be filled and must fail cleanly instead of
+  // crashing during domain construction.
+  for (const slot of request.slots) {
+    if (!lengthClasses.has(slot.length)) {
+      return { failure: { code: 'unsatisfiable', message: `No candidates of length ${slot.length} for slot ${slot.id}`, nodes: 0 } };
+    }
+  }
+
   const positionBits = new Map<string, Bits>();
   for (const candidate of candidates) {
     const lengthClass = lengthClasses.get(candidate.normalizedWord.length)!;
@@ -257,10 +295,12 @@ function createIndex(request: FillRequest): IndexedRequest | { failure: FillResu
   }
 
   const scoreByIndex = new Float64Array(candidates.length);
+  const qualityScoreByIndex = new Float64Array(candidates.length);
   const tieBreakByIndex = new Uint32Array(candidates.length);
   const bestScoreByLength = new Map<number, number>();
   for (const candidate of candidates) {
     scoreByIndex[candidate.index] = candidate.score;
+    qualityScoreByIndex[candidate.index] = candidate.qualityScore ?? candidate.score;
     tieBreakByIndex[candidate.index] = seededTieBreak(seed, candidate.normalizedWord);
     const best = bestScoreByLength.get(candidate.normalizedWord.length);
     if (best === undefined || candidate.score > best) bestScoreByLength.set(candidate.normalizedWord.length, candidate.score);
@@ -278,6 +318,7 @@ function createIndex(request: FillRequest): IndexedRequest | { failure: FillResu
     excludedWords: new Set(excluded?.map((word) => word.toUpperCase()) ?? []),
     candidateIndexByWord,
     scoreByIndex,
+    qualityScoreByIndex,
     tieBreakByIndex,
     bestScoreByLength
   };
@@ -323,13 +364,14 @@ type SearchState = {
   sizes: Int32Array;
   assignments: Int32Array;
   /**
-   * Undo trail of word-level domain edits: triples of
-   * (slotIndex, wordIndex, previousWordValue) — one entry per modified
-   * 32-bit word instead of per cleared candidate.
+    * Undo trail of word-level domain edits: triples of
+    * (slotIndex, wordIndex, previousWordValue) — one entry per modified
+    * 32-bit word instead of per cleared candidate.
    */
   trail: number[];
   nodes: number;
   score: number;
+  poorEntries: number;
   cancelled: boolean;
   overBudget: boolean;
   satisfied: boolean;
@@ -359,8 +401,10 @@ function removeWordBits(state: SearchState, slotIndex: number, wordIndex: number
   state.trail.push(slotIndex, wordIndex, previous);
 }
 
-function removeSingleBit(state: SearchState, slotIndex: number, candidateIndex: number): void {
+function removeSingleBit(state: SearchState, slotIndex: number, candidateIndex: number): boolean {
+  const before = state.sizes[slotIndex]!;
   removeWordBits(state, slotIndex, candidateIndex >>> 5, 1 << (candidateIndex & 31));
+  return state.sizes[slotIndex]! !== before;
 }
 
 function undoTrail(state: SearchState, base: number): void {
@@ -455,7 +499,8 @@ function remainingScoreUpperBound(index: IndexedRequest, state: SearchState): nu
   let bound = 0;
   for (let slotIndex = 0; slotIndex < index.slots.length; slotIndex += 1) {
     if (state.assignments[slotIndex] !== -1) continue;
-    const best = index.bestScoreByLength.get(index.slots[slotIndex]!.length);
+    const slot = index.slots[slotIndex]!;
+    const best = index.bestScoreByLength.get(slot.length);
     if (best === undefined) return Number.NEGATIVE_INFINITY;
     bound += best;
   }
@@ -483,15 +528,15 @@ function* searchGenerator(
   signal: AbortSignal | undefined,
   maxNodes: number
 ): Generator<void, void, void> {
-  state.nodes += 1;
   if (signal?.aborted) {
     state.cancelled = true;
     return;
   }
-  if (state.nodes > maxNodes) {
+  if (state.nodes >= maxNodes) {
     state.overBudget = true;
     return;
   }
+  state.nodes += 1;
   if (state.best !== undefined && state.score + remainingScoreUpperBound(index, state) <= state.bestScore) return;
 
   const slotIndex = selectSlot(index, state);
@@ -530,7 +575,6 @@ function* searchGenerator(
       if (state.cancelled || state.overBudget || state.satisfied) return;
       const localIndex = (wordIndex << 5) + (31 - Math.clz32(lowest));
       const candidateIndex = slotClass.globalByLocal[localIndex]!;
-      const candidate = index.candidates[candidateIndex]!;
       const trailBase = state.trail.length;
       state.assignments[slotIndex] = candidateIndex;
       // Narrow this slot's domain to the singleton (word-level trail edits).
@@ -544,17 +588,25 @@ function* searchGenerator(
       // same-length slots can contain the same surface, and they share the
       // length class's local index space.
       let viable = true;
+      const propagationSeeds = [slotIndex];
       for (let other = 0; other < index.slots.length && viable; other += 1) {
         if (other === slotIndex) continue;
         if (index.slots[other]!.length !== slotLength) continue;
-        removeSingleBit(state, other, localIndex);
+        const changed = removeSingleBit(state, other, localIndex);
+        if (changed && state.assignments[other] === -1) propagationSeeds.push(other);
         viable = state.sizes[other]! > 0;
       }
-      if (viable) viable = propagateFrom(index, state, [slotIndex]);
+      if (viable) viable = propagateFrom(index, state, propagationSeeds);
       if (viable) {
-        state.score += index.scoreByIndex[candidateIndex]!;
-        yield* searchGenerator(index, request, state, signal, maxNodes);
-        state.score -= index.scoreByIndex[candidateIndex]!;
+        const isPoor = (request.poorEntryFloor !== undefined && index.qualityScoreByIndex[candidateIndex]! < request.poorEntryFloor) ? 1 : 0;
+        const poorLimitReached = request.poorEntryLimit !== undefined && state.poorEntries + isPoor > request.poorEntryLimit;
+        if (!poorLimitReached) {
+          state.score += index.scoreByIndex[candidateIndex]!;
+          state.poorEntries += isPoor;
+          yield* searchGenerator(index, request, state, signal, maxNodes);
+          state.poorEntries -= isPoor;
+          state.score -= index.scoreByIndex[candidateIndex]!;
+        }
       }
       state.assignments[slotIndex] = -1;
       undoTrail(state, trailBase);
@@ -603,6 +655,7 @@ function buildInitialState(
     trail: [],
     nodes: 0,
     score: 0,
+    poorEntries: 0,
     cancelled: false,
     overBudget: false,
     satisfied: false,
@@ -624,9 +677,25 @@ function failureFor(state: SearchState, nodes: number): FillResult['failure'] {
 
 export function solveFill(request: FillRequest, options: FillOptions = {}): FillResult {
   const indexed = createIndex(request);
-  if ('failure' in indexed) return { status: 'failed', failure: indexed.failure };
+  if ('failure' in indexed) {
+    return {
+      status: 'failed',
+      failure: indexed.failure!,
+      termination: 'unsatisfiable',
+      terminationReason: 'unsatisfiable',
+      nodesExplored: indexed.failure!.nodes
+    };
+  }
   const initial = buildInitialState(indexed, request);
-  if ('failure' in initial) return { status: 'failed', failure: initial.failure };
+  if ('failure' in initial) {
+    return {
+      status: 'failed',
+      failure: initial.failure!,
+      termination: 'unsatisfiable',
+      terminationReason: 'unsatisfiable',
+      nodesExplored: initial.failure!.nodes
+    };
+  }
   const state = initial;
 
   const generator = searchGenerator(indexed, request, state, options.signal, request.maxNodes ?? 50_000);
@@ -643,8 +712,30 @@ export function solveFill(request: FillRequest, options: FillOptions = {}): Fill
     finished = generator.next();
   }
 
-  if (state.best) return { status: 'solved', solution: state.best };
-  return { status: 'failed', failure: failureFor(state, state.nodes) };
+  if (state.best) {
+    const termination = state.cancelled ? 'cancelled' : state.overBudget ? 'node-limit' : state.satisfied ? 'satisfied' : 'exhausted';
+    const bestBound = termination === 'exhausted' || termination === 'satisfied'
+      ? state.bestScore
+      : remainingScoreUpperBound(indexed, state) + state.score;
+    return {
+      status: 'solved',
+      solution: state.best,
+      termination,
+      terminationReason: termination,
+      provenOptimal: termination === 'exhausted',
+      nodesExplored: state.nodes,
+      bestBound,
+      gap: Math.max(0, bestBound - state.bestScore)
+    };
+  }
+  const termination = state.cancelled ? 'cancelled' : state.overBudget ? 'node-limit' : 'unsatisfiable';
+  return {
+    status: 'failed',
+    failure: failureFor(state, state.nodes),
+    termination,
+    terminationReason: termination,
+    nodesExplored: state.nodes
+  };
 }
 
 function yieldToHost(): Promise<void> {
@@ -656,9 +747,25 @@ function yieldToHost(): Promise<void> {
 
 export async function solveFillAsync(request: FillRequest, options: FillOptions = {}): Promise<FillResult> {
   const indexed = createIndex(request);
-  if ('failure' in indexed) return { status: 'failed', failure: indexed.failure };
+  if ('failure' in indexed) {
+    return {
+      status: 'failed',
+      failure: indexed.failure!,
+      termination: 'unsatisfiable',
+      terminationReason: 'unsatisfiable',
+      nodesExplored: indexed.failure!.nodes
+    };
+  }
   const initial = buildInitialState(indexed, request);
-  if ('failure' in initial) return { status: 'failed', failure: initial.failure };
+  if ('failure' in initial) {
+    return {
+      status: 'failed',
+      failure: initial.failure!,
+      termination: 'unsatisfiable',
+      terminationReason: 'unsatisfiable',
+      nodesExplored: initial.failure!.nodes
+    };
+  }
   const state = initial;
 
   const generator = searchGenerator(indexed, request, state, options.signal, request.maxNodes ?? 50_000);
@@ -678,6 +785,28 @@ export async function solveFillAsync(request: FillRequest, options: FillOptions 
     finished = generator.next();
   }
 
-  if (state.best) return { status: 'solved', solution: state.best };
-  return { status: 'failed', failure: failureFor(state, state.nodes) };
+  if (state.best) {
+    const termination = state.cancelled ? 'cancelled' : state.overBudget ? 'node-limit' : state.satisfied ? 'satisfied' : 'exhausted';
+    const bestBound = termination === 'exhausted' || termination === 'satisfied'
+      ? state.bestScore
+      : remainingScoreUpperBound(indexed, state) + state.score;
+    return {
+      status: 'solved',
+      solution: state.best,
+      termination,
+      terminationReason: termination,
+      provenOptimal: termination === 'exhausted',
+      nodesExplored: state.nodes,
+      bestBound,
+      gap: Math.max(0, bestBound - state.bestScore)
+    };
+  }
+  const termination = state.cancelled ? 'cancelled' : state.overBudget ? 'node-limit' : 'unsatisfiable';
+  return {
+    status: 'failed',
+    failure: failureFor(state, state.nodes),
+    termination,
+    terminationReason: termination,
+    nodesExplored: state.nodes
+  };
 }

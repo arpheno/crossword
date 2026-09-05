@@ -78,8 +78,11 @@ describe('CSP edge contracts', () => {
       failure: {
         code: 'resource-limit',
         message: 'Fill search reached its node budget',
-        nodes: 9
-      }
+        nodes: 8
+      },
+      termination: 'node-limit',
+      terminationReason: 'node-limit',
+      nodesExplored: 8
     });
     expect(progress.at(-1)).toBe(8);
   });

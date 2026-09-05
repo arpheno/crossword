@@ -1,3 +1,5 @@
+import { normalizeCrosswordAnswer } from '@crossword/domain';
+
 /**
  * Fill lexicon: loading, eligibility, and crossword-quality scoring.
  *
@@ -106,7 +108,7 @@ function createPrior(priorText: string | undefined): (word: string) => number {
 }
 
 function normalizeSurface(surface: string): string {
-  return surface.trim().toUpperCase().replace(/[^A-Z]/g, '');
+  return normalizeCrosswordAnswer(surface.trim());
 }
 
 export function loadLexicon(text: string, options: LoadLexiconOptions = {}): Lexicon {
