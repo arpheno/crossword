@@ -14,11 +14,11 @@ const manifest: ModelManifest = {
   distribution: 'webllm-mlc'
 };
 
-function fakeEngine(content: string): WebLlmEngine {
+function fakeEngine(content: string, create?: (request: unknown) => Promise<unknown>): WebLlmEngine {
   return {
     chat: {
       completions: {
-        create: vi.fn(async () => ({ choices: [{ message: { content } }] }))
+        create: create ?? vi.fn(async () => ({ choices: [{ message: { content } }] }))
       }
     },
     unload: vi.fn(async () => undefined),
@@ -128,5 +128,67 @@ describe('in-browser WebLLM adapter', () => {
     await expect(adapter.composeClues({ answer: 'TIDALPOOL', intendedSense: 'a coastal body of water' })).resolves.toEqual([
       { mechanism: 'standard', text: 'A watery expanse', difficulty: 0.4 }
     ]);
+  });
+
+  it('accepts schema-shaped spoken-answer spellings and notes', async () => {
+    const engine = fakeEngine('[{"surface":"SEA","note":"body of water"},{"surface":"SEE"}]');
+    const adapter = createWebLLMAdapter({
+      loadModule: async () => fakeModule(engine, async () => engine),
+      createEngine: async () => engine
+    });
+    await adapter.load(manifest);
+
+    await expect(adapter.resolveSpokenAnswer({
+      spokenAnswer: 'see',
+      targetLength: 3,
+      pattern: '...',
+      locale: 'en-US',
+      maxSuggestions: 4
+    })).resolves.toEqual([
+      { surface: 'SEA', note: 'body of water' },
+      { surface: 'SEE' }
+    ]);
+  });
+
+  it('requests schema-constrained JSON for spoken-answer expansion', async () => {
+    const completion = vi.fn(async () => ({ choices: [{ message: { content: '[]' } }] }));
+    const engine = fakeEngine('[]', completion);
+    const adapter = createWebLLMAdapter({
+      loadModule: async () => fakeModule(engine, async () => engine),
+      createEngine: async () => engine
+    });
+    await adapter.load(manifest);
+
+    await adapter.resolveSpokenAnswer({
+      spokenAnswer: 'see',
+      targetLength: 3,
+      pattern: '...',
+      locale: 'en-US',
+      maxSuggestions: 4
+    });
+
+    expect(completion).toHaveBeenCalledWith(expect.objectContaining({
+      response_format: expect.objectContaining({
+        type: 'json_object',
+        schema: expect.stringContaining('maxItems')
+      })
+    }));
+  });
+
+  it('rejects prose and non-JSON spoken-answer output', async () => {
+    const engine = fakeEngine('SEA\nSEE');
+    const adapter = createWebLLMAdapter({
+      loadModule: async () => fakeModule(engine, async () => engine),
+      createEngine: async () => engine
+    });
+    await adapter.load(manifest);
+
+    await expect(adapter.resolveSpokenAnswer({
+      spokenAnswer: 'see',
+      targetLength: 3,
+      pattern: '...',
+      locale: 'en-US',
+      maxSuggestions: 4
+    })).resolves.toBeUndefined();
   });
 });

@@ -24,12 +24,16 @@ describe('deterministic fake model adapter', () => {
   it('honors injected suggestions and clue drafts', async () => {
     const adapter = createFakeLocalModelAdapter({
       suggestions: [{ surface: 'OTTER', intendedSense: 'a playful swimmer', associations: [], role: 'general', confidence: 0.9 }],
-      clueDrafts: [{ mechanism: 'oblique', text: 'River dancer', difficulty: 0.7 }]
+      clueDrafts: [{ mechanism: 'oblique', text: 'River dancer', difficulty: 0.7 }],
+      spokenAnswerSuggestions: [{ surface: 'SEA', note: 'body of water' }]
     });
 
     await expect(adapter.generateCandidates(request)).resolves.toHaveLength(1);
     await expect(adapter.composeClues({ answer: 'OTTER', intendedSense: 'a playful swimmer' })).resolves.toEqual([
       { mechanism: 'oblique', text: 'River dancer', difficulty: 0.7 }
+    ]);
+    await expect(adapter.resolveSpokenAnswer({ spokenAnswer: 'see', targetLength: 3, pattern: '...', locale: 'en-US', maxSuggestions: 4 })).resolves.toEqual([
+      { surface: 'SEA', note: 'body of water' }
     ]);
   });
 

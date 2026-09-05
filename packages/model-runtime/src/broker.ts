@@ -68,6 +68,18 @@ export type ClueDraft = Readonly<{
   difficulty: number;
 }>;
 
+export type ClueBatchItem = Readonly<{
+  id: string;
+  answer: string;
+  intendedSense: string;
+}>;
+
+export type ClueBatchRequest = Readonly<{
+  items: readonly ClueBatchItem[];
+}>;
+
+export type ClueBatchResult = Readonly<Record<string, readonly ClueDraft[]>>;
+
 export type ModelState = 'uninstalled' | 'installed' | 'loaded' | 'generating' | 'unloading';
 export type ModelFailureCode = 'unsupported-device' | 'storage-quota' | 'model-not-enabled' | 'invalid-model-output' | 'busy' | 'cancelled' | 'runtime-error';
 export type BrokerResult<T> = Readonly<{ ok: true; value: T } | { ok: false; error: Readonly<{ code: ModelFailureCode; message: string }> }>;
@@ -86,6 +98,8 @@ export type LocalModelAdapter = Readonly<{
   generateCandidates: (request: CandidateRequest, signal?: AbortSignal) => Promise<unknown>;
   resolveSpokenAnswer: (request: SpokenAnswerRequest, signal?: AbortSignal) => Promise<unknown>;
   composeClues: (request: Readonly<{ answer: string; intendedSense: string }>, signal?: AbortSignal) => Promise<unknown>;
+  /** Optional optimized path; the broker falls back to composeClues when absent. */
+  composeCluesBatch?: (request: ClueBatchRequest, signal?: AbortSignal) => Promise<unknown>;
   unload: () => Promise<void>;
   hasCache?: (manifest: ModelManifest) => Promise<boolean>;
   deleteCache?: (manifest: ModelManifest) => Promise<void>;
@@ -99,6 +113,8 @@ export type ModelBroker = Readonly<{
   generateCandidates: (request: CandidateRequest, signal?: AbortSignal) => Promise<BrokerResult<readonly CandidateSuggestion[]>>;
   resolveSpokenAnswer: (request: SpokenAnswerRequest, signal?: AbortSignal) => Promise<BrokerResult<readonly SpokenAnswerCandidate[]>>;
   composeClues: (request: Readonly<{ answer: string; intendedSense: string }>, signal?: AbortSignal) => Promise<BrokerResult<readonly ClueDraft[]>>;
+  /** Optional optimized path; older test/fake brokers remain source-compatible. */
+  composeCluesBatch?: (request: ClueBatchRequest, signal?: AbortSignal) => Promise<BrokerResult<ClueBatchResult>>;
   unload: () => Promise<BrokerResult<void>>;
   inspectCache: () => Promise<BrokerResult<boolean>>;
   deleteCache: (signal?: AbortSignal) => Promise<BrokerResult<void>>;
@@ -111,6 +127,7 @@ const MAX_TEXT_LENGTH = 500;
 const MAX_TARGET_LENGTHS = 8;
 const MAX_SPOKEN_ANSWER_LENGTH = 200;
 const MAX_SPOKEN_SUGGESTIONS = 8;
+export const MAX_CLUE_BATCH_ITEMS = 16;
 export const MIN_SPOKEN_TARGET_LENGTH = 1;
 export const MAX_SPOKEN_TARGET_LENGTH = 64;
 
@@ -165,6 +182,34 @@ function isClueDraft(value: unknown): value is ClueDraft {
     && Number.isFinite(draft.difficulty)
     && draft.difficulty >= 0
     && draft.difficulty <= 1;
+}
+
+function isClueBatchRequestValid(request: ClueBatchRequest): boolean {
+  return Array.isArray(request.items)
+    && request.items.length > 0
+    && request.items.length <= MAX_CLUE_BATCH_ITEMS
+    && new Set(request.items.map((item) => item.id)).size === request.items.length
+    && request.items.every((item) => typeof item.id === 'string'
+      && item.id.length > 0
+      && item.id.length <= MAX_TEXT_LENGTH
+      && typeof item.answer === 'string'
+      && item.answer.length > 0
+      && item.answer.length <= MAX_TEXT_LENGTH
+      && typeof item.intendedSense === 'string'
+      && item.intendedSense.length > 0
+      && item.intendedSense.length <= MAX_TEXT_LENGTH);
+}
+
+function isClueBatchResult(value: unknown, request: ClueBatchRequest): value is ClueBatchResult {
+  if (typeof value !== 'object' || value === null || Array.isArray(value)) return false;
+  const result = value as Record<string, unknown>;
+  return request.items.every((item) => {
+    const drafts = result[item.id];
+    return Array.isArray(drafts)
+      && drafts.length > 0
+      && drafts.length <= 4
+      && drafts.every(isClueDraft);
+  });
 }
 
 function isSpokenAnswerCandidate(value: unknown): value is SpokenAnswerCandidate {
@@ -338,6 +383,42 @@ export function createModelBroker(manifest: ModelManifest, adapter: LocalModelAd
         }
         if (isCancelled(signal)) return failure('cancelled', 'Clue generation cancelled');
         if (!Array.isArray(output) || output.length === 0 || output.length > 4 || !output.every(isClueDraft)) return failure('invalid-model-output', 'The local model returned invalid clue drafts');
+        return success(output);
+      } finally {
+        currentState = 'loaded';
+      }
+    },
+    async composeCluesBatch(request, signal) {
+      if (currentState === 'generating' || currentState === 'unloading') return failure('busy', 'The local model is busy');
+      if (currentState !== 'loaded') return failure('model-not-enabled', 'Load the local model before original construction');
+      if (!isClueBatchRequestValid(request)) return failure('invalid-model-output', 'Clue batch request contains invalid bounded constraints');
+      if (isCancelled(signal)) return failure('cancelled', 'Clue generation cancelled');
+      currentState = 'generating';
+      try {
+        let output: unknown;
+        try {
+          if (adapter.composeCluesBatch) {
+            output = await adapter.composeCluesBatch(request, signal);
+          } else {
+            // Compatibility implementation: the caller gets one logical
+            // operation and one result map even when an older adapter still
+            // needs one completion per item.
+            const fallback: Record<string, readonly ClueDraft[]> = {};
+            for (const item of request.items) {
+              const drafts: unknown = await adapter.composeClues({ answer: item.answer, intendedSense: item.intendedSense }, signal);
+              if (!Array.isArray(drafts) || drafts.length === 0 || drafts.length > 4 || !drafts.every(isClueDraft)) {
+                throw new Error('The local model returned invalid clue drafts');
+              }
+              fallback[item.id] = drafts;
+            }
+            output = fallback;
+          }
+        } catch (error) {
+          if (isCancelled(signal)) return failure('cancelled', 'Clue generation cancelled');
+          return failure('runtime-error', error instanceof Error ? error.message : 'Clue batch generation failed');
+        }
+        if (isCancelled(signal)) return failure('cancelled', 'Clue generation cancelled');
+        if (!isClueBatchResult(output, request)) return failure('invalid-model-output', 'The local model returned an invalid clue batch');
         return success(output);
       } finally {
         currentState = 'loaded';

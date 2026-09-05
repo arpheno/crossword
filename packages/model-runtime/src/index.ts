@@ -7,13 +7,22 @@ export type {
   CandidateRequest,
   CandidateRole,
   CandidateSuggestion,
+  ClueBatchItem,
+  ClueBatchRequest,
+  ClueBatchResult,
   ClueDraft,
   LocalModelAdapter,
   ModelBroker,
   ModelFailureCode,
   ModelManifest,
   ModelShard,
+  ModelProgress,
+  ModelProgressListener,
+  ModelProgressPhase,
   ModelState,
-  RuntimeProbe
+  RuntimeProbe,
+  SpokenAnswerRequest,
+  SpokenAnswerCandidate
 } from './broker';
+export { MAX_CLUE_BATCH_ITEMS, MAX_SPOKEN_TARGET_LENGTH, MIN_SPOKEN_TARGET_LENGTH } from './broker';
 export type { ModelWorkerConfig, ModelWorkerOperation, ModelWorkerRequest, ModelWorkerResponse } from './workerProtocol';

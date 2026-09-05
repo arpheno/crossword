@@ -2,7 +2,9 @@ import type {
   CandidateRequest,
   CandidateSuggestion,
   ClueDraft,
-  LocalModelAdapter
+  LocalModelAdapter,
+  SpokenAnswerRequest,
+  SpokenAnswerCandidate
 } from './broker';
 
 export type FakeLocalModelAdapter = LocalModelAdapter & Readonly<{
@@ -12,6 +14,7 @@ export type FakeLocalModelAdapter = LocalModelAdapter & Readonly<{
 export type FakeLocalModelAdapterOptions = Readonly<{
   suggestions?: readonly CandidateSuggestion[];
   clueDrafts?: readonly ClueDraft[];
+  spokenAnswerSuggestions?: readonly SpokenAnswerCandidate[];
 }>;
 
 /**
@@ -51,6 +54,11 @@ export function createFakeLocalModelAdapter(output: FakeLocalModelAdapterOptions
         role,
         confidence: 0.5
       }));
+    },
+    async resolveSpokenAnswer(request: SpokenAnswerRequest) {
+      requireLoaded();
+      if (output.spokenAnswerSuggestions) return [...output.spokenAnswerSuggestions].slice(0, request.maxSuggestions);
+      return [];
     },
     async composeClues(request) {
       requireLoaded();
