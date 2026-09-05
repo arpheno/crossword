@@ -15,6 +15,7 @@ import { normalizeCrosswordAnswer } from '@crossword/domain';
  * *preference*, never an eligibility rule — eligibility is policy.
  */
 import type { FillCandidate } from './csp';
+import { inventoryCandidateRecords, type LexemeRecord } from './inventory';
 
 export type LexiconProvenanceRecord = Readonly<{
   id: string;
@@ -37,6 +38,8 @@ export type LoadLexiconOptions = Readonly<{
    * preference score; never grants eligibility.
    */
   frequencyPrior?: string;
+  /** Approved semantic inventory records. Review/unresolved records are ignored. */
+  inventoryRecords?: readonly LexemeRecord[];
 }>;
 
 export type Lexicon = Readonly<{
@@ -116,6 +119,10 @@ export function loadLexicon(text: string, options: LoadLexiconOptions = {}): Lex
   const maxLength = options.maxLength ?? 15;
   const words: string[] = [];
   const wordSet = new Set<string>();
+  const candidateByWord = new Map<string, FillCandidate>();
+  const priorBoost = createPrior(options.frequencyPrior);
+  const score = (word: string): number => Math.min(1, stapleScore(word) + priorBoost(word));
+  const inventoryCandidates = inventoryCandidateRecords(options.inventoryRecords ?? []);
   for (const line of text.split('\n')) {
     if (words.length >= (options.limit ?? Number.POSITIVE_INFINITY)) break;
     const word = line.trim().toUpperCase();
@@ -124,11 +131,25 @@ export function loadLexicon(text: string, options: LoadLexiconOptions = {}): Lex
     if (wordSet.has(word)) continue;
     wordSet.add(word);
     words.push(word);
+    candidateByWord.set(word, {
+      word,
+      score: score(word),
+      lexemeId: `web2:${word}`,
+      sourceIds: ['fill-lexicon-v1']
+    });
+  }
+  // Approved inventory records may add phrases/names absent from the lab
+  // surface list. They replace synthetic web2 IDs while retaining the same
+  // surface-level CSP contract and explicit source lineage.
+  for (const candidate of inventoryCandidates) {
+    if (candidate.word.length > maxLength || excluded.has(candidate.word)) continue;
+    if (!wordSet.has(candidate.word)) {
+      wordSet.add(candidate.word);
+      words.push(candidate.word);
+    }
+    candidateByWord.set(candidate.word, candidate);
   }
   if (words.length === 0) throw new Error('Lexicon artifact is empty');
-
-  const priorBoost = createPrior(options.frequencyPrior);
-  const score = (word: string): number => Math.min(1, stapleScore(word) + priorBoost(word));
 
   // Runtime digest is a cheap, deterministic content hash for diagnostics and
   // ledger correlation. The authoritative sha256 is pinned in the artifact
@@ -142,7 +163,8 @@ export function loadLexicon(text: string, options: LoadLexiconOptions = {}): Lex
     else byLength.set(word.length, [word]);
   }
   for (const bucket of byLength.values()) {
-    bucket.sort((left, right) => score(right) - score(left) || left.localeCompare(right));
+    bucket.sort((left, right) => (candidateByWord.get(right)?.score ?? score(right))
+      - (candidateByWord.get(left)?.score ?? score(left)) || left.localeCompare(right));
   }
 
   const provenance: LexiconProvenanceRecord = {
@@ -161,12 +183,7 @@ export function loadLexicon(text: string, options: LoadLexiconOptions = {}): Lex
     resolve(surface) {
       const normalized = normalizeSurface(surface);
       if (!normalized || normalized.length < 3 || normalized.length > maxLength || !wordSet.has(normalized)) return undefined;
-      return {
-        word: normalized,
-        score: score(normalized),
-        lexemeId: `web2:${normalized}`,
-        sourceIds: [provenance.id]
-      };
+      return candidateByWord.get(normalized);
     },
     wordsOfLength(length, limit = 50) {
       return (byLength.get(length) ?? []).slice(0, limit);
