@@ -151,6 +151,10 @@ export function validateLexemeRecord(record: LexemeRecord): readonly string[] {
   }
   if (record.categories.length === 0) errors.push('missing category');
   if (record.sources.length === 0) errors.push('missing source receipt');
+  for (const source of record.sources) {
+    if (!source.sourceId.trim() || !source.sourceVersion.trim() || !source.artifactUrl.trim()) errors.push(`incomplete source receipt ${source.sourceId || '(missing)'}`);
+    if (!/^[a-f0-9]{64}$/i.test(source.artifactSha256)) errors.push(`source ${source.sourceId || '(missing)'} has no pinned sha256`);
+  }
   const senseIds = new Set<string>();
   for (const sense of record.senses) {
     if (!sense.senseId || sense.lexemeId !== record.lexemeId) errors.push(`invalid sense ${sense.senseId || '(missing)'}`);
@@ -187,7 +191,7 @@ export function inventoryCandidateRecords(records: readonly LexemeRecord[]): rea
       word: record.answerForm,
       score: inventoryPreferenceScore(record),
       lexemeId: record.lexemeId,
-      ...(record.senses[0]?.senseId ? { senseId: record.senses[0].senseId } : {}),
+      ...(record.senses.find((sense) => sense.status !== 'unresolved')?.senseId ? { senseId: record.senses.find((sense) => sense.status !== 'unresolved')!.senseId } : {}),
       sourceIds: record.sources.map((source) => source.sourceId)
     }))
     .sort((left, right) => right.score - left.score || left.word.localeCompare(right.word));

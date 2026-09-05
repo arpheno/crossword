@@ -130,6 +130,18 @@ describe('deterministic fill CSP', () => {
     expect(result.status).toBe('failed');
     expect(result.failure?.code).toBe('invalid-request');
     expect(result.failure?.nodes).toBe(0);
+    expect(result.diagnostics?.[0]?.code).toBe('invalid-request');
+  });
+
+  it('reports an empty candidate bag as a domain diagnostic', () => {
+    const result = solveFill({
+      slots: [{ id: 'only', length: 3 }],
+      intersections: [],
+      candidates: []
+    });
+    expect(result.status).toBe('failed');
+    expect(result.failure?.code).toBe('unsatisfiable');
+    expect(result.diagnostics?.[0]).toMatchObject({ code: 'domain-empty', message: 'No eligible candidates remain' });
   });
 
   it('normalizes candidates and drops duplicates, exclusions, and invalid metadata', () => {

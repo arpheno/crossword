@@ -1,12 +1,14 @@
 import { mkdtemp, readFile, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
+import { createHash } from 'node:crypto';
 import { describe, expect, it } from 'vitest';
 import { buildInventory, normalizeSurface } from './build-inventory.mjs';
 
-const source = (id, license) => ({
+const source = (id, license, pinned = true) => ({
   id, name: id, version: 'fixture-1', url: `https://example.test/${id}`,
-  sha256: `${id}-sha`, license, attribution: 'fixture', retrievedAt: '2026-09-05'
+  ...(pinned ? { sha256: createHash('sha256').update(id).digest('hex') } : {}),
+  license, attribution: 'fixture', retrievedAt: '2026-09-05'
 });
 
 describe('inventory build adapter', () => {
@@ -33,5 +35,14 @@ describe('inventory build adapter', () => {
     expect(records.map((record) => record.answerForm)).toEqual(['COLD', 'COLDSNAP', 'CRANE', 'SNAP']);
     expect(records.find((record) => record.answerForm === 'CRANE')).toMatchObject({ eligibility: 'review', signals: { spellingEvidence: 'both' } });
     expect(records.find((record) => record.answerForm === 'CRANE')?.senses[0]).toMatchObject({ gloss: 'A long-necked bird.', status: 'limited' });
+  });
+
+  it('refuses an unpinned source receipt instead of emitting a placeholder hash', async () => {
+    const dir = await mkdtemp(path.join(tmpdir(), 'crossword-inventory-'));
+    const cwl = path.join(dir, 'cwl.dict');
+    await writeFile(cwl, 'crane;80\n');
+    await expect(buildInventory({
+      cwl: { path: cwl, source: source('unpinned', 'MIT', false) }
+    })).rejects.toThrow(/pinned 64-character sha256/);
   });
 });

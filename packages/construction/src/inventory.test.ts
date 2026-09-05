@@ -14,7 +14,7 @@ const source: SourceReceipt = {
   sourceName: 'original fixture',
   sourceVersion: '1',
   artifactUrl: 'https://example.test/fixture',
-  artifactSha256: 'fixture-sha',
+  artifactSha256: 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',
   license: 'PUBLIC-DOMAIN',
   attribution: 'original test data',
   recordLocator: 'fixture:1',
@@ -71,6 +71,16 @@ describe('inventory records', () => {
     expect(candidates).toHaveLength(1);
     expect(candidates[0]).toMatchObject({ word: 'CRANE', lexemeId: 'lex:crane', senseId: 'sense:crane-bird' });
     expect(candidates[0]?.sourceIds).toEqual(['fixture']);
+  });
+
+  it('chooses a grounded sense when an unresolved sense sorts first', () => {
+    const candidates = inventoryCandidateRecords([record({
+      senses: [
+        { ...record().senses[0]!, senseId: 'sense:unresolved', status: 'unresolved', gloss: '' },
+        { ...record().senses[0]!, senseId: 'sense:grounded' }
+      ]
+    })]);
+    expect(candidates[0]?.senseId).toBe('sense:grounded');
   });
 
   it('lets approved inventory records replace synthetic surface IDs in the fill loader', () => {

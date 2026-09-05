@@ -38,12 +38,15 @@ export function sha256(bytes) {
 }
 
 export function sourceReceipt(source, locator = 'file') {
+  if (!/^[a-f0-9]{64}$/i.test(source.sha256 ?? '')) {
+    throw new Error(`Source ${source.id} must provide a pinned 64-character sha256`);
+  }
   return {
     sourceId: source.id,
     sourceName: source.name,
     sourceVersion: source.version,
     artifactUrl: source.url,
-    artifactSha256: source.sha256 ?? 'UNPINNED',
+    artifactSha256: source.sha256,
     license: source.license,
     attribution: source.attribution,
     recordLocator: locator,
@@ -111,6 +114,7 @@ export async function parseCwl(filePath, source, byAnswer) {
     const acc = byAnswer.get(surface.answerForm) ?? emptyAccumulator(surface);
     acc.displayForm = acc.displayForm || surface.displayForm;
     acc.cwlScore = Math.max(acc.cwlScore ?? Number.NEGATIVE_INFINITY, score);
+    acc.spellingEvidence = acc.esdbSize === undefined ? 'cwl' : 'both';
     acc.categories.add(surface.displayForm.includes(' ') ? 'MULTIWORD_PHRASE' : 'STANDARD_WORD');
     addSource(acc, sourceReceipt(source, `line:${lineNumber}`));
     byAnswer.set(surface.answerForm, acc);
