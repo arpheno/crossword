@@ -13,6 +13,7 @@ vi.mock('./workers/modelClient', () => ({ createBrowserModelWorkerClient: create
 type FakeClient = ModelWorkerClient & {
   emitProgress: (event: ModelProgress) => void;
   emitState: (state: ModelState) => void;
+  emitOperation: (event: ModelOperationEvent) => void;
   completeInstall: () => void;
 };
 
@@ -51,6 +52,7 @@ function fakeClient(options: { cached?: boolean; failInstall?: boolean } = {}): 
     dispose: vi.fn(),
     emitProgress: (event) => progressListeners.forEach((listener) => listener(event)),
     emitState: (state) => { currentState = state; stateListeners.forEach((listener) => listener(state)); },
+    emitOperation: (event) => operationListeners.forEach((listener) => listener(event)),
     completeInstall: () => undefined
   };
   return client;
@@ -117,5 +119,29 @@ describe('local model controller', () => {
     expect(controller?.snapshot.phase).toBe('idle');
     expect(controller?.snapshot.cacheStatus).toBe('cached');
     expect(client.unload).toHaveBeenCalled();
+  });
+
+  it('surfaces request-scoped model generation progress and terminal state', async () => {
+    const client = fakeClient();
+    createClient.mockReturnValue(client);
+    await act(async () => { await controller?.inspectCache(); });
+
+    await act(async () => {
+      client.emitOperation({
+        requestId: 'model-1',
+        operation: 'generate-candidates',
+        status: 'running',
+        progress: { phase: 'generating', progress: 0.4, text: 'Generating candidates' }
+      });
+    });
+    expect(controller?.snapshot.phase).toBe('generating');
+    expect(controller?.snapshot.progress).toBe(0.4);
+    expect(controller?.snapshot.detail).toBe('Generating candidates');
+
+    await act(async () => {
+      client.emitOperation({ requestId: 'model-1', operation: 'generate-candidates', status: 'succeeded' });
+    });
+    expect(controller?.snapshot.phase).toBe('ready');
+    expect(controller?.snapshot.progress).toBeNull();
   });
 });

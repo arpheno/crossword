@@ -1,4 +1,4 @@
-import type { CellId, Direction, Entry, PuzzleIndex } from '@crossword/domain';
+import { entrySolveState, type CellId, type Direction, type Entry, type PuzzleIndex } from '@crossword/domain';
 import type { SolveSessionSnapshot } from '@crossword/domain';
 
 type ClueColumnProps = {
@@ -7,15 +7,10 @@ type ClueColumnProps = {
   entries: readonly Entry[];
   index: PuzzleIndex;
   session: SolveSessionSnapshot;
-  incorrectCellIds: readonly CellId[];
-  checkedCellIds: readonly CellId[];
   onSelectEntry: (entry: Entry) => void;
   onSelectPattern: (entry: Entry, position: number) => void;
+  voicePreview?: Readonly<{ entryId: string; answer: string }> | null;
 };
-
-function isEntryCompleted(entry: Entry, session: SolveSessionSnapshot): boolean {
-  return entry.cellIds.length > 0 && entry.cellIds.every((cellId) => Boolean(session.entered[cellId]));
-}
 
 /**
  * Exact replica of the legacy clue column (newapp.html): a wrapped list whose
@@ -29,10 +24,9 @@ export function ClueColumn({
   entries,
   index,
   session,
-  incorrectCellIds,
-  checkedCellIds,
   onSelectEntry,
-  onSelectPattern
+  onSelectPattern,
+  voicePreview
 }: ClueColumnProps) {
   const active = session.selection.direction === direction;
   const activeEntry = index.entriesById.get(session.selection.entryId);
@@ -57,8 +51,6 @@ export function ClueColumn({
     ? 'intersection-cell-across'
     : 'intersection-cell-down';
 
-  const visible = entries.filter((entry) => !isEntryCompleted(entry, session));
-
   return (
     <div
       aria-label={`${label} clues`}
@@ -67,14 +59,20 @@ export function ClueColumn({
       tabIndex={0}
     >
       <ul id={direction}>
-        {visible.map((entry) => {
+        {entries.map((entry) => {
           const highlighted = session.selection.entryId === entry.id;
           const affected = shared.has(entry.id);
           const sharedCells = shared.get(entry.id) ?? [];
+          const solveState = entrySolveState(entry, session);
           return (
             <li
               aria-label={`${entry.number} ${entry.direction}: ${entry.clue}`}
-              className={`${highlighted ? 'highlighted-clue' : ''} ${affected ? 'affected-clue' : ''}`}
+              aria-current={highlighted ? 'true' : undefined}
+              className={`${highlighted ? 'highlighted-clue' : ''} ${affected ? 'affected-clue' : ''} clue-${solveState}`}
+              data-entry-id={entry.id}
+              data-lane={entry.number % 2 === 0 ? 'far' : 'near'}
+              data-solve-state={solveState}
+              key={entry.id}
               onClick={() => onSelectEntry(entry)}
               onKeyDown={(event) => {
                 if (event.key === 'Enter' || event.key === ' ') {
@@ -89,13 +87,20 @@ export function ClueColumn({
                 <div className="state-container">
                   {entry.cellIds.map((cellId, position) => {
                     const char = session.entered[cellId] ?? ' ';
-                    const incorrect = incorrectCellIds.includes(cellId);
-                    const green = checkedCellIds.includes(cellId) && !incorrect;
+                    const empty = char === ' ' || char === '';
+                    const previewLetter = voicePreview?.entryId === entry.id
+                      ? voicePreview.answer[position] ?? ''
+                      : '';
+                    const evaluation = session.checkPresentation.evaluations[cellId];
+                    const evaluationIsCurrent = evaluation?.valueAtEvaluation === (empty ? '' : char);
+                    const checking = session.checkPresentation.mode === 'on';
+                    const incorrect = checking && evaluationIsCurrent && evaluation.state === 'incorrect';
+                    const green = checking && evaluationIsCurrent && (evaluation.state === 'correct' || evaluation.state === 'revealed');
                     const crossing = sharedCells.includes(cellId) ? ` ${intersectionClass}` : '';
                     return (
                       <span
-                        aria-label={`${entry.number} ${entry.direction}, letter ${position + 1}`}
-                        className={`state${crossing}${incorrect ? ' red' : ''}${green ? ' green' : ''}`}
+                        aria-label={`${entry.number} ${entry.direction}, letter ${position + 1}${empty && previewLetter ? `, proposed ${previewLetter}` : ''}`}
+                        className={`state${crossing}${incorrect ? ' red' : ''}${green ? ' green' : ''}${empty && previewLetter ? ' voice-preview-state' : ''}`}
                         key={cellId}
                         onClick={(event) => {
                           event.stopPropagation();
@@ -111,7 +116,7 @@ export function ClueColumn({
                         role="button"
                         tabIndex={0}
                       >
-                        {char === ' ' ? '\u00A0' : char}
+                        {empty ? previewLetter || '\u00A0' : char}
                       </span>
                     );
                   })}

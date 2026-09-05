@@ -8,7 +8,7 @@ const noop = () => undefined;
 
 export function HarnessPage({ fixtureId, mode }: { fixtureId: string | null; mode: HarnessMode }) {
   const fixture = resolveHarnessFixture(fixtureId);
-  const { puzzle, index, session: initialSession, incorrectCellIds } = fixture.build();
+  const { puzzle, index, session: initialSession } = fixture.build();
   const [session, setSession] = useState(initialSession);
   const acrossEntries = puzzle.entries.filter((entry) => entry.direction === 'across');
   const downEntries = puzzle.entries.filter((entry) => entry.direction === 'down');
@@ -26,10 +26,8 @@ export function HarnessPage({ fixtureId, mode }: { fixtureId: string | null; mod
     >
       <div id="notmenu">
         <ClueColumn
-          checkedCellIds={session.checkedCellIds}
           direction="across"
           entries={acrossEntries}
-          incorrectCellIds={incorrectCellIds}
           index={index}
           label="ACROSS"
           onSelectEntry={noop}
@@ -39,12 +37,11 @@ export function HarnessPage({ fixtureId, mode }: { fixtureId: string | null; mod
         <div className="center-column">
           <div id="crossword-container">
             <LegacyGrid
-              checkedCellIds={session.checkedCellIds}
               index={index}
-              incorrectCellIds={incorrectCellIds}
               onClear={noop}
               onEnter={noop}
               onEnterRebus={handleEnterRebus}
+              onFocusCell={noop}
               onMove={noop}
               onSelectCell={noop}
               onToggleDirection={noop}
@@ -54,10 +51,8 @@ export function HarnessPage({ fixtureId, mode }: { fixtureId: string | null; mod
           </div>
         </div>
         <ClueColumn
-          checkedCellIds={session.checkedCellIds}
           direction="down"
           entries={downEntries}
-          incorrectCellIds={incorrectCellIds}
           index={index}
           label="DOWN"
           onSelectEntry={noop}

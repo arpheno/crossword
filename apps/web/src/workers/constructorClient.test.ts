@@ -52,7 +52,7 @@ describe('constructor worker client', () => {
     if (!solve || solve.type !== 'solve') throw new Error('Expected solve request');
 
     worker.emit({ version: 1, type: 'progress', jobId: solve.jobId, progress: { type: 'progress', nodes: 1, assigned: 0, openSlots: 1, bestScore: 0 } });
-    worker.emit({ version: 1, type: 'result', jobId: solve.jobId, result: { status: 'failed', failure: { code: 'unsatisfiable', message: 'no fill', nodes: 1 } } });
+    worker.emit({ version: 1, type: 'result', jobId: solve.jobId, result: { status: 'failed', failure: { code: 'unsatisfiable', message: 'no fill', nodes: 1 }, termination: 'unsatisfiable', terminationReason: 'unsatisfiable', nodesExplored: 1 } });
 
     await expect(promise).resolves.toMatchObject({ status: 'failed' });
     expect(onProgress).toHaveBeenCalledOnce();
@@ -67,7 +67,7 @@ describe('constructor worker client', () => {
     if (!solve || solve.type !== 'solve') throw new Error('Expected solve request');
     controller.abort();
     expect(worker.posted[1]).toEqual({ version: 1, type: 'cancel', jobId: solve.jobId });
-    worker.emit({ version: 1, type: 'result', jobId: solve.jobId, result: { status: 'failed', failure: { code: 'cancelled', message: 'stopped', nodes: 1 } } });
+    worker.emit({ version: 1, type: 'result', jobId: solve.jobId, result: { status: 'failed', failure: { code: 'cancelled', message: 'stopped', nodes: 1 }, termination: 'cancelled', terminationReason: 'cancelled', nodesExplored: 1 } });
     await expect(promise).resolves.toMatchObject({ failure: { code: 'cancelled' } });
 
     const malformed = client.solve(request);

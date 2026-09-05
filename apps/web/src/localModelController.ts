@@ -6,7 +6,7 @@ import type {
   ModelWorkerConfig
 } from '@crossword/model-runtime';
 import { browserRuntimeProbe, localModelManifest } from './modelConfig';
-import { createBrowserModelWorkerClient, type ModelWorkerClient } from './workers/modelClient';
+import { createBrowserModelWorkerClient, type ModelOperationEvent, type ModelWorkerClient } from './workers/modelClient';
 
 export type ModelCacheStatus = 'unknown' | 'checking' | 'not-cached' | 'cached';
 
@@ -94,6 +94,12 @@ function progressForOperation(snapshot: LocalModelSnapshot, progress: ModelProgr
   return progress;
 }
 
+const generationOperations = new Set<ModelOperationEvent['operation']>([
+  'generate-candidates',
+  'resolve-spoken-answer',
+  'compose-clues'
+]);
+
 async function modelConfig(): Promise<ModelWorkerConfig> {
   const estimate = await navigator.storage?.estimate();
   return {
@@ -115,7 +121,28 @@ export function useLocalModelController(): LocalModelController {
 
   const getClient = useCallback(() => {
     if (clientRef.current) return clientRef.current;
-    const next = createBrowserModelWorkerClient();
+    let createdClient: ModelWorkerClient;
+    createdClient = createBrowserModelWorkerClient({
+      onFatal: () => {
+        if (clientRef.current !== createdClient) return;
+        clientRef.current = null;
+        configuredRef.current = false;
+        setClient(null);
+        setSnapshot((current) => ({
+          ...current,
+          brokerState: 'uninstalled',
+          phase: 'error',
+          progress: null,
+          error: {
+            code: 'worker-fatal',
+            message: 'The local model worker stopped unexpectedly.',
+            recovery: 'Retry from Model settings. Your current puzzle is safe.'
+          },
+          detail: 'The local model worker stopped unexpectedly.'
+        }));
+      }
+    });
+    const next = createdClient;
     clientRef.current = next;
     setClient(next);
     next.subscribeProgress((progress) => {
@@ -137,6 +164,49 @@ export function useLocalModelController(): LocalModelController {
         phase: state === 'loaded' && !['generating', 'unloading', 'deleting-cache'].includes(current.phase) ? 'ready' : current.phase,
         detail: state === 'loaded' && current.phase === 'ready' ? 'Ready for local construction and voice solving.' : current.detail
       }));
+    });
+    next.subscribeOperations((event) => {
+      if (!generationOperations.has(event.operation)) return;
+      setSnapshot((current) => {
+        if (event.status === 'running') {
+          return {
+            ...current,
+            phase: 'generating',
+            progress: event.progress?.progress ?? null,
+            detail: event.progress?.text ?? 'Local model is working…',
+            error: null
+          };
+        }
+        if (event.status === 'succeeded') {
+          return {
+            ...current,
+            brokerState: 'loaded',
+            phase: 'ready',
+            progress: null,
+            detail: 'Ready for local construction and voice solving.',
+            error: null
+          };
+        }
+        if (event.status === 'cancelled') {
+          const message = event.error?.message ?? 'Local model operation canceled.';
+          return {
+            ...current,
+            phase: 'cancelled',
+            progress: null,
+            detail: message,
+            error: { code: 'cancelled', message, recovery: recoveryFor('cancelled') }
+          };
+        }
+        const message = event.error?.message ?? 'Local model operation failed.';
+        const code = event.error?.code ?? 'runtime-error';
+        return {
+          ...current,
+          phase: 'error',
+          progress: null,
+          detail: message,
+          error: { code, message, recovery: recoveryFor(code) }
+        };
+      });
     });
     return next;
   }, []);

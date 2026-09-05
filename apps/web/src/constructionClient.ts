@@ -5,7 +5,7 @@
  * from the app's own origin only.
  */
 import { loadLexicon, type Lexicon } from '@crossword/construction';
-import { constructPuzzle, type ConstructResult } from '@crossword/application';
+import { constructPuzzle, type ConstructResult, type ConstructionProgressListener } from '@crossword/application';
 import type { DayRecipe } from '@crossword/application';
 import { browserRuntimeProbe } from './modelConfig';
 import type { ModelWorkerClient } from './workers/modelClient';
@@ -15,20 +15,22 @@ export type ConstructionClient = Readonly<{
   /** True when the lexicon artifacts are loaded and ready. */
   ready: () => boolean;
   /** Runs one construction; fails typed when the model is not enabled. */
-  run: (request: { seed: string; day: string }, signal?: AbortSignal) => Promise<ConstructResult>;
+  run: (
+    request: { seed: string; day: string },
+    options?: { signal?: AbortSignal; onProgress?: ConstructionProgressListener }
+  ) => Promise<ConstructResult>;
 }>;
 
 export async function loadConstructionAssets(baseUrl = ''): Promise<Lexicon> {
-  const [lexiconText, priorText] = await Promise.all([
-    fetch(`${baseUrl}/data/fill-lexicon-v1.txt`).then((response) => {
-      if (!response.ok) throw new Error(`Lexicon artifact unavailable (${response.status})`);
-      return response.text();
-    }),
-    fetch(`${baseUrl}/data/freq-prior-v1.txt`)
-      .then((response) => (response.ok ? response.text() : ''))
-      .catch(() => '')
-  ]);
-  return loadLexicon(lexiconText, { frequencyPrior: priorText || undefined });
+  // The browser receives only the approved construction lexicon. The former
+  // frequency-prior asset was derived from a private provider corpus and must
+  // remain laboratory-only; keeping it out of this fetch path also makes the
+  // public artifact boundary enforceable by inspection.
+  const lexiconText = await fetch(`${baseUrl}/data/fill-lexicon-v1.txt`).then((response) => {
+    if (!response.ok) throw new Error(`Lexicon artifact unavailable (${response.status})`);
+    return response.text();
+  });
+  return loadLexicon(lexiconText);
 }
 
 export function createConstructionClient(
@@ -40,7 +42,7 @@ export function createConstructionClient(
 ): ConstructionClient {
   return {
     ready: () => lexicon.wordCount > 0,
-    async run(request, signal) {
+    async run(request, options = {}) {
       return constructPuzzle(
         {
           state: modelClient.state,
@@ -48,11 +50,14 @@ export function createConstructionClient(
           install: (installSignal) => modelClient.install(installSignal),
           load: (loadSignal) => modelClient.load(loadSignal),
           generateCandidates: (candidateRequest, candidateSignal) => modelClient.generateCandidates(candidateRequest, candidateSignal),
+          resolveSpokenAnswer: (spokenAnswerRequest, spokenAnswerSignal) => modelClient.resolveSpokenAnswer(spokenAnswerRequest, spokenAnswerSignal),
           composeClues: (clueRequest, clueSignal) => modelClient.composeClues(clueRequest, clueSignal),
-          unload: () => modelClient.unload()
+          unload: () => modelClient.unload(),
+          inspectCache: () => modelClient.inspectCache(),
+          deleteCache: (deleteSignal) => modelClient.deleteCache(deleteSignal)
         },
         {
-          solve: (fillRequest, options) => constructorClient.solve(fillRequest, options)
+          solve: (fillRequest, fillOptions) => constructorClient.solve(fillRequest, fillOptions)
         },
         {
           recipe: recipeByDay[request.day]!,
@@ -60,7 +65,8 @@ export function createConstructionClient(
           lexicon,
           modelId
         },
-        signal
+        options.signal,
+        options.onProgress
       );
     }
   };

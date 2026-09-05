@@ -6,14 +6,15 @@ type LegacyGridProps = {
   puzzle: PuzzleDocument;
   index: PuzzleIndex;
   session: SolveSessionSnapshot;
-  incorrectCellIds: readonly CellId[];
-  checkedCellIds: readonly CellId[];
-  onSelectCell: (cellId: CellId) => void;
+  onSelectCell: (cellId: CellId, toggleIfSelected?: boolean) => void;
+  onFocusCell: (cellId: CellId) => void;
   onEnter: (letter: string) => void;
   onEnterRebus: (token: string) => void;
   onClear: () => void;
   onMove: (key: 'ArrowUp' | 'ArrowDown' | 'ArrowLeft' | 'ArrowRight') => void;
   onToggleDirection: () => void;
+  disabled?: boolean;
+  voicePreview?: Readonly<{ entryId: string; answer: string }> | null;
 };
 
 /**
@@ -25,14 +26,15 @@ export function LegacyGrid({
   puzzle,
   index,
   session,
-  incorrectCellIds,
-  checkedCellIds,
   onSelectCell,
+  onFocusCell,
   onEnter,
   onEnterRebus,
   onClear,
   onMove,
-  onToggleDirection
+  onToggleDirection,
+  disabled = false,
+  voicePreview
 }: LegacyGridProps) {
   const numbersByCellId = new Map<CellId, string>();
   const solutionByCellId = new Map<CellId, string>();
@@ -113,8 +115,14 @@ export function LegacyGrid({
               const letter = session.entered[cell.id] ?? '';
               const highlighted = activeCellIds.has(cell.id);
               const selected = session.selection.cellId === cell.id;
-              const incorrect = incorrectCellIds.includes(cell.id);
-              const green = checkedCellIds.includes(cell.id) && !incorrect;
+              const previewLetter = voicePreview && activeEntry && voicePreview.entryId === activeEntry.id
+                ? voicePreview.answer[activeEntry.cellIds.indexOf(cell.id) ?? -1] ?? ''
+                : '';
+              const evaluation = session.checkPresentation.evaluations[cell.id];
+              const evaluationIsCurrent = evaluation?.valueAtEvaluation === letter;
+              const checking = session.checkPresentation.mode === 'on';
+              const incorrect = checking && evaluationIsCurrent && evaluation.state === 'incorrect';
+              const green = checking && evaluationIsCurrent && (evaluation.state === 'correct' || evaluation.state === 'revealed');
               const inputClasses = [
                 incorrect ? 'red' : '',
                 green ? 'green' : '',
@@ -123,7 +131,8 @@ export function LegacyGrid({
               const stateClasses = [
                 cell.shaded ? 'shaded' : '',
                 cell.circled ? 'circled' : '',
-                cell.rebus !== undefined ? 'rebus' : ''
+                cell.rebus !== undefined ? 'rebus' : '',
+                previewLetter && !letter ? 'voice-preview-cell' : ''
               ].filter(Boolean).join(' ');
               return (
                 <div
@@ -132,12 +141,13 @@ export function LegacyGrid({
                 >
                   <span className="clue-index">{numbersByCellId.get(cell.id) ?? ''}</span>
                   <input
-                    aria-label={`${numbersByCellId.get(cell.id) ? `${numbersByCellId.get(cell.id)}, ` : ''}row ${cell.row + 1}, column ${cell.column + 1}${letter ? `, ${letter}` : ', empty'}${selected ? ', selected' : ''}`}
+                    aria-label={`${numbersByCellId.get(cell.id) ? `${numbersByCellId.get(cell.id)}, ` : ''}row ${cell.row + 1}, column ${cell.column + 1}${letter ? `, ${letter}` : previewLetter ? `, proposed ${previewLetter}` : ', empty'}${selected ? ', selected' : ''}`}
                     className={inputClasses}
                     data-cell={cell.column}
                     data-cell-id={cell.id as string}
                     data-row={cell.row}
                     data-solution={solutionByCellId.get(cell.id) ?? ''}
+                    disabled={disabled}
                     maxLength={cell.rebus !== undefined ? 10 : 1}
                     onContextMenu={(event) => {
                       if (cell.rebus === undefined) return;
@@ -155,15 +165,20 @@ export function LegacyGrid({
                       const text = event.clipboardData.getData('text').replace(/[^A-Za-z]/g, '').toUpperCase();
                       if (!text) return;
                       event.preventDefault();
-                      for (const ch of text) onEnter(ch);
+                      onEnter(text);
                     }}
-                    onClick={() => onSelectCell(cell.id as CellId)}
-                    onFocus={() => onSelectCell(cell.id as CellId)}
+                    onMouseDown={(event) => {
+                      onSelectCell(cell.id as CellId, document.activeElement === event.currentTarget);
+                    }}
+                    onFocus={() => onFocusCell(cell.id as CellId)}
                     onKeyDown={(event) => handleKeyDown(event as ReactKeyboardEvent<HTMLInputElement>, cell)}
                     readOnly={false}
                     type="text"
                     value={letter}
                   />
+                  {previewLetter && !letter && (
+                    <span aria-hidden="true" className="voice-preview-letter">{previewLetter}</span>
+                  )}
                   {cell.rebus !== undefined && (
                     <span className="rebus-indicator">{cell.rebus.length}</span>
                   )}
