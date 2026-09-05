@@ -8,7 +8,8 @@ export type {
   FillRequest,
   FillResult,
   FillSlot,
-  FillSolution
+  FillSolution,
+  FillTermination
 } from './csp';
 export {
   DEFAULT_MIN_ENTRY_LENGTH,
