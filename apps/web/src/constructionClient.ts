@@ -1,5 +1,5 @@
 /**
- * Browser construction client: loads the lab lexicon and frequency prior,
+ * Browser construction client: loads the public construction lexicon,
  * adapts the worker clients to the constructPuzzle ports, and runs the
  * end-to-end construction pipeline. All data is local; asset fetches come
  * from the app's own origin only.
