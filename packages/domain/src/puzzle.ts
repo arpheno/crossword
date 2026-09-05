@@ -31,6 +31,21 @@ export type GenerationReceipt = Readonly<{
   solverVersion: string;
   generatedAt: string;
   restartCount: number;
+  /**
+   * Deterministic fill evidence carried into the published manifest
+   * (CI-P0-2, ADR 0009). Optional so existing manifests stay valid.
+   */
+  fill?: Readonly<{
+    attempt: number;
+    seed: string;
+    terminationReason: string;
+    provenOptimal: boolean;
+    nodesExplored: number;
+    bestBound: number | null;
+    gap: number | null;
+    incumbentScore: number | null;
+    elapsedMs: number;
+  }>;
 }>;
 
 export type QualityReport = Readonly<{
@@ -96,6 +111,15 @@ export type PuzzleDocument = Readonly<{
 }>;
 
 export type PuzzleManifest = PuzzleDocument;
+
+export function normalizeCrosswordAnswer(value: string): string {
+  return value.toUpperCase().replace(/[^A-Z]/g, '');
+}
+
+export function isSupportedCrosswordAnswer(value: string): boolean {
+  const normalized = value.trim().toUpperCase().replace(/[\u2018\u2019]/g, "'");
+  return /^[A-Z]+(?:[\s'-]+[A-Z]+)*$/.test(normalized);
+}
 
 export type PuzzleIndex = Readonly<{
   cellsById: ReadonlyMap<CellId, Cell>;
@@ -182,6 +206,13 @@ export function validatePuzzle(value: unknown): value is PuzzleDocument {
   if (!isRecord(value.provenance) || !isPuzzleSource(value.provenance.source) || !isNonEmptyString(value.provenance.recipeId) || !Array.isArray(value.provenance.records)) return false;
   const generation = value.generation;
   if (!isRecord(generation) || !isNonEmptyString(generation.modelId) || !isNonEmptyString(generation.promptVersion) || !isNonEmptyString(generation.lexiconVersion) || !isNonEmptyString(generation.solverVersion) || !isNonEmptyString(generation.generatedAt) || typeof generation.restartCount !== 'number' || !Number.isInteger(generation.restartCount) || generation.restartCount < 0) return false;
+  if (generation.fill !== undefined) {
+    const fill = generation.fill as Record<string, unknown>;
+    if (!isRecord(generation.fill) || !isNonEmptyString(fill.terminationReason) || typeof fill.provenOptimal !== 'boolean' || typeof fill.nodesExplored !== 'number' || !Number.isInteger(fill.nodesExplored) || fill.nodesExplored < 0 || typeof fill.elapsedMs !== 'number' || !Number.isFinite(fill.elapsedMs) || fill.elapsedMs < 0 || typeof fill.attempt !== 'number' || !Number.isInteger(fill.attempt) || fill.attempt < 0 || !isNonEmptyString(fill.seed)) return false;
+    if (fill.bestBound !== null && typeof fill.bestBound !== 'number') return false;
+    if (fill.gap !== null && typeof fill.gap !== 'number') return false;
+    if (fill.incumbentScore !== null && typeof fill.incumbentScore !== 'number') return false;
+  }
   if (!isRecord(value.quality) || typeof value.quality.score !== 'number' || !Number.isFinite(value.quality.score) || !isRecord(value.quality.thresholds) || !Array.isArray(value.quality.validators) || !value.quality.validators.every(isNonEmptyString)) return false;
   if (!isRecord(value.integrity) || value.integrity.algorithm !== 'sha256' || !isNonEmptyString(value.integrity.value)) return false;
   if (!isRecord(value.topology) || value.topology.width !== value.width || value.topology.height !== value.height) return false;
