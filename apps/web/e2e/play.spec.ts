@@ -22,6 +22,23 @@ test.describe('play journeys (legacy replica)', () => {
     expect(letters).toEqual(['A', 'B', 'A', 'B']);
   });
 
+  test('pasting a word advances through the selected entry', async ({ page }) => {
+    await openSolver(page);
+    const firstCell = gridCell(page, 'real-cell-0-0');
+    await firstCell.click();
+    await firstCell.evaluate((input) => {
+      const data = new DataTransfer();
+      data.setData('text/plain', 'CARE');
+      input.dispatchEvent(new ClipboardEvent('paste', { bubbles: true, clipboardData: data }));
+    });
+
+    const letters = await page.evaluate(() => {
+      const row = [...document.querySelectorAll('#crossword-container .grid-row')][0];
+      return [...row.querySelectorAll('input')].slice(0, 4).map((input) => (input as HTMLInputElement).value);
+    });
+    expect(letters).toEqual(['C', 'A', 'R', 'E']);
+  });
+
   test('arrows move within the direction and switch direction at the family edge', async ({ page }) => {
     await page.setViewportSize({ width: 1136, height: 900 });
     await openSolver(page);
@@ -51,6 +68,40 @@ test.describe('play journeys (legacy replica)', () => {
     await expect(gridCell(page, 'real-cell-0-1')).toBeFocused();
   });
 
+  test('clicking a Down clue yields an authoritative Down selection (no Across overwrite)', async ({ page }) => {
+    await page.setViewportSize({ width: 1440, height: 900 });
+    await openSolver(page);
+
+    // audit-required regression: focus fired by the clue click must not
+    // reinterpret the clicked direction. Start Across, then click a Down
+    // entry whose first cell is a different crossing.
+    await page.locator('#across li').first().click();
+    await page.locator('#down li').nth(1).click();
+    await page.waitForTimeout(150);
+    await page.keyboard.type('CA', { delay: 40 });
+
+    const column = await page.evaluate(() => {
+      const cellIds = ['real-cell-0-1', 'real-cell-1-1'];
+      return cellIds.map((id) => {
+        const input = document.querySelector<HTMLInputElement>(`#crossword-container input[data-cell-id="${id}"]`);
+        return input?.value ?? '';
+      });
+    });
+    expect(column).toEqual(['C', 'A']);
+  });
+
+  test('clicking an Across clue after Down keeps the Across direction', async ({ page }) => {
+    await page.setViewportSize({ width: 1440, height: 900 });
+    await openSolver(page);
+
+    await page.locator('#down li').nth(1).click();
+    await page.locator('#across li').first().click();
+    await page.keyboard.type('CA', { delay: 40 });
+    await expect(gridCell(page, 'real-cell-0-0')).toHaveValue('C');
+    await expect(gridCell(page, 'real-cell-0-1')).toHaveValue('A');
+    await expect(page.locator('body')).toHaveAttribute('data-active-direction', 'across');
+  });
+
   test('grid cell numbers never repeat the same figure (no 17/17)', async ({ page }) => {
     await page.setViewportSize({ width: 1440, height: 900 });
     await openSolver(page);
@@ -68,7 +119,7 @@ test.describe('play journeys (legacy replica)', () => {
     await page.setViewportSize({ width: 1136, height: 900 });
     await openSolver(page);
 
-    await page.locator('#complete-button').click();
+    await page.locator('[title="Solved puzzles"]').click();
     const dialog = page.locator('.modal-content[role="dialog"]');
     await expect(dialog).toBeVisible();
     await expect(dialog).toHaveAttribute('aria-modal', 'true');
@@ -79,18 +130,25 @@ test.describe('play journeys (legacy replica)', () => {
     await expect(page.locator('.modal-content[role="dialog"]')).toHaveCount(0);
   });
 
+  test('incomplete Complete reports remaining work without recording a solve', async ({ page }) => {
+    await openSolver(page);
+    await page.locator('#complete-button').click();
+    await expect(page.getByRole('status')).toContainText('Complete every cell correctly');
+    await expect(page.locator('.modal-content[role="dialog"]')).toHaveCount(0);
+  });
+
   test('night mode toggle flips the color scheme and persists across reload', async ({ page }) => {
     await page.setViewportSize({ width: 1136, height: 900 });
     await openSolver(page);
 
-    await page.locator('.theme-switch input').evaluate((el) => (el as HTMLInputElement).click());
+    await page.locator('input[aria-label="Toggle dark mode"]').evaluate((el) => (el as HTMLInputElement).click());
     await expect(page.locator('html')).toHaveCSS('color-scheme', 'dark');
 
     await page.reload();
     await page.waitForSelector('#crossword-container');
     await expect(page.locator('html')).toHaveCSS('color-scheme', 'dark');
 
-    await page.locator('.theme-switch input').evaluate((el) => (el as HTMLInputElement).click());
+    await page.locator('input[aria-label="Toggle dark mode"]').evaluate((el) => (el as HTMLInputElement).click());
     await expect(page.locator('html')).toHaveCSS('color-scheme', 'light');
   });
 });

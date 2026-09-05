@@ -37,7 +37,7 @@ test.describe('visual baselines (legacy replica)', () => {
   test('night mode', async ({ page }) => {
     await page.setViewportSize({ width: 1440, height: 900 });
     await openSolver(page);
-    await page.locator('.theme-switch input').evaluate((el) => (el as HTMLInputElement).click());
+    await page.locator('input[aria-label="Toggle dark mode"]').evaluate((el) => (el as HTMLInputElement).click());
     await page.waitForTimeout(200);
     await shot(page, 'panorama-1440-night.png');
   });

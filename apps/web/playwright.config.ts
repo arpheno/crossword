@@ -1,6 +1,7 @@
 import { defineConfig } from '@playwright/test';
 
 const isCI = Boolean(process.env.CI);
+const includeAllBrowsers = process.env.ALL_BROWSERS === '1';
 
 // Browser-journey and paint-regression suite (docs/plans/06 §17 Luna 5).
 // Chromium downloads into the repo-local .browsers directory:
@@ -31,12 +32,10 @@ export default defineConfig({
       use: { browserName: 'chromium' }
     },
     // opt-in: ALL_BROWSERS=1 npm run e2e (requires firefox/webkit installs)
-    ...(process.env.ALL_BROWSERS
-      ? [
-          { name: 'firefox', use: { browserName: 'firefox' } },
-          { name: 'webkit', use: { browserName: 'webkit' } }
-        ]
-      : [])
+    ...(includeAllBrowsers ? [
+      { name: 'firefox', use: { browserName: 'firefox' as const } },
+      { name: 'webkit', use: { browserName: 'webkit' as const } }
+    ] : [])
   ],
   webServer: {
     command: 'npm run dev -- --port 5173 --strictPort',
