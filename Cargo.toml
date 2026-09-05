@@ -1,0 +1,6 @@
+[workspace]
+resolver = "2"
+members = [
+  "crates/crossword-fill-core",
+  "crates/crossword-fill-wasm",
+]
