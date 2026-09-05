@@ -16,7 +16,9 @@ The first bounded spike is now present behind the TypeScript worker boundary:
   `Engine`/`Solve` handles through `wasm-bindgen` using camelCase wire fields.
 - `packages/construction/src/engines` contains the TypeScript reference adapter
   and a guarded Wasm adapter; the construction worker still defaults to the
-  TypeScript engine and can fall back without changing puzzle/session data.
+  TypeScript engine. Wasm failure/teardown behavior is covered at the adapter
+  boundary, but runtime Wasm selection remains intentionally disabled until the
+  promotion evidence exists.
 
 Native Rust tests, warnings-denied Clippy, the wasm target check, construction
 tests, web tests, the production web build, content scan, coverage, Playwright,

@@ -33,7 +33,35 @@ and no hidden cloud-inference fallback.
    AI evals, security, content/legal scans, CI, and exact-artifact promotion.
 6. [Execution backlog](05_EXECUTION_BACKLOG.md) — bounded work packages,
    sequencing, acceptance evidence, and the first ten pull requests.
-
+7. [Design-language refresh](06_DESIGN_LANGUAGE_REFRESH.md) — the canonical
+   spatial, interaction, state, accessibility, and visual contracts for the
+   signature grid-and-clue-spine solver.
+8. [Design-language intensification](07_DESIGN_LANGUAGE_INTENSIFICATION.md) —
+   the screenshot-grounded art direction, CSS migration sequence, quality
+   budgets, and parallel implementation packages that sharpen those contracts
+   without redesigning the product.
+9. [Solver interaction contract](09_SOLVER_INTERACTION_CONTRACT.md) — the
+   normative selection, checking, correction, scoring, clue-lifecycle, spine,
+   completion, persistence, and accessibility state machines recovered from
+   the legacy/remake comparison and current owner decisions.
+10. [Solver parity remediation handoff](10_SOLVER_PARITY_REMEDIATION_HANDOFF.md)
+    — the ordered, non-overlapping implementation packages, red tests,
+    mutation targets, and review gates for restoring the solver contract.
+11. [Full-review remediation handoff](11_FULL_REVIEW_REMEDIATION_HANDOFF.md) —
+    the cross-cutting implementation ordering, ownership boundaries, and
+    closure-evidence protocol for the latest review findings.
+12. [Rust/Wasm construction engine](12_RUST_WASM_CONSTRUCTION_ENGINE.md) — the
+    evidence-gated dual-engine plan, mathematical contract, benchmark matrix,
+    and bounded Luna assignments for the grid-fill search kernel.
+13. [Meaningful personalization and precomputed clue
+   catalog](13_MEANINGFUL_PERSONALIZATION_AND_CLUE_CATALOG.md) — the
+   sense-level learner model, broad-and-delightful puzzle-slate policy,
+   ahead-of-time clue factory, catalog-first runtime, evidence gates, and
+   bounded Luna assignments.
+14. [Specialized crossword model training](14_SPECIALIZED_CROSSWORD_MODEL_TRAINING.md)
+    — the data, objective, evaluation, and deployment guardrails for a future
+    specialized local model; training is not a prerequisite for the current
+    construction slice.
 These documents are contracts, not independent wish lists. A change that alters
 a product invariant, public data format, source/license policy, AI requirement,
 or dependency direction gets an ADR and updates the relevant plan in the same
@@ -54,8 +82,10 @@ change.
   HTTP inference servers such as Ollama are out of scope (ADR 0002).
 - Inference and fill run in dedicated workers; the model is unloaded during
   play after the local queue is prepared.
-- Start with a TypeScript bitset CSP and a Python reference oracle. Rust/WASM
-  requires benchmark evidence.
+- Keep the TypeScript bitset CSP as the reference/fallback and begin a bounded
+  Rust/Wasm construction-kernel spike. Promotion requires the differential,
+  quality, performance, memory, bundle, browser, and energy evidence defined in
+  plan 12; player solving and application orchestration stay TypeScript.
 - Start with curated 15x15 topology templates. Generated topology and Sunday
   21x21 are later gates.
 - User modeling is composite, named, local, inspectable, editable, exportable,
