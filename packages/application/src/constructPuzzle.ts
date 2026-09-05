@@ -82,6 +82,15 @@ const SOLVER_VERSION = 'csp-mac-1';
 const PROMPT_VERSION = 'candidates-v1';
 const MAX_TARGET_LENGTHS = 8;
 
+/** Select the clue grounding key without inventing a dictionary sense. */
+export function intendedSenseForCandidate(
+  word: string,
+  candidate?: Pick<FillCandidate, 'senseId'>,
+  suggestedSense?: string
+): string {
+  return candidate?.senseId || suggestedSense?.trim() || `surface:${word}:unresolved`;
+}
+
 /** Numeric seed from an arbitrary string, stable across calls. */
 export function numericSeed(seed: string): number {
   let hash = 2166136261;
@@ -315,7 +324,11 @@ export async function constructPuzzle(
     const runtimeClueNeeds: RuntimeClueNeed[] = [];
     for (const entry of topology.entries) {
       const word = words[entry.id]!;
-      const intendedSense = suggestionByWord.get(word)?.intendedSense ?? `web2:${word}`;
+      const intendedSense = intendedSenseForCandidate(
+        word,
+        fillResult.solution.assignments[entry.id],
+        suggestionByWord.get(word)?.intendedSense
+      );
       const catalogDrafts = request.clueCatalog?.lookup(word, intendedSense) ?? [];
       if (request.clueCatalog && !clueLadderNeedsRuntime(catalogDrafts)) {
         clueVariants[entry.id] = [...catalogDrafts];

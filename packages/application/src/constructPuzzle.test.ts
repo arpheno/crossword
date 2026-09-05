@@ -6,7 +6,7 @@ import { describe, expect, it } from 'vitest';
 import { loadLexicon, solveFill, type FillRequest, type Lexicon } from '@crossword/construction';
 import { createRealPuzzle } from '@crossword/domain';
 import { createFakeLocalModelAdapter, type ModelBroker } from '@crossword/model-runtime';
-import { constructPuzzle } from './constructPuzzle';
+import { constructPuzzle, intendedSenseForCandidate } from './constructPuzzle';
 import { DAY_RECIPES } from './recipes';
 
 const CLUE_DRAFTS = [
@@ -81,6 +81,13 @@ function fixtureRecipe() {
 }
 
 describe('constructPuzzle end to end (fake model, lab lexicon)', () => {
+  it('prefers reviewed candidate senses and marks unresolved surfaces explicitly', () => {
+    expect(intendedSenseForCandidate('CRANE', { senseId: 'sense:crane-bird' })).toBe('sense:crane-bird');
+    expect(intendedSenseForCandidate('CRANE', { senseId: 'sense:crane-bird' }, 'model:crane')).toBe('sense:crane-bird');
+    expect(intendedSenseForCandidate('CRANE', undefined, 'model:crane')).toBe('model:crane');
+    expect(intendedSenseForCandidate('CRANE')).toBe('surface:CRANE:unresolved');
+  });
+
   it('publishes a valid, integrity-pinned manifest through the whole pipeline', async () => {
     const lexicon = fixtureLexicon();
     const progress: string[] = [];

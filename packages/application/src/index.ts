@@ -8,7 +8,7 @@ export type {
 	OriginalConstructionRequest,
 	OriginalConstructionResult
 } from './constructionUseCases';
-export { constructPuzzle, numericSeed } from './constructPuzzle';
+export { constructPuzzle, intendedSenseForCandidate, numericSeed } from './constructPuzzle';
 export type {
 	ConstructResult,
 	ConstructFailure,
