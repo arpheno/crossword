@@ -1,6 +1,7 @@
 export { solveFill, solveFillAsync } from './csp';
 export type {
   FillCandidate,
+  FillDiagnostic,
   FillFailureCode,
   FillIntersection,
   FillOptions,
@@ -44,6 +45,28 @@ export type {
 } from './adaptive';
 export type { QualityComponents, QualityInputs, QualityScore } from './quality';
 export type { Lexicon, LexiconProvenanceRecord, LoadLexiconOptions } from './lexicon';
+export {
+  INVENTORY_SCHEMA_VERSION,
+  inventoryCandidateRecords,
+  isPublishableLexeme,
+  normalizeInventorySurface,
+  validateLexemeRecord
+} from './inventory';
+export type {
+  EditorialDecision,
+  FactAssertion,
+  InventoryArtifact,
+  InventoryCategory,
+  InventoryEligibility,
+  InventorySignals,
+  LexemeRecord,
+  LexicalRelation,
+  NormalizedInventorySurface,
+  SemanticStatus,
+  SenseRecord,
+  SourceLicense,
+  SourceReceipt
+} from './inventory';
 export { curatedTemplateBank, templateById } from './templateBank';
 export type { TopologyTemplate } from './templateBank';
 export type { ConstructorWorkerRequest, ConstructorWorkerResponse } from './workerProtocol';

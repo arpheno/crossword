@@ -33,5 +33,82 @@
     "requiredBefore": "public distribution of local-crossword-001 or any derived lexicon artifact",
     "reason": "The preferred source repository does not state a license or attribution terms.",
     "candidateFamilies": ["WordNet", "Wikidata", "Wiktionary", "SCOWL"]
+  },
+  "inventorySourceDecisions": {
+    "status": "engineering-candidate-review-required",
+    "policyVersion": "lexicon-inventory-v1",
+    "sources": [
+      {
+        "id": "crossword-nexus-cwl",
+        "family": "scored-crossword-lexicon",
+        "version": "b51b2ad6876c1dc3f9df212e1ed8535fc9e4770a",
+        "retrievedAt": "2026-09-05",
+        "url": "https://raw.githubusercontent.com/Crossword-Nexus/collaborative-word-list/b51b2ad6876c1dc3f9df212e1ed8535fc9e4770a/xwordlist.dict",
+        "sha256": "a945a839a5f1e6f48caf9c8de446e5cd85f3567d7f62afcf54c6b738e8906ff4",
+        "spdx": "MIT",
+        "attribution": "Copyright (c) 2021 Crossword-Nexus",
+        "transformation": "Parse word;score rows, preserve raw score, normalize supported alphabetic forms, deduplicate by maximum score.",
+        "distribution": "Candidate input; public bundle requires the source notice and a separate owner release decision.",
+        "observed": { "bytes": 8301868, "records": 567657, "asciiLength3to15": 509173, "scoreAtLeast50Length3to15": 230500 },
+        "lastWordlistEdit": "2023-02-12"
+      },
+      {
+        "id": "english-speller-database",
+        "family": "orthographic-and-morphological-evidence",
+        "version": "v2-pinned-revision-required",
+        "retrievedAt": null,
+        "url": "https://github.com/en-wl/wordlist",
+        "spdx": "LicenseRef-ESDB-CUSTOM",
+        "attribution": "Kevin Atkinson and contributors; 12dicts/ENABLE2K and other notices as applicable",
+        "transformation": "American spelling selection at size 60; preserve source membership and variant/POS metadata.",
+        "distribution": "Candidate input; exact revision and applicable Copyright notices must be recorded before export.",
+        "notes": "Do not describe the complete database as BSD-3-Clause. Richer exports may include additional source notices."
+      },
+      {
+        "id": "wordfreq",
+        "family": "dated-familiarity-feature",
+        "version": "3.0.2",
+        "retrievedAt": null,
+        "url": "https://github.com/rspeer/wordfreq",
+        "spdx": "Apache-2.0-plus-data-notices",
+        "attribution": "Robyn Speer; SUBTLEX authors; included upstream data notices",
+        "transformation": "Lookup token/display forms and preserve nullable Zipf estimate; never use as eligibility.",
+        "distribution": "Optional build feature; data reflects usage through approximately 2021 and requires NOTICE attribution."
+      },
+      {
+        "id": "wiktextract-kaikki-english",
+        "family": "semantic-senses",
+        "version": "enwiktionary-2026-08-05",
+        "retrievedAt": null,
+        "url": "https://kaikki.org/dictionary/rawdata.html",
+        "spdx": "CC-BY-SA-4.0-plus-GFDL",
+        "attribution": "Wiktionary contributors; Tatu Ylonen/Wiktextract",
+        "transformation": "Stream English JSONL, retain gloss/POS/tags/form relations and optional QIDs; exclude quotations/media from the first export.",
+        "distribution": "Candidate input; pin the raw artifact hash and provide applicable attribution/share-alike materials before redistribution.",
+        "notes": "The postprocessed English download is marked deprecated; current raw download is substantially larger than 3 GB uncompressed."
+      },
+      {
+        "id": "wikidata-structured-data",
+        "family": "entity-facts",
+        "version": "snapshot-required",
+        "retrievedAt": null,
+        "url": "https://www.wikidata.org/wiki/Wikidata:Licensing",
+        "spdx": "CC0-1.0",
+        "attribution": "Wikidata project (attribution retained for traceability)",
+        "transformation": "Resolve selected QIDs and retain statement/revision/qualifier/reference metadata; do not ingest the complete dump for the first slice.",
+        "distribution": "Candidate input; facts require their own correctness/review state."
+      },
+      {
+        "id": "spread-the-wordlist",
+        "family": "scored-crossword-lexicon",
+        "version": "site-version-required",
+        "retrievedAt": null,
+        "url": "https://www.spreadthewordlist.com/",
+        "spdx": "CC-BY-NC-SA-4.0",
+        "attribution": "Brooke Husic and Enrique Henestroza Anguiano",
+        "transformation": "None approved for the bundled foundation.",
+        "distribution": "Excluded from the default bundle under current project policy; any private/local experiment requires a separate use decision and attribution."
+      }
+    ]
   }
 }

@@ -40,6 +40,8 @@
         "test:mutation": "stryker run",
         "data:build-lexicon": "node scripts/build-fill-lexicon.mjs",
         "data:build-freq-prior": "node scripts/build-freq-prior.mjs",
+        "data:build-inventory": "node tools/lexicon/build-inventory.mjs",
+        "data:verify-ledger": "node tools/lexicon/verify-source-ledger.mjs",
         "data:sync": "mkdir -p apps/web/public/data && cp packages/construction/data/fill-lexicon-v1.txt apps/web/public/data/",
         "topology:extract": "python3 scripts/extract-nyt-topology.py",
         "topology:judge": "node scripts/judge-nyt-templates.mjs",

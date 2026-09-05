@@ -71,6 +71,14 @@ export type FillSolution = Readonly<{
 
 export type FillTermination = 'exhausted' | 'satisfied' | 'cancelled' | 'node-limit' | 'unsatisfiable';
 
+export type FillDiagnostic = Readonly<{
+  code: 'domain-empty' | 'no-candidates-for-length' | 'invalid-request';
+  slotId?: string;
+  length?: number;
+  pattern?: string;
+  message: string;
+}>;
+
 export type FillResult = Readonly<{
   status: 'solved' | 'failed';
   solution?: FillSolution;
@@ -95,11 +103,14 @@ export type FillResult = Readonly<{
   bestBound?: number;
   /** Additive score gap between `bestBound` and the incumbent, when available. */
   gap?: number;
+  /** Actionable search evidence for review tooling and failed-fill triage. */
+  diagnostics?: readonly FillDiagnostic[];
 }>;
 
 export type FillOptions = Readonly<{
   signal?: AbortSignal;
   onProgress?: (progress: FillProgress) => void;
+  onDiagnostic?: (diagnostic: FillDiagnostic) => void;
 }>;
 
 type Bits = Uint32Array;
@@ -377,7 +388,24 @@ type SearchState = {
   satisfied: boolean;
   best: FillSolution | undefined;
   bestScore: number;
+  diagnostics: FillDiagnostic[];
 };
+
+function diagnosticForFailure(failure: NonNullable<FillResult['failure']>): FillDiagnostic {
+  return {
+    code: failure.message.includes('No candidates of length') ? 'no-candidates-for-length' : failure.code === 'invalid-request' ? 'invalid-request' : 'domain-empty',
+    message: failure.message
+  };
+}
+
+function recordDiagnostic(state: SearchState, diagnostic: FillDiagnostic): void {
+  const duplicate = state.diagnostics.some((existing) => existing.code === diagnostic.code && existing.slotId === diagnostic.slotId && existing.message === diagnostic.message);
+  if (!duplicate) state.diagnostics.push(diagnostic);
+}
+
+function emitDiagnostics(options: FillOptions, diagnostics: readonly FillDiagnostic[]): void {
+  for (const diagnostic of diagnostics) options.onDiagnostic?.(diagnostic);
+}
 
 function popcount(value: number): number {
   let count = value;
@@ -442,7 +470,17 @@ function propagateFrom(index: IndexedRequest, state: SearchState, seeds: readonl
   while (queue.length > 0) {
     const slotIndex = queue.shift()!;
     queued[slotIndex] = 0;
-    if (state.sizes[slotIndex] === 0) return false;
+    if (state.sizes[slotIndex] === 0) {
+      const emptySlot = index.slots[slotIndex]!;
+      recordDiagnostic(state, {
+        code: 'domain-empty',
+        slotId: emptySlot.id,
+        length: emptySlot.length,
+        pattern: emptySlot.pattern,
+        message: `Slot ${emptySlot.id} has no candidates after applying its pattern and crossings`
+      });
+      return false;
+    }
     const slot = index.slots[slotIndex]!;
     for (const intersection of index.intersectionsBySlot[slotIndex]!) {
       const isLeft = intersection.left === slotIndex;
@@ -461,7 +499,17 @@ function propagateFrom(index: IndexedRequest, state: SearchState, seeds: readonl
           changed = true;
         }
       }
-      if (state.sizes[otherSlotIndex] === 0) return false;
+      if (state.sizes[otherSlotIndex] === 0) {
+        const emptySlot = index.slots[otherSlotIndex]!;
+        recordDiagnostic(state, {
+          code: 'domain-empty',
+          slotId: emptySlot.id,
+          length: emptySlot.length,
+          pattern: emptySlot.pattern,
+          message: `Crossing from ${index.slots[slotIndex]!.id} leaves slot ${emptySlot.id} with no candidates`
+        });
+        return false;
+      }
       if (changed && !queued[otherSlotIndex]) {
         queued[otherSlotIndex] = 1;
         queue.push(otherSlotIndex);
@@ -617,7 +665,7 @@ function* searchGenerator(
 function buildInitialState(
   index: IndexedRequest,
   request: FillRequest
-): SearchState | { failure: FillResult['failure'] } {
+): SearchState | { failure: FillResult['failure']; diagnostics?: readonly FillDiagnostic[] } {
   const domains: Bits[] = [];
   for (const slot of request.slots) {
     const lengthClass = index.lengthClasses.get(slot.length)!;
@@ -660,11 +708,15 @@ function buildInitialState(
     overBudget: false,
     satisfied: false,
     best: undefined,
-    bestScore: Number.NEGATIVE_INFINITY
+    bestScore: Number.NEGATIVE_INFINITY,
+    diagnostics: []
   };
   const allSlots = request.slots.map((_, slotIndex) => slotIndex);
   if (!propagateFrom(index, state, allSlots)) {
-    return { failure: { code: 'unsatisfiable', message: 'Initial crossing constraints have no solution', nodes: state.nodes } };
+    return {
+      failure: { code: 'unsatisfiable', message: 'Initial crossing constraints have no solution', nodes: state.nodes },
+      diagnostics: state.diagnostics
+    };
   }
   return state;
 }
@@ -678,22 +730,28 @@ function failureFor(state: SearchState, nodes: number): FillResult['failure'] {
 export function solveFill(request: FillRequest, options: FillOptions = {}): FillResult {
   const indexed = createIndex(request);
   if ('failure' in indexed) {
+    const diagnostics = [diagnosticForFailure(indexed.failure!)];
+    emitDiagnostics(options, diagnostics);
     return {
       status: 'failed',
       failure: indexed.failure!,
       termination: 'unsatisfiable',
       terminationReason: 'unsatisfiable',
-      nodesExplored: indexed.failure!.nodes
+      nodesExplored: indexed.failure!.nodes,
+      diagnostics
     };
   }
   const initial = buildInitialState(indexed, request);
   if ('failure' in initial) {
+    const diagnostics = initial.diagnostics ?? [diagnosticForFailure(initial.failure!)];
+    emitDiagnostics(options, diagnostics);
     return {
       status: 'failed',
       failure: initial.failure!,
       termination: 'unsatisfiable',
       terminationReason: 'unsatisfiable',
-      nodesExplored: initial.failure!.nodes
+      nodesExplored: initial.failure!.nodes,
+      diagnostics
     };
   }
   const state = initial;
@@ -717,6 +775,7 @@ export function solveFill(request: FillRequest, options: FillOptions = {}): Fill
     const bestBound = termination === 'exhausted' || termination === 'satisfied'
       ? state.bestScore
       : remainingScoreUpperBound(indexed, state) + state.score;
+    emitDiagnostics(options, state.diagnostics);
     return {
       status: 'solved',
       solution: state.best,
@@ -725,16 +784,19 @@ export function solveFill(request: FillRequest, options: FillOptions = {}): Fill
       provenOptimal: termination === 'exhausted',
       nodesExplored: state.nodes,
       bestBound,
-      gap: Math.max(0, bestBound - state.bestScore)
+      gap: Math.max(0, bestBound - state.bestScore),
+      ...(state.diagnostics.length > 0 ? { diagnostics: state.diagnostics } : {})
     };
   }
   const termination = state.cancelled ? 'cancelled' : state.overBudget ? 'node-limit' : 'unsatisfiable';
+  emitDiagnostics(options, state.diagnostics);
   return {
     status: 'failed',
     failure: failureFor(state, state.nodes),
     termination,
     terminationReason: termination,
-    nodesExplored: state.nodes
+    nodesExplored: state.nodes,
+    ...(state.diagnostics.length > 0 ? { diagnostics: state.diagnostics } : {})
   };
 }
 
@@ -748,22 +810,28 @@ function yieldToHost(): Promise<void> {
 export async function solveFillAsync(request: FillRequest, options: FillOptions = {}): Promise<FillResult> {
   const indexed = createIndex(request);
   if ('failure' in indexed) {
+    const diagnostics = [diagnosticForFailure(indexed.failure!)];
+    emitDiagnostics(options, diagnostics);
     return {
       status: 'failed',
       failure: indexed.failure!,
       termination: 'unsatisfiable',
       terminationReason: 'unsatisfiable',
-      nodesExplored: indexed.failure!.nodes
+      nodesExplored: indexed.failure!.nodes,
+      diagnostics
     };
   }
   const initial = buildInitialState(indexed, request);
   if ('failure' in initial) {
+    const diagnostics = initial.diagnostics ?? [diagnosticForFailure(initial.failure!)];
+    emitDiagnostics(options, diagnostics);
     return {
       status: 'failed',
       failure: initial.failure!,
       termination: 'unsatisfiable',
       terminationReason: 'unsatisfiable',
-      nodesExplored: initial.failure!.nodes
+      nodesExplored: initial.failure!.nodes,
+      diagnostics
     };
   }
   const state = initial;
@@ -790,6 +858,7 @@ export async function solveFillAsync(request: FillRequest, options: FillOptions 
     const bestBound = termination === 'exhausted' || termination === 'satisfied'
       ? state.bestScore
       : remainingScoreUpperBound(indexed, state) + state.score;
+    emitDiagnostics(options, state.diagnostics);
     return {
       status: 'solved',
       solution: state.best,
@@ -798,15 +867,18 @@ export async function solveFillAsync(request: FillRequest, options: FillOptions 
       provenOptimal: termination === 'exhausted',
       nodesExplored: state.nodes,
       bestBound,
-      gap: Math.max(0, bestBound - state.bestScore)
+      gap: Math.max(0, bestBound - state.bestScore),
+      ...(state.diagnostics.length > 0 ? { diagnostics: state.diagnostics } : {})
     };
   }
   const termination = state.cancelled ? 'cancelled' : state.overBudget ? 'node-limit' : 'unsatisfiable';
+  emitDiagnostics(options, state.diagnostics);
   return {
     status: 'failed',
     failure: failureFor(state, state.nodes),
     termination,
     terminationReason: termination,
-    nodesExplored: state.nodes
+    nodesExplored: state.nodes,
+    ...(state.diagnostics.length > 0 ? { diagnostics: state.diagnostics } : {})
   };
 }

@@ -7,6 +7,7 @@ import {
   type LexemeRecord,
   type SourceReceipt
 } from './inventory';
+import { loadLexicon } from './lexicon';
 
 const source: SourceReceipt = {
   sourceId: 'fixture',
@@ -70,5 +71,12 @@ describe('inventory records', () => {
     expect(candidates).toHaveLength(1);
     expect(candidates[0]).toMatchObject({ word: 'CRANE', lexemeId: 'lex:crane', senseId: 'sense:crane-bird' });
     expect(candidates[0]?.sourceIds).toEqual(['fixture']);
+  });
+
+  it('lets approved inventory records replace synthetic surface IDs in the fill loader', () => {
+    const lexicon = loadLexicon('ACE\n', { inventoryRecords: [record()] });
+    expect(lexicon.wordCount).toBe(2);
+    expect(lexicon.resolve('CRANE')).toMatchObject({ lexemeId: 'lex:crane', senseId: 'sense:crane-bird' });
+    expect(lexicon.resolve('ACE')?.lexemeId).toBe('web2:ACE');
   });
 });

@@ -178,12 +178,28 @@ describe('deterministic fill CSP', () => {
     });
     expect(unsatisfiable.status).toBe('failed');
     expect(unsatisfiable.failure?.code).toBe('unsatisfiable');
+    expect(unsatisfiable.diagnostics?.some((diagnostic) => diagnostic.code === 'domain-empty' && diagnostic.slotId === 'right')).toBe(true);
 
     const controller = new AbortController();
     controller.abort();
     const cancelled = solveFill(crossingRequest(), { signal: controller.signal });
     expect(cancelled.status).toBe('failed');
     expect(cancelled.failure?.code).toBe('cancelled');
+  });
+
+  it('surfaces actionable diagnostics through the result and callback', () => {
+    const seen: string[] = [];
+    const result = solveFill({
+      slots: [{ id: 'four', length: 4 }],
+      intersections: [],
+      candidates: [candidate('CAT', 1)]
+    }, {
+      onDiagnostic: (diagnostic) => seen.push(diagnostic.code)
+    });
+
+    expect(result.status).toBe('failed');
+    expect(result.diagnostics?.[0]?.code).toBe('no-candidates-for-length');
+    expect(seen).toEqual(['no-candidates-for-length']);
   });
 
   it('emits bounded progress and honors a node budget', () => {
