@@ -20,6 +20,7 @@ describe('service-worker precache manifest (PO-P0-2)', () => {
     expect(urls).toContain('/index.html');
     expect(urls).toContain('/manifest.webmanifest');
     expect(urls).toContain('/data/fill-lexicon-v1.txt');
+    expect(urls).not.toContain('/data/freq-prior-v1.txt');
     expect(new Set(urls).size).toBe(urls.length);
   });
 

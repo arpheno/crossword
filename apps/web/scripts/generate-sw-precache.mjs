@@ -16,7 +16,7 @@ const distDir = process.argv[2] ?? 'dist';
  */
 export function buildPrecacheUrls(manifest, boot = {}) {
   const index = boot.index ?? '/index.html';
-  const extras = boot.extras ?? ['/manifest.webmanifest', '/data/fill-lexicon-v1.txt', '/data/freq-prior-v1.txt'];
+  const extras = boot.extras ?? ['/manifest.webmanifest', '/data/fill-lexicon-v1.txt'];
   const urls = new Set(['/', index, ...extras]);
   if (manifest && typeof manifest === 'object') {
     for (const [key, record] of Object.entries(manifest)) {
