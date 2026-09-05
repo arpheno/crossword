@@ -21,6 +21,17 @@ notes).
 
 ## Processed so far
 
+- `VOICE_MODE_REVIEW_2026-09-04.md` — critical product/architecture and
+  plan-to-code review of command-first voice solving, preview/commit UX,
+  parsing, stale async state, microphone/model lifecycle, local LLM placement,
+  privacy, accessibility, tests, and agent work packages.
+- `SOLVER_PARITY_POST_CHANGE_REVIEW_2026-09-04.md` — delta review of the
+  concurrent solver fix attempt; records verified-empty reload corruption,
+  Clear incorrect green empties, paste regression, split state, and current
+  build/test evidence.
+- `LEGACY_VS_REMAKE_FEATURE_AUDIT.md` — full behavioral parity audit of the
+  Vue legacy solver and React remake, including running-browser reproductions,
+  a capability ledger, and links to the normative remediation artifacts.
 - `UI_AND_INTERACTION_REVIEW.md` — pass 1 addressed 2026-09-03 (see its
   Status update section; remaining open items listed there).
 - `GENERATION_AND_TESTING_REVIEW.md` — generation items belong to the

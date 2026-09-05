@@ -276,3 +276,43 @@ Commit: see `git log` after this file's date; branch v2, pushed.
 Open (not yet addressed): roving-focus composite for clue rows, focus
 containment/restoration in modals, CSS governance/tokenization slices,
 paint-budget trace, generation progress surfaces (generation agent).
+
+## Second-pass integration addendum — `v2@4b137c0` + dirty work
+
+The Construct control is now present and model-gated, so the earlier “no UI path” generation finding is closed. The experience is still a blocking button plus a generic status message:
+
+- `handleConstruct` creates no retained `AbortController`, exposes no Cancel action, and passes no progress callback;
+- candidate generation, fill, serial clue calls, validation, and retry attempts are not distinguishable in the UI;
+- the constructor-worker client supports progress/cancellation/disposal, but the application adapter drops progress and `App` disposes only the model client, not the constructor worker;
+- install/load likewise creates throwaway abort signals, so the user cannot cancel a large model download/load;
+- one date-derived seed is reused for every construction that day, without showing the seed/attempt or letting the user request a deliberate variant;
+- the real broker currently rejects every weekday's 9-length candidate request before inference, so the visible path needs a real-broker browser integration test before UX polish can be considered verified.
+
+The final `make test` run is green, but both App and harness component suites emit a duplicate-key warning. `ClueColumn` maps visible entries to `<li>` elements without `key={entry.id}`. After repair, make unexpected React console warnings fail tests.
+
+The production build still emits an approximately 6.03 MB WebLLM worker chunk **and** an approximately 6.04 MB main `index` chunk, plus the normal ~276 KB UI chunk. Verify that WebLLM is not duplicated/eagerly pulled into the main page before calling the frontend-only delivery budget acceptable.
+
+UI priority remains: preserve the concentric solving surface, but give construction an honest staged job surface—download/load progress, candidate/core selection, fill attempt and quality, clue drafting, Cancel, typed failure, retry/variant, and retention of the current playable puzzle throughout.
+
+## Current implementation checkpoint — 2026-09-05
+
+The second-pass paragraph above records the state before the latest integration
+slice. It is superseded for the items listed below:
+
+- construction now propagates staged progress through the application adapter,
+  retains an `AbortController`, exposes Cancel, uses a deliberate per-run
+  variant seed, and disposes the constructor worker on unmount;
+- model operation events are consumed by the controller, so candidate/clue
+  operations return the UI to a truthful Ready state and worker-fatal recovery
+  can rebuild a fresh client;
+- hydration gates grid editing, restores the last published local-construction
+  puzzle by durable ID, and the PWA update event now has an accessible save-and-
+  refresh path;
+- the actual Chromium gate is green: `npm run e2e:ci` passes 39 journeys, and
+  `npm --workspace @crossword/web run test` passes 78 tests.
+
+Still intentionally release-gated: manual screen-reader/focus-trap review,
+real WebGPU and microphone hardware evidence, reduced-motion/forced-colors
+manual verification, stable cross-platform visual baselines, and a measured
+paint/energy trace. Those require named environments or owner decisions and are
+not represented as passing from deterministic fixtures alone.

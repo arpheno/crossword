@@ -131,4 +131,12 @@ Run the visual baseline lane and opt-in hardware smoke separately when their pre
 
 ## Closure evidence
 
-Open.
+Implementation checkpoint 2026-09-05: the App integration now gates editing on
+hydration, restores durable local-construction puzzles by ID, consumes model
+operation telemetry, exposes cancellable construction progress, disposes both
+worker families, and presents a save-before-refresh service-worker update path.
+The current web unit suite, build, and 39-journey Chromium gate pass.
+
+Still open by design: owner decisions around conflict UX and release/model/legal
+policies, plus manual focus-trap, screen-reader, hardware WebGPU/microphone,
+cross-platform visual, and cold-install upgrade evidence.

@@ -228,3 +228,11 @@ DECISION REQUIRED (PO-P1-2 full policy): conflict detection (newest-revision-win
 Still open for Increment 6 (App integrator): PO-P0-3 hydration gate UI, PO-P1-7 puzzle library reopen, PO-P1-8 update-ready UI consuming `crossword-sw-update` with pending-write flush, PO-P1-9 construction-offline readiness receipt, legacy localStorage solved-day migration, archive preview/merge/replace UI. Cold-first-install and old-to-new upgrade Playwright journeys remain to be authored against the settled worker.
 
 Verification: `npm --workspace @crossword/persistence run test` — 26 passed; `npm --workspace @crossword/web run test` — 77 passed; `npm run web:build` (with precache injection) — green; pre-commit full gate passed for commits `05c3f7e` (persistence) and `eb4fa9f` (PWA).
+
+### App integration checkpoint — 2026-09-05
+
+The current App now gates editing until hydration completes, reopens the last
+durably published local-construction puzzle by ID, and consumes the service-
+worker update event with a save-before-refresh action. Full cold-install,
+upgrade, multi-tab conflict, and archive-preview journeys remain separate
+release evidence or owner-policy work.

@@ -197,3 +197,11 @@ Still open:
 - RS-P1-8 archive-replacement preview UI — Increment 6.
 
 Verification: `node scripts/scan-forbidden-content.mjs` — source 147 files/0 violations/4 exempt, release 12 files/0 violations/0 exempt, self-test pass; `npm run web:build` — green; `npm --workspace @crossword/model-runtime run test` — 43 passed; full pre-commit gate passed for commit `61849c5`.
+
+### Release CI checkpoint — 2026-09-05
+
+The workflow now covers both `master` and `v2`, builds the release-mode web
+artifact, scans that artifact with the release scope, and generates the
+dependency SBOM. The SBOM still records the owner-reserved model/license gap;
+deployment headers, project license, and production source approvals remain
+decision-required as documented in ADR 0007.

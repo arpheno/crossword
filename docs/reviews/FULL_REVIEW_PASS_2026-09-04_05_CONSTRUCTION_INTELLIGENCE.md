@@ -204,4 +204,14 @@ Green tests are necessary but not sufficient. Attach the benchmark configuration
 
 ## Closure evidence
 
-Open.
+Implementation checkpoint 2026-09-05: the current construction slice now
+records fill termination/bound/incumbent telemetry in the generation manifest,
+pages model candidate lengths to the real broker limit, applies model and
+learner preferences only after lexicon eligibility, and enforces the poor-entry
+budget during search. `make test`, the production web build, content scan,
+Playwright QA, and the configured construction mutation floor pass.
+
+Still open by design: the legal benchmark corpus, independent oracle/differential
+runner, A/B/C/D performance report, real browser Wasm smoke, and human editorial
+calibration. Those are required before a Wasm promotion or day-graduation claim;
+they are not safe to invent from the current fake/local fixtures.

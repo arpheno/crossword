@@ -244,3 +244,12 @@ Deliberate test-contract changes mandated by the ADR (not weakenings): `broker.e
 Still open for Increment 6 (App/settings integrator): controller/UI consumption of `subscribeOperations` (RTO-P0-1 acceptance — no permanent `generating` after success, cached/resident/busy/failed/unavailable distinctions), fresh-client rebuild on `onFatal`, and estimate labeling. `subscribeProgress` remains as a deprecated bridge until that migration.
 
 Verification: `npm --workspace @crossword/model-runtime run test` — 41 passed; `npm --workspace @crossword/web run test` — 68 passed; `npm run web:build` — green; full pre-commit gate (make test, build, content scan, coverage, Playwright) passed for commits `8a32e52` and `bc56978`.
+
+### App integration checkpoint — 2026-09-05
+
+The previously open controller/UI items are now implemented in the working
+tree: `useLocalModelController` consumes request-scoped generation events and
+rebuilds after a fatal worker; construction receives staged progress and
+cancellation; and the App shows distinct loading, ready, canceled, and error
+states. Real WebGPU initialization and device-matrix evidence remain an
+explicit promotion gate.

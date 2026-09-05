@@ -1,7 +1,7 @@
 # Generation and Testing Review
 
 **Review state:** Second-pass review — current delta is authoritative; older findings retained as an audit trail
-**Review snapshots:** first pass at `v2@ccd3450`; construction re-audited at `v2@3ea7d72`; application/UI re-audited after `HEAD` advanced to `v2@7d13f08`; active uncommitted work observed on 2026-09-03
+**Review snapshots:** first pass at `v2@ccd3450`; construction re-audited at `v2@3ea7d72`; application/UI re-audited across `v2@7d13f08`–`4b137c0`; active uncommitted work observed on 2026-09-03
 **Audience:** Agents implementing generation, model integration, content pipelines, quality gates, and tests
 
 > **Moving-tree rule:** use the “Second-pass delta” and final evidence log for current status. Detailed first-pass findings below explain why changes were requested, but some are now closed. Re-run the named command at the commit being reviewed before closing any gate.
@@ -12,22 +12,25 @@ The scale bug in `qualityThreshold`, the missing application orchestration, cand
 
 The remaining generation risk has moved from **plumbing** to **mathematical objective correctness and editorial evidence**. The companion [mathematical/state-of-the-art review](./GENERATION_ALGORITHMS_STATE_OF_ART.md) is the controlling design document for solver work. Its most important current findings are:
 
-1. **P0 — the search objective and publish predicate disagree.** The CSP maximizes a sum of (optionally learner-blended) candidate scores; the application evaluates a different normalized score only after search. For a fixed topology, that normalized score is a topology constant plus `0.28/n` times the number of words at or above the `0.45` glue cutoff. The current search can reject its incumbent without directly searching for an assignment that passes the gate.
-2. **P1 — all-different deletions break the claimed MAC invariant.** Assigning a word deletes it from all same-length domains, but changed domains are not queued for crossing propagation. Validity remains protected at completion; propagation/MRV information becomes stale and contradictions are delayed.
-3. **P1 — bounded search hides termination quality.** If the node limit is hit after an incumbent exists, the API returns `solved` with neither `provenOptimal`, final nodes, bound, gap, nor termination reason.
-4. **P1 — personalization is a static rank perturbation.** The implementation ignores stored difficulty, always assumes zero filled crossing letters, approximates surprisal from lexicon score, and has no semantic diversity or across-puzzle exposure constraint.
-5. **P1 — clue generation remains serial and ungrounded.** One model call is made per answer using synthetic `web2:${word}` sense text. The recipe clue mix, verifiable facts/senses, global clue diversity, and calibrated difficulty are not supplied to generation or enforced afterward.
-6. **P1 — theme locks remain an eligibility exception.** Model-suggested locked words can enter even when absent from the lexicon. That may be a legitimate editorial escape hatch, but it requires a separate source/sense/fact validation contract.
-7. **P0 (current dirty tree) — the required test command is red.** On the latest live check, a temporary Vitest alias points at the concurrently removed `src/keydebug-jsx.tsx`, so three web suites fail resolving `react/jsx-dev-runtime`. Build, scan, and fill perf pass. Remove the temporary hunter/alias together or commit both coherently.
+1. **P0 — every real browser construction request currently violates the broker contract.** Each Monday–Saturday recipe unions to 9 target lengths (`3,4,5,6,7,9,10,11,15`); `MAX_TARGET_LENGTHS` is 8. The application fake broker does not enforce this, so tests pass while the real broker rejects before inference.
+2. **P0 — on non-theme days, the mandatory model bag has zero effect on fill.** Suggested surfaces are resolved back to ordinary lexicon candidates, the entire lexicon is then added, and the CSP re-sorts by lexicon/learner score plus seed. Model order, confidence, role, associations, and intended sense are discarded. Out-of-lexicon suggestions are discarded. Only theme locks consume suggestions, and those bypass lexicon eligibility.
+3. **P0 — the search objective and publish predicate disagree.** The CSP maximizes a sum of (optionally learner-blended) candidate scores; the application evaluates a different normalized score only after search. For a fixed topology, that normalized score is a topology constant plus `0.28/n` times the number of words at or above the `0.45` glue cutoff. The current search can reject its incumbent without directly searching for an assignment that passes the gate.
+4. **P1 — all-different deletions break the claimed MAC invariant.** Assigning a word deletes it from all same-length domains, but changed domains are not queued for crossing propagation. Validity remains protected at completion; propagation/MRV information becomes stale and contradictions are delayed.
+5. **P1 — bounded search hides termination quality.** If the node limit is hit after an incumbent exists, the API returns `solved` with neither `provenOptimal`, final nodes, bound, gap, nor termination reason.
+6. **P1 — personalization is a static rank perturbation and is not supplied by the browser client.** The implementation ignores stored difficulty, always assumes zero filled crossing letters, approximates surprisal from lexicon score, and has no semantic diversity or across-puzzle exposure constraint. `createConstructionClient.run` does not pass a learner profile.
+7. **P1 — clue generation remains serial and ungrounded.** One model call is made per answer using synthetic `web2:${word}` sense text. `clueMix` is unused; manifest assembly always prefers a `standard` variant and ignores stored difficulty for primary-clue selection.
+8. **P1 — theme locks remain an eligibility exception.** Model-suggested locked words can enter even when absent from the lexicon. That may be a legitimate editorial escape hatch, but it requires a separate source/sense/fact validation contract.
+9. **P2 — the required test command is green but not warning-clean.** A transient concurrent Vitest alias failure was removed before the final run. `make test` now passes, but App and harness suites emit React's duplicate-key warning from `ClueColumn`. Make console errors/warnings fail component tests after repairing the key defect.
 
 ### Current implementation order
 
-1. Restore a green, stable required test command and freeze a review commit.
-2. Repair all-different propagation and add solver termination/optimality telemetry.
-3. Replace the post-hoc scalar gate with incremental hard editorial constraints and lexicographic/Pareto objectives.
-4. Build a fixed artifact/seed benchmark corpus and ablate DFS against tiered expansion/ILDS, partial-state reuse, and conflict-directed search.
-5. Introduce first-class sense/fact records, batched clue ladders, and clue judges.
-6. Move from static candidate blending to puzzle-sequence personalization with diversity/exploration constraints and calibrated replay evaluation.
+1. Freeze a review commit and make the green required test command warning-clean.
+2. Make every day pass through the real broker contract in tests and give validated model semantics an explicit, bounded role in ordinary fill.
+3. Repair all-different propagation and add solver termination/optimality telemetry.
+4. Replace the post-hoc scalar gate with incremental hard editorial constraints and lexicographic/Pareto objectives.
+5. Build a fixed artifact/seed benchmark corpus and ablate DFS against tiered expansion/ILDS, partial-state reuse, and conflict-directed search.
+6. Introduce first-class sense/fact records, batched clue ladders, clue-assignment policy, and clue judges.
+7. Move from static candidate blending to puzzle-sequence personalization with diversity/exploration constraints and calibrated replay evaluation.
 
 ## Outcome we are reviewing for
 
@@ -131,7 +134,9 @@ Recommended lanes:
 - `test:mutation` — focused high-value packages on a scheduled or pre-release lane;
 - `test:perf` — fixed machine/profile or relative regression budgets.
 
-## Verified source findings (2026-09-03 pass 1)
+## Historical source findings (2026-09-03 pass 1)
+
+> This section preserves the first-pass evidence and line references for auditability. Several defects described in the present tense were subsequently closed; do not use these headings as current status. The authoritative status is the second-pass delta and evidence log above/below.
 
 ### P0 — The declared quality gate and the enforced threshold are different quantities
 
@@ -243,24 +248,19 @@ The production web build succeeds, but emits roughly 6.0MB for `modelWorker`, an
 
 | Evidence | Result |
 |---|---|
-| P0 quality-gate fix | CLOSED 2026-09-03: `minimumAssignmentScore` is the raw CSP sum bound; `recipe.qualityThreshold` now gates the normalized `scoreFill` result before clue generation. Regression: `packages/application/src/constructPuzzle.test.ts` "rejects a fill whose editorial score misses the recipe bar" |
-| P1 deleted feasibility test | CLOSED 2026-09-03: reconciled as `scripts/fill-perf-gate.mjs` (`npm run test:perf`, exits non-zero on failure/regression) plus the judge gate; commit history records the reconciliation |
-| P1 template-bank invariants | CLOSED 2026-09-03: `topology.test.ts` iterates `curatedTemplateBank()` and asserts every mask passes `validateTopologyMask` |
-| P1 topology tooling | CLOSED 2026-09-03: `design-topology-bank.mjs` `as` ReferenceError fixed; `judge-nyt-templates.mjs` applies THRESHOLD, records `editorialScore`, sets day `gate: pass/fail`, exits non-zero on gate failure |
-| P1 construction typecheck | CLOSED 2026-09-03: `csp.edge.test.ts` type errors fixed; `npm --workspace @crossword/construction run build` passes |
-| P1 UI wiring | CLOSED 2026-09-03: App.tsx menu row has Construct day selector + button (honest day list via `constructableDays()`); constructed originals publish to the local puzzle queue; App component test covers the control. Real-model browser E2E still open (needs WebGPU runner) |
-| Perf evidence | 2026-09-03: per-length local index classes cut real-mask fill 16-26x (65s->2.5s, 22s->1.4s, 50s->2.4s) with identical node counts/scores; judge confirms Monday 40/40 and Tuesday 40/40 sampled archive masks solve; mutation score 73.78 (>= 70 break) |
-| OPEN bug report (UI owner) | `apps/web/e2e/highlights.spec.ts` "rotated field marks render at legacy scale" fails: expects fontSize 240px/opacity 0.45 — spec+CSS are staged by the UI agent; blocking web-slice commits until resolved. NOT owned by generation |
-| Git snapshot and working-tree inventory | Recorded 2026-09-03; review target includes substantial uncommitted work |
-| Source audit | In progress |
-| Web TypeScript/Vite build | PASS; 66 modules; two approximately 6MB model-worker assets observed |
-| Web unit/component tests | PASS; 6 files / 16 tests, but emits a warning for every controlled grid input without `onChange` |
-| Content scan | **FAIL**; unexempted legacy-route literal in `apps/web/e2e/workflow.spec.ts:52` |
-| Workspace unit/property/integration tests | PASS at observed snapshot: 25 files / 109 tests; application fake-model vertical test took ~8.2s |
-| Construction package typecheck | **FAIL**; 3 errors in `src/csp.edge.test.ts` |
-| Mutation report | Existing/current report inspected: 650 CSP mutants; ~73.4% detected overall; 152 survived, 21 no coverage |
-| Browser/E2E run | Not run yet |
-| Production bundle provenance check | Not run yet |
+| Snapshot | `HEAD` moved from `3ea7d72` through `7d13f08` to `4b137c0` during this review; dirty-tree inventory recorded 2026-09-03. Results below belong to that moving snapshot, not an immutable release candidate |
+| Closed first-pass defects | Threshold units/gate, the old hard-coded `3..10` target-length request, UI construction wiring, template-bank invariant test, construction typecheck, scanner exemption, and perf/tooling gates are present through `7d13f08`. The replacement target-length union exposes the separate broker-limit failure below |
+| Real broker/day contract | **FAIL by inspection + executable topology probe**. Every Monday–Saturday recipe yields 9 target lengths; broker permits at most 8. Add a real-broker/fake-adapter integration test for all `constructableDays()` |
+| Model influence trace | **FAIL for ordinary days**. Resolving suggestions plus loading the full lexicon produces the same CSP candidates and sorting as loading the lexicon alone; suggestion semantics/confidence/role are not consumed when `themeLocks = 0` |
+| `make test` final rerun | **PASS** at `4b137c0` + dirty work: Python 76 passed/3 deselected; legacy Jest 11; web 18; domain 19; persistence 8; application 15; construction 42; model-runtime 19. App/harness tests still emit duplicate-key warnings from `ClueColumn` |
+| Application test cost | The three end-to-end construction tests consumed ~21.5 s of the ~28 s required test run; classify/optimize fixtures before multiplying this matrix |
+| Production web build | **PASS**, 68 modules. Build emits both an approximately 6.03 MB `llmEngineWorker` chunk and an approximately 6.04 MB main `index` chunk, plus a 276 KB UI chunk; investigate WebLLM duplication/lazy-boundary correctness |
+| Content scan | **PASS**, 130 files, 0 violations, 6 reviewed exemptions (including built output and the legacy continuity adapter/tests) |
+| Fill performance gate | **PASS**: `human-15x15` 8.158 s/159 nodes; `monday-00805` 2.062 s/5,896 nodes; `monday-01254` 2.474 s/2,468 nodes. These are three fixtures on one machine, not a statistically useful performance baseline |
+| Mutation report | Report timestamp 2026-09-03 17:19. `csp.ts`: 656 mutants = 455 killed, 29 timeout, 152 survived, 20 no coverage. Detected/all = 73.78%; detected/covered = 76.10%. The 70% break floor passes while many propagation, validation, bound, and result-contract mutations survive |
+| Primary-source algorithm review | Complete for the current decision set; see `GENERATION_ALGORITHMS_STATE_OF_ART.md` for the 1990–2025 comparison and implementation priorities |
+| Browser E2E / real WebGPU model | Not run in this pass; real-model quality/latency remains unevidenced |
+| Production artifact provenance and reproducibility | Not proved in this pass |
 
 ## Instructions to implementing agents
 
@@ -269,3 +269,26 @@ The production web build succeeds, but emits roughly 6.0MB for `modelWorker`, an
 - Do not loosen validators to make a fixture pass.
 - Do not commit generated corpora without provenance metadata and a reproducible build command.
 - Update this document's evidence log when closing an item; link the exact test, ADR, or benchmark rather than writing “done.”
+
+## Current implementation checkpoint — 2026-09-05
+
+The earlier moving-tree findings have been reconciled with the current plan
+slice. Candidate requests are paged to the real broker's maximum target-length
+contract; model suggestions influence ordinary-day ranking only after lexicon
+resolution; poor-entry limits are enforced during CSP search; and fill
+termination/bound/incumbent telemetry is carried into the published generation
+manifest.
+
+The verification baseline is now:
+
+- `make test` — PASS;
+- `npm run web:build` — PASS;
+- `npm run scan:content` — PASS;
+- `npm run e2e:ci` — PASS (39 Chromium journeys);
+- construction mutation gate — PASS at the configured 70% floor.
+
+The remaining generation decisions are deliberately not disguised as code
+completion: the legal multi-topology benchmark corpus, repeated-seed A/B/C/D
+Rust evidence, real-model quality/latency, and blinded human clue/day ratings
+still require their own artifacts before any day-graduation or Wasm-promotion
+claim.
