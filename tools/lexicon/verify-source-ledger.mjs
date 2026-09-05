@@ -2,8 +2,9 @@
 /** Validate the source ledger and optional inventory artifact before release. */
 import { readFile } from 'node:fs/promises';
 
-const ledgerPath = process.argv[2] ?? new URL('./source-ledger.json', import.meta.url);
-const artifactPath = process.argv[3];
+const positionalArgs = process.argv.slice(2).filter((argument) => !argument.startsWith('--'));
+const ledgerPath = positionalArgs[0] ?? new URL('./source-ledger.json', import.meta.url);
+const artifactPath = positionalArgs[1];
 const releaseMode = process.argv.includes('--release');
 
 const ledger = JSON.parse(await readFile(ledgerPath, 'utf8'));
