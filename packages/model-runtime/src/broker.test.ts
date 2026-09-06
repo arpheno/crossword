@@ -24,6 +24,7 @@ function adapter(output: unknown): LocalModelAdapter {
     install: async () => undefined,
     load: async () => undefined,
     generateCandidates: async () => output,
+    resolveSpokenAnswer: async () => [],
     composeClues: async () => [{ mechanism: 'direct', text: 'A clue', difficulty: 0.2 }],
     unload: async () => undefined
   };
@@ -96,5 +97,58 @@ describe('mandatory local model broker', () => {
 
     expect(result.ok).toBe(false);
     if (!result.ok) expect(result.error.code).toBe('invalid-model-output');
+  });
+
+  it('validates bounded spoken-answer candidates', async () => {
+    const broker = createModelBroker(manifest, {
+      ...adapter([]),
+      resolveSpokenAnswer: async () => [
+        { surface: 'SEA', note: 'body of water' }
+      ]
+    }, runtime);
+    await broker.install();
+    await broker.load();
+
+    await expect(broker.resolveSpokenAnswer({
+      spokenAnswer: 'see',
+      targetLength: 3,
+      pattern: '...',
+      locale: 'en-US',
+      maxSuggestions: 4
+    })).resolves.toEqual({
+      ok: true,
+      value: [{ surface: 'SEA', note: 'body of water' }]
+    });
+    await expect(broker.resolveSpokenAnswer({
+      spokenAnswer: 'see',
+      targetLength: 3,
+      pattern: 'bad',
+      locale: 'en-US',
+      maxSuggestions: 4
+    })).resolves.toMatchObject({ ok: false, error: { code: 'invalid-model-output' } });
+
+    await expect(broker.resolveSpokenAnswer({
+      spokenAnswer: 'ox',
+      targetLength: 2,
+      pattern: '..',
+      locale: 'en-US',
+      maxSuggestions: 4
+    })).resolves.toMatchObject({ ok: true });
+
+    await expect(broker.resolveSpokenAnswer({
+      spokenAnswer: 'long entry',
+      targetLength: 16,
+      pattern: '.'.repeat(16),
+      locale: 'en-US',
+      maxSuggestions: 4
+    })).resolves.toMatchObject({ ok: true });
+
+    await expect(broker.resolveSpokenAnswer({
+      spokenAnswer: 'too long',
+      targetLength: 65,
+      pattern: '.'.repeat(65),
+      locale: 'en-US',
+      maxSuggestions: 4
+    })).resolves.toMatchObject({ ok: false, error: { code: 'invalid-model-output' } });
   });
 });

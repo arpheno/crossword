@@ -1,10 +1,13 @@
-import { parseConstructorWorkerRequest, solveFillAsync, type ConstructorWorkerRequest, type ConstructorWorkerResponse } from '@crossword/construction';
+import { parseConstructorWorkerRequest, TsFillEngine, type ConstructorWorkerRequest, type ConstructorWorkerResponse } from '@crossword/construction';
 
 const workerScope = self as unknown as {
   onmessage: ((event: MessageEvent<ConstructorWorkerRequest>) => void) | null;
   postMessage: (message: ConstructorWorkerResponse) => void;
 };
 const jobs = new Map<string, AbortController>();
+// TypeScript remains the reference/default engine until the Rust/Wasm spike
+// clears the promotion gates. The worker owns this replaceable engine seam.
+const fillEngine = new TsFillEngine();
 
 workerScope.onmessage = (event) => {
   const message = parseConstructorWorkerRequest(event.data);
@@ -23,7 +26,7 @@ workerScope.onmessage = (event) => {
 
   const controller = new AbortController();
   jobs.set(message.jobId, controller);
-  void solveFillAsync(message.request, {
+  void fillEngine.solve(message.request, {
     signal: controller.signal,
     onProgress: (progress) => workerScope.postMessage({ version: 1, type: 'progress', jobId: message.jobId, progress })
   }).then((result) => {

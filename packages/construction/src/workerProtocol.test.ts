@@ -30,7 +30,26 @@ describe('constructor worker protocol', () => {
       version: 1,
       type: 'result',
       jobId: 'job-1',
-      result: { status: 'failed', failure: { code: 'cancelled', message: 'stopped', nodes: 1 } }
+      result: {
+        status: 'failed',
+        failure: { code: 'cancelled', message: 'stopped', nodes: 1 },
+        termination: 'cancelled',
+        terminationReason: 'cancelled',
+        nodesExplored: 1
+      }
     })).toMatchObject({ type: 'result', jobId: 'job-1' });
+  });
+
+  it('rejects result payloads without coherent termination telemetry', () => {
+    const result = {
+      status: 'failed',
+      failure: { code: 'resource-limit', message: 'stopped', nodes: 4 },
+      termination: 'node-limit',
+      terminationReason: 'node-limit',
+      nodesExplored: 4
+    };
+    expect(parseConstructorWorkerResponse({ version: 1, type: 'result', jobId: 'job-1', result: { ...result, nodesExplored: -1 } })).toBeUndefined();
+    expect(parseConstructorWorkerResponse({ version: 1, type: 'result', jobId: 'job-1', result: { ...result, terminationReason: 'unsatisfiable' } })).toBeUndefined();
+    expect(parseConstructorWorkerResponse({ version: 1, type: 'result', jobId: 'job-1', result: { ...result, gap: -0.1 } })).toBeUndefined();
   });
 });

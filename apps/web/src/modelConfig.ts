@@ -13,14 +13,21 @@ export const localModelManifest: ModelManifest = {
   promptVersion: 'candidate-v2',
   minimumMemoryMb: 2_048,
   shards: [],
-  distribution: 'webllm-mlc'
+  distribution: 'webllm-mlc',
+  // Conservative upper bound for the Llama-3.2-1B q4f16_1 MLC download
+  // (~0.9 GB of weights plus runtime headroom). The preflight uses this when
+  // shard receipts are absent; the UI must present it as an estimate, never a
+  // measured size (ADR 0004 §7).
+  estimatedBytes: 1_200_000_000
 };
 
 export function browserRuntimeProbe(): RuntimeProbe {
   const browserNavigator = navigator as Navigator & { deviceMemory?: number };
   return {
     webgpu: 'gpu' in navigator,
-    availableMemoryMb: typeof browserNavigator.deviceMemory === 'number' ? browserNavigator.deviceMemory * 1024 : 0,
+    // `deviceMemory` is optional. Preserve “unknown” instead of turning it
+    // into zero and incorrectly blocking capable browsers.
+    availableMemoryMb: typeof browserNavigator.deviceMemory === 'number' ? browserNavigator.deviceMemory * 1024 : null,
     storageQuotaBytes: 0,
     storageUsageBytes: 0
   };

@@ -38,8 +38,11 @@ function brokerWith(output: unknown): ModelBroker {
     install: async () => ({ ok: true, value: undefined }),
     load: async () => ({ ok: true, value: undefined }),
     generateCandidates: async () => ({ ok: true, value: output as readonly CandidateSuggestion[] }),
+    resolveSpokenAnswer: async () => ({ ok: true, value: [] }),
     composeClues: async () => ({ ok: true, value: [] }),
-    unload: async () => ({ ok: true, value: undefined })
+    unload: async () => ({ ok: true, value: undefined }),
+    inspectCache: async () => ({ ok: true, value: true }),
+    deleteCache: async () => ({ ok: true, value: undefined })
   };
 }
 

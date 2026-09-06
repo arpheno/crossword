@@ -2,13 +2,14 @@ name: CI
 
 on:
   push:
-    branches: [master]
+    branches: [master, v2]
   pull_request:
-    branches: [master]
+    branches: [master, v2]
 
 jobs:
   test:
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4
 
@@ -33,8 +34,45 @@ jobs:
       - name: Check toolchain contract
         run: make doctor
 
+      - name: Run Rust construction checks
+        run: make rust-test && make rust-wasm-check
+
       - name: Run local tests
         run: make test
 
       - name: Build legacy assets
         run: make build
+
+      - name: Build release artifact
+        run: npm run web:build:release
+
+      - name: Scan release content
+        run: npm run scan:content:release
+
+      - name: Generate dependency SBOM
+        run: node scripts/generate-sbom.mjs
+
+      - name: Run TypeScript coverage
+        run: make test-js-cov
+
+      - name: Install Chromium for Playwright
+        run: npm run e2e:install
+
+      - name: Run browser QA
+        run: npm run e2e:ci
+
+      - name: Run mutation gate
+        run: make mutation-test
+
+      - name: Upload QA reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: crossword-qa-reports
+          if-no-files-found: ignore
+          path: |
+            reports/mutation/
+            apps/web/reports/playwright/
+            apps/web/test-results/
+            apps/web/coverage/
+            packages/*/coverage/

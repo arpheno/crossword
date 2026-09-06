@@ -11,6 +11,9 @@
         "packages/model-runtime",
         "packages/persistence"
     ],
+    "overrides": {
+        "onnxruntime-web": "$onnxruntime-web"
+    },
     "packageManager": "npm@11.19.0",
     "engines": {
         "node": "24.x",
@@ -22,16 +25,39 @@
         "legacy:assets": "node scripts/build-legacy-assets.mjs",
         "web:dev": "npm --workspace @crossword/web run dev --",
         "web:build": "npm --workspace @crossword/web run build",
+    "web:build:release": "npm --workspace @crossword/web run build:release && node scripts/verify-release-artifacts.mjs",
         "web:test": "npm --workspace @crossword/web run test",
+        "test:coverage": "npm run test:coverage:core && npm run test:coverage:web",
+        "test:coverage:core": "npm --workspace @crossword/domain run test -- --coverage --coverage.thresholds.lines=70 --coverage.thresholds.branches=70 --reporter=dot && npm --workspace @crossword/application run test -- --coverage --coverage.thresholds.lines=70 --coverage.thresholds.branches=70 --reporter=dot && npm --workspace @crossword/construction run test -- --coverage --coverage.thresholds.lines=70 --coverage.thresholds.branches=70 --reporter=dot && npm --workspace @crossword/persistence run test -- --coverage --coverage.thresholds.lines=70 --coverage.thresholds.branches=70 --reporter=dot && npm --workspace @crossword/model-runtime run test -- --coverage --coverage.thresholds.lines=70 --coverage.thresholds.branches=70 --reporter=dot",
+        "test:coverage:web": "npm --workspace @crossword/web run test -- --coverage --coverage.thresholds.lines=70 --coverage.thresholds.branches=70 --reporter=dot",
         "scan:content": "node scripts/scan-forbidden-content.mjs",
-        "test:mutation": "stryker run"
+    "scan:content:release": "node scripts/scan-forbidden-content.mjs --scope release",
+        "verify:release-artifacts": "node scripts/verify-release-artifacts.mjs",
+        "e2e": "PLAYWRIGHT_BROWSERS_PATH=$PWD/.browsers playwright test --config apps/web/playwright.config.ts",
+        "e2e:ci": "PLAYWRIGHT_BROWSERS_PATH=$PWD/.browsers playwright test --config apps/web/playwright.config.ts --grep-invert \"visual baselines\"",
+        "e2e:install": "PLAYWRIGHT_BROWSERS_PATH=$PWD/.browsers npx playwright install chromium",
+        "e2e:install:all": "PLAYWRIGHT_BROWSERS_PATH=$PWD/.browsers npx playwright install chromium firefox webkit",
+        "e2e:all": "ALL_BROWSERS=1 PLAYWRIGHT_BROWSERS_PATH=$PWD/.browsers playwright test --config apps/web/playwright.config.ts --grep-invert \"visual baselines\"",
+        "test:mutation": "stryker run",
+        "data:build-lexicon": "node scripts/build-fill-lexicon.mjs",
+        "data:build-freq-prior": "node scripts/build-freq-prior.mjs",
+        "data:build-inventory": "node tools/lexicon/build-inventory.mjs",
+        "data:verify-ledger": "node tools/lexicon/verify-source-ledger.mjs",
+        "data:sync": "mkdir -p apps/web/public/data && cp packages/construction/data/fill-lexicon-v1.txt apps/web/public/data/",
+        "topology:extract": "python3 scripts/extract-nyt-topology.py",
+        "topology:judge": "node scripts/judge-nyt-templates.mjs",
+        "test:perf": "vite-node scripts/fill-perf-gate.mjs"
     },
     "devDependencies": {
+        "@axe-core/playwright": "^4.13.0",
+        "@playwright/test": "^1.62.1",
         "@stryker-mutator/core": "^10.0.0",
         "@stryker-mutator/vitest-runner": "^10.0.0",
+        "@vitest/coverage-v8": "^3.2.4",
         "axios": "1.13.2",
         "jest": "29.7.0",
         "jest-environment-jsdom": "29.7.0",
+        "onnxruntime-web": "1.27.0",
         "socket.io-client": "4.8.3",
         "vue": "2.7.16"
     },

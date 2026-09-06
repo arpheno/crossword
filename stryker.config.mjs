@@ -4,7 +4,8 @@ export default {
   mutate: ['packages/construction/src/csp.ts'],
   vitest: {
     dir: 'packages/construction',
-    related: true
+    related: true,
+    configFile: `${import.meta.dirname}/packages/construction/vitest.mutation.config.mjs`
   },
   reporters: ['clear-text', 'progress', 'html', 'json'],
   disableTypeChecks: false,
@@ -13,7 +14,14 @@ export default {
     'node_modules',
     'apps/web/dist',
     'reports',
-    'src/crossword/static/lib'
+    'src/crossword/static/lib',
+    // Agent/visual-harness artifacts: .browsers holds a Chrome for Testing app
+    // bundle whose special files cannot be copied into the sandbox on macOS,
+    // and .shots/.shots caches are binary output with no bearing on mutants.
+    '.browsers',
+    '.shots',
+    '__pycache__',
+    '.pytest_cache'
   ],
   htmlReporter: {
     fileName: 'reports/mutation/index.html'
@@ -24,8 +32,11 @@ export default {
   thresholds: {
     high: 80,
     low: 70,
-    break: 0
+    break: 70
   },
   tempDirName: '.stryker-tmp',
-  cleanTempDir: true
+  cleanTempDir: true,
+  // Explicit cap so a mutation run coexists with other local work; the default
+  // is n-1 of all logical cores.
+  concurrency: 5
 };

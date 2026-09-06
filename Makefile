@@ -1,10 +1,11 @@
 .DEFAULT_GOAL := help
 .SHELL := /bin/sh
 
-.PHONY: help check-uv check-node doctor install dev sync venv setup \
+.PHONY: help check-uv check-node check-hooks install-hooks doctor install dev sync venv setup \
 	test test-js test-live core-test legacy-test legacy-test-live build legacy-assets \
+	rust-test rust-wasm-check \
 	mutation-test \
-	legacy-run web-dev run legacy-smoke test-cov test-watch lint format clean \
+	legacy-run web-dev run legacy-smoke test-cov test-js-cov test-watch pre-commit e2e-ci qa lint format clean \
 	run-prod shell docker-build docker-run deps-update deps-list deps-tree \
 	npm-audit check bootstrap all
 
@@ -41,7 +42,24 @@ check-node: ## Check that the pinned Node/npm tools are available
 		exit 1; \
 	}
 
-doctor: check-uv check-node ## Verify pinned tool versions and the uv environment
+check-hooks: ## Require the repository-managed Git hooks
+	@hooks_path="$$(git config --get core.hooksPath 2>/dev/null || true)"; \
+	if [ "$$hooks_path" != ".githooks" ]; then \
+		echo "$(RED)Repository hooks are not active. Run make install-hooks.$(NC)"; \
+		exit 1; \
+	fi
+	@test -x .githooks/pre-commit || { \
+		echo "$(RED).githooks/pre-commit is missing or not executable.$(NC)"; \
+	exit 1; \
+	}
+
+install-hooks: ## Activate the repository-managed Git hooks
+	@git rev-parse --show-toplevel >/dev/null
+	@git config core.hooksPath .githooks
+	@chmod +x .githooks/pre-commit
+	@echo "$(GREEN)Repository hooks enabled at .githooks.$(NC)"
+
+doctor: check-uv check-node check-hooks ## Verify pinned tools, environment, and hooks
 	uv run python scripts/doctor.py
 
 install: check-uv ## Install runtime Python dependencies from uv.lock
@@ -62,6 +80,7 @@ setup: check-uv check-node ## Clean-clone setup using both pinned lockfiles
 	uv sync --all-extras --frozen
 	npm ci --ignore-scripts
 	$(MAKE) legacy-assets
+	$(MAKE) install-hooks
 	@echo "$(GREEN)Setup complete. Run make doctor, make legacy:run, or make test.$(NC)"
 
 build: legacy-assets ## Build reproducible legacy browser assets
@@ -79,8 +98,61 @@ core-test: check-node ## Run the new domain/application/construction/model suite
 	npm --workspace @crossword/construction run test
 	npm --workspace @crossword/model-runtime run test
 
+rust-test: ## Run the native Rust core formatting, tests, and lint gate
+	cargo fmt --all -- --check
+	cargo test --workspace
+	cargo clippy --workspace --all-targets -- -D warnings
+
+rust-wasm-check: ## Check the browser-targeted Wasm crate
+	cargo check -p crossword-fill-wasm --target wasm32-unknown-unknown
+
 mutation-test: check-node ## Mutation-test the deterministic construction core
 	npm run test:mutation
+
+test-js-cov: check-node ## Run V8 coverage for maintained TypeScript packages
+	npm run test:coverage
+
+e2e-ci: check-node ## Run CI-safe Playwright journeys and paint guards
+	npm run e2e:install
+	npm run e2e:ci
+
+pre-commit: check-uv check-node check-hooks ## Run commit-scoped quality gates for the staged change set
+	@set -eu; \
+	staged="$$(git diff --cached --name-only --diff-filter=ACMRD)"; \
+	if [ -z "$$staged" ]; then \
+		echo "$(YELLOW)No staged files; nothing to validate.$(NC)"; \
+		exit 0; \
+	fi; \
+	file_count="$$(printf '%s\n' "$$staged" | awk 'NF { count += 1 } END { print count + 0 }')"; \
+	if [ "$$file_count" -gt 12 ]; then \
+		echo "$(RED)Commit has $$file_count staged paths; checkpoint commits are limited to 12.$(NC)"; \
+		echo "$(YELLOW)Split the change into logical commits before retrying.$(NC)"; \
+		exit 1; \
+	fi; \
+	git diff --cached --check; \
+	$(MAKE) test; \
+	npm run web:build; \
+	npm run scan:content; \
+	if printf '%s\n' "$$staged" | grep -Eq '^(apps/web/|package\.json$$|package-lock\.json$$)'; then \
+		echo "$(BLUE)[crossword] web change detected: coverage and Playwright$(NC)"; \
+		npm run test:coverage:web; \
+		npm run e2e:ci; \
+	fi; \
+	if printf '%s\n' "$$staged" | grep -Eq '^(packages/(domain|application|construction|model-runtime|persistence)/|stryker\.config\.mjs$$)'; then \
+		echo "$(BLUE)[crossword] core change detected: package coverage$(NC)"; \
+		npm run test:coverage:core; \
+	fi; \
+	if printf '%s\n' "$$staged" | grep -Eq '^(packages/construction/|stryker\.config\.mjs$$)'; then \
+		echo "$(BLUE)[crossword] construction change detected: mutation testing$(NC)"; \
+		npm run test:mutation; \
+	fi; \
+	echo "$(GREEN)[crossword] pre-commit gates passed for $$file_count staged path(s).$(NC)"
+
+qa: check-uv check-node check-hooks ## Run the complete local quality gate
+	$(MAKE) test
+	$(MAKE) test-js-cov
+	$(MAKE) e2e-ci
+	$(MAKE) mutation-test
 
 test-js: check-node ## Run the JavaScript unit suite
 	npm test -- --runInBand

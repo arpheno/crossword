@@ -1,4 +1,4 @@
-import type { FillProgress, FillRequest, FillResult } from './csp';
+import type { FillProgress, FillRequest, FillResult, FillTermination } from './csp';
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
@@ -12,8 +12,16 @@ function isNonNegativeInteger(value: unknown): value is number {
   return typeof value === 'number' && Number.isInteger(value) && value >= 0;
 }
 
+function isFillTermination(value: unknown): value is FillTermination {
+  return value === 'exhausted'
+    || value === 'satisfied'
+    || value === 'cancelled'
+    || value === 'node-limit'
+    || value === 'unsatisfiable';
+}
+
 function isCandidate(value: unknown): boolean {
-  if (!isRecord(value) || typeof value.word !== 'string' || value.word.trim().length === 0 || !isFiniteNumber(value.score) || typeof value.lexemeId !== 'string' || value.lexemeId.length === 0 || !Array.isArray(value.sourceIds) || value.sourceIds.length === 0) return false;
+  if (!isRecord(value) || typeof value.word !== 'string' || value.word.trim().length === 0 || !isFiniteNumber(value.score) || (value.qualityScore !== undefined && !isFiniteNumber(value.qualityScore)) || typeof value.lexemeId !== 'string' || value.lexemeId.length === 0 || !Array.isArray(value.sourceIds) || value.sourceIds.length === 0) return false;
   return value.sourceIds.every((sourceId) => typeof sourceId === 'string' && sourceId.length > 0);
 }
 
@@ -35,7 +43,12 @@ function isFillRequest(value: unknown): value is FillRequest {
   if (value.seed !== undefined && !Number.isInteger(value.seed)) return false;
   if (value.maxNodes !== undefined && (typeof value.maxNodes !== 'number' || !Number.isInteger(value.maxNodes) || value.maxNodes < 1)) return false;
   if (value.qualityThreshold !== undefined && !isFiniteNumber(value.qualityThreshold)) return false;
-  return value.excludedWords === undefined || (Array.isArray(value.excludedWords) && value.excludedWords.every((word) => typeof word === 'string'));
+  if (value.excludedWords !== undefined && !(Array.isArray(value.excludedWords) && value.excludedWords.every((word) => typeof word === 'string'))) return false;
+  if (value.lockedWords !== undefined) {
+    if (!isRecord(value.lockedWords)) return false;
+    if (!Object.values(value.lockedWords).every((word) => typeof word === 'string' && word.length > 0)) return false;
+  }
+  return true;
 }
 
 export type ConstructorWorkerRequest = Readonly<
@@ -67,6 +80,12 @@ function isProgress(value: unknown): value is FillProgress {
 
 function isResult(value: unknown): value is FillResult {
   if (!isRecord(value) || !['solved', 'failed'].includes(value.status as string)) return false;
+  if (!isFillTermination(value.termination)
+    || value.terminationReason !== value.termination
+    || !isNonNegativeInteger(value.nodesExplored)) return false;
+  if (value.provenOptimal !== undefined && typeof value.provenOptimal !== 'boolean') return false;
+  if (value.bestBound !== undefined && !isFiniteNumber(value.bestBound)) return false;
+  if (value.gap !== undefined && (!isFiniteNumber(value.gap) || value.gap < 0)) return false;
   if (value.status === 'solved') {
     const solution = value.solution;
     return isRecord(solution)

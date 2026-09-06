@@ -20,6 +20,38 @@ export type SessionStatus = 'in-progress' | 'complete';
 export type MoveKey = 'ArrowUp' | 'ArrowDown' | 'ArrowLeft' | 'ArrowRight';
 export type EntryStep = 'next' | 'previous';
 export type CheckScope = 'cell' | 'entry' | 'puzzle';
+export type EvaluationState = 'unevaluated' | 'empty' | 'correct' | 'incorrect' | 'revealed';
+export type CellEvaluation = Readonly<{
+  state: EvaluationState;
+  valueAtEvaluation: string;
+}>;
+export type CheckPresentation = Readonly<{
+  mode: 'off' | 'on';
+  scope: CheckScope;
+  scopeId?: CellId | EntryId;
+  evaluations: Readonly<Record<string, CellEvaluation>>;
+  receiptId?: string;
+}>;
+export type AssistanceReceipt =
+  | Readonly<{
+      id: string;
+      kind: 'check-evaluation';
+      atMs: number;
+      hadIncorrectValue: boolean;
+    }>
+  | Readonly<{
+      id: string;
+      kind: 'cell-reveal';
+      atMs: number;
+      cellId: CellId;
+    }>
+  | Readonly<{
+      id: string;
+      kind: 'puzzle-reveal';
+      atMs: number;
+      newlyRevealedCellIds: readonly CellId[];
+    }>;
+export type EntrySolveState = 'empty' | 'in-progress' | 'filled-unverified' | 'checked-incorrect' | 'verified';
 export type SessionEventType =
   | 'session-started'
   | 'cell-entered'
@@ -39,14 +71,20 @@ export type SolveEvent = Readonly<{
   entryId?: EntryId;
   scope?: CheckScope;
   value?: string;
+  hadIncorrectValue?: boolean;
+  receiptId?: string;
+  newlyRevealedCellIds?: readonly CellId[];
 }>;
 
 export type SolveSessionSnapshot = Readonly<{
   puzzleId: string;
+  revision: number;
   entered: Readonly<Record<string, string>>;
   selection: Selection;
   checkedCellIds: readonly CellId[];
   revealedCellIds: readonly CellId[];
+  checkPresentation: CheckPresentation;
+  assistanceReceipts: readonly AssistanceReceipt[];
   clueVariantByEntryId: Readonly<Record<string, ClueMechanism>>;
   events: readonly SolveEvent[];
   startedAtMs: number;
@@ -63,6 +101,14 @@ export type CheckResult = Readonly<{
   incorrectCellIds: readonly CellId[];
   checkedCellIds: readonly CellId[];
 }>;
+
+const evaluationStates: readonly EvaluationState[] = [
+  'unevaluated',
+  'empty',
+  'correct',
+  'incorrect',
+  'revealed'
+];
 
 const emptyLetters = (puzzle: PuzzleDocument): Record<string, string> =>
   Object.fromEntries(puzzle.cells.filter((cell) => !cell.block).map((cell) => [cell.id, '']));
@@ -93,19 +139,49 @@ function isStringRecord(value: unknown): value is Record<string, string> {
   return isRecord(value) && Object.values(value).every((item) => typeof item === 'string');
 }
 
+function isCellIdArray(value: unknown): value is readonly CellId[] {
+  return Array.isArray(value) && value.every((cellId) => typeof cellId === 'string');
+}
+
+function validateCellEvaluation(value: unknown): value is CellEvaluation {
+  return isRecord(value)
+    && evaluationStates.includes(value.state as EvaluationState)
+    && typeof value.valueAtEvaluation === 'string';
+}
+
+function validateCheckPresentation(value: unknown): value is CheckPresentation {
+  if (!isRecord(value) || !['off', 'on'].includes(value.mode as string) || !['cell', 'entry', 'puzzle'].includes(value.scope as string)) return false;
+  if (value.scopeId !== undefined && typeof value.scopeId !== 'string') return false;
+  if (value.receiptId !== undefined && typeof value.receiptId !== 'string') return false;
+  return isRecord(value.evaluations) && Object.values(value.evaluations).every(validateCellEvaluation);
+}
+
+function validateAssistanceReceipt(value: unknown): value is AssistanceReceipt {
+  if (!isRecord(value) || typeof value.id !== 'string' || !isFiniteNumber(value.atMs)) return false;
+  if (value.kind === 'check-evaluation') return typeof value.hadIncorrectValue === 'boolean';
+  if (value.kind === 'cell-reveal') return typeof value.cellId === 'string';
+  return value.kind === 'puzzle-reveal' && isCellIdArray(value.newlyRevealedCellIds);
+}
+
 export function validateSolveEvent(value: unknown): value is SolveEvent {
   if (!isRecord(value) || typeof value.id !== 'string' || !sessionEventTypes.includes(value.type as SessionEventType) || !isFiniteNumber(value.atMs)) return false;
   if (value.cellId !== undefined && typeof value.cellId !== 'string') return false;
   if (value.entryId !== undefined && typeof value.entryId !== 'string') return false;
   if (value.scope !== undefined && !['cell', 'entry', 'puzzle'].includes(value.scope as string)) return false;
-  return value.value === undefined || typeof value.value === 'string';
+  if (value.value !== undefined && typeof value.value !== 'string') return false;
+  if (value.hadIncorrectValue !== undefined && typeof value.hadIncorrectValue !== 'boolean') return false;
+  if (value.receiptId !== undefined && typeof value.receiptId !== 'string') return false;
+  return value.newlyRevealedCellIds === undefined || isCellIdArray(value.newlyRevealedCellIds);
 }
 
 export function validateSessionSnapshot(value: unknown): value is SolveSessionSnapshot {
   if (!isRecord(value) || typeof value.puzzleId !== 'string' || !isStringRecord(value.entered)) return false;
+  if (!isFiniteNumber(value.revision) || !Number.isInteger(value.revision) || value.revision < 0) return false;
   if (!isRecord(value.selection) || typeof value.selection.cellId !== 'string' || !['across', 'down'].includes(value.selection.direction as string) || typeof value.selection.entryId !== 'string') return false;
   if (!Array.isArray(value.checkedCellIds) || !value.checkedCellIds.every((cellId) => typeof cellId === 'string')) return false;
   if (!Array.isArray(value.revealedCellIds) || !value.revealedCellIds.every((cellId) => typeof cellId === 'string')) return false;
+  if (!validateCheckPresentation(value.checkPresentation)) return false;
+  if (!Array.isArray(value.assistanceReceipts) || !value.assistanceReceipts.every(validateAssistanceReceipt)) return false;
   if (!isStringRecord(value.clueVariantByEntryId) || !Object.values(value.clueVariantByEntryId).every((mechanism) => ['direct', 'standard', 'oblique', 'nudge'].includes(mechanism))) return false;
   if (!Array.isArray(value.events) || !value.events.every(validateSolveEvent)) return false;
   if (!isFiniteNumber(value.startedAtMs) || !isFiniteNumber(value.activeMs) || !isFiniteNumber(value.lastClockAtMs) || !isFiniteNumber(value.lastInteractionAtMs) || !isFiniteNumber(value.assistanceCount)) return false;
@@ -137,10 +213,13 @@ export function createSession(
   };
   return {
     puzzleId: puzzle.id,
+    revision: 0,
     entered: emptyLetters(puzzle),
     selection: firstSelection(puzzle, index),
     checkedCellIds: [],
     revealedCellIds: [],
+    checkPresentation: { mode: 'off', scope: 'puzzle', evaluations: {} },
+    assistanceReceipts: [],
     clueVariantByEntryId: {},
     events: [startedEvent],
     startedAtMs,
@@ -165,7 +244,57 @@ function addEvent(
     type,
     atMs
   };
-  return { ...snapshot, events: [...snapshot.events, event] };
+  return { ...snapshot, revision: snapshot.revision + 1, events: [...snapshot.events, event] };
+}
+
+function checkedCellIdsFor(evaluations: Readonly<Record<string, CellEvaluation>>): CellId[] {
+  return Object.entries(evaluations)
+    .filter(([, evaluation]) => evaluation.state === 'correct' || evaluation.state === 'incorrect')
+    .map(([cellId]) => cellId as CellId);
+}
+
+function withEvaluations(
+  snapshot: SolveSessionSnapshot,
+  evaluations: Readonly<Record<string, CellEvaluation>>
+): SolveSessionSnapshot {
+  return {
+    ...snapshot,
+    checkPresentation: { ...snapshot.checkPresentation, evaluations },
+    checkedCellIds: checkedCellIdsFor(evaluations)
+  };
+}
+
+function invalidateEvaluation(
+  snapshot: SolveSessionSnapshot,
+  cellId: CellId
+): SolveSessionSnapshot {
+  const evaluations = { ...snapshot.checkPresentation.evaluations };
+  const previous = evaluations[cellId];
+  if (previous) evaluations[cellId] = { state: 'unevaluated', valueAtEvaluation: previous.valueAtEvaluation };
+  return withEvaluations(
+    {
+      ...snapshot,
+      revealedCellIds: snapshot.revealedCellIds.filter((candidate) => candidate !== cellId),
+      status: 'in-progress'
+    },
+    evaluations
+  );
+}
+
+function receiptId(snapshot: SolveSessionSnapshot, kind: AssistanceReceipt['kind'], atMs: number): string {
+  return `${kind}:${atMs}:${snapshot.events.length}:${snapshot.assistanceReceipts.length}`;
+}
+
+function appendReceipts(
+  snapshot: SolveSessionSnapshot,
+  receipts: readonly AssistanceReceipt[],
+  countAsAssistance = true
+): SolveSessionSnapshot {
+  return {
+    ...snapshot,
+    assistanceReceipts: [...snapshot.assistanceReceipts, ...receipts],
+    assistanceCount: snapshot.assistanceCount + (countAsAssistance ? receipts.length : 0)
+  };
 }
 
 function withStatus(snapshot: SolveSessionSnapshot, puzzle: PuzzleDocument): SolveSessionSnapshot {
@@ -218,10 +347,13 @@ export function selectCell(
   if (!entry) {
     throw new Error(`Cell ${cellId} has no ${direction} entry`);
   }
-  return {
-    ...snapshot,
-    selection: { cellId, direction, entryId: entry.id }
-  };
+  const selection = { cellId, direction, entryId: entry.id };
+  if (
+    snapshot.selection.cellId === selection.cellId
+    && snapshot.selection.direction === selection.direction
+    && snapshot.selection.entryId === selection.entryId
+  ) return snapshot;
+  return { ...snapshot, selection };
 }
 
 function coordinateForCell(index: PuzzleIndex, cellId: CellId): { row: number; column: number } {
@@ -319,11 +451,33 @@ export function enterLetter(
   const entered = { ...snapshot.entered, [snapshot.selection.cellId]: letter };
   const entry = index.entriesById.get(snapshot.selection.entryId);
   if (!entry) throw new Error(`Unknown entry ${snapshot.selection.entryId}`);
+  const edited = invalidateEvaluation({ ...snapshot, entered }, snapshot.selection.cellId);
   return withStatus(addEvent(
-    advanceWithinEntry({ ...snapshot, entered }, index, entry),
+    advanceWithinEntry(edited, index, entry),
     'cell-entered',
     snapshot.lastInteractionAtMs,
     { cellId: snapshot.selection.cellId, entryId: entry.id, value: letter }
+  ), puzzle);
+}
+
+export function enterRebus(
+  snapshot: SolveSessionSnapshot,
+  puzzle: PuzzleDocument,
+  index: PuzzleIndex,
+  value: string
+): SolveSessionSnapshot {
+  if (snapshot.paused) return snapshot;
+  const token = value.trim().toUpperCase();
+  if (!/^[A-Z]{1,10}$/.test(token)) return snapshot;
+  const entered = { ...snapshot.entered, [snapshot.selection.cellId]: token };
+  const entry = index.entriesById.get(snapshot.selection.entryId);
+  if (!entry) throw new Error(`Unknown entry ${snapshot.selection.entryId}`);
+  const edited = invalidateEvaluation({ ...snapshot, entered }, snapshot.selection.cellId);
+  return withStatus(addEvent(
+    advanceWithinEntry(edited, index, entry),
+    'cell-entered',
+    snapshot.lastInteractionAtMs,
+    { cellId: snapshot.selection.cellId, entryId: entry.id, value: token }
   ), puzzle);
 }
 
@@ -334,8 +488,10 @@ export function clearCell(
   moveBackward = true
 ): SolveSessionSnapshot {
   if (snapshot.paused) return snapshot;
-  const entered = { ...snapshot.entered, [snapshot.selection.cellId]: '' };
-  let next: SolveSessionSnapshot = { ...snapshot, entered, status: 'in-progress' };
+  let next: SolveSessionSnapshot = invalidateEvaluation(
+    { ...snapshot, entered: { ...snapshot.entered, [snapshot.selection.cellId]: '' } },
+    snapshot.selection.cellId
+  );
   if (moveBackward) {
     const entry = index.entriesById.get(snapshot.selection.entryId);
     if (!entry) throw new Error(`Unknown entry ${snapshot.selection.entryId}`);
@@ -364,6 +520,29 @@ function cellsForScope(
   return puzzle.cells.filter((cell) => !cell.block).map((cell) => cell.id);
 }
 
+function cellsForPresentation(
+  snapshot: SolveSessionSnapshot,
+  puzzle: PuzzleDocument,
+  index: PuzzleIndex
+): CellId[] {
+  const { scope, scopeId } = snapshot.checkPresentation;
+  if (scope === 'cell') return [((scopeId as CellId | undefined) ?? snapshot.selection.cellId)];
+  if (scope === 'entry') {
+    return [...(index.entriesById.get((scopeId as EntryId | undefined) ?? snapshot.selection.entryId)?.cellIds ?? [])];
+  }
+  return cellsForScope(snapshot, puzzle, index, 'puzzle');
+}
+
+function evaluateCell(snapshot: SolveSessionSnapshot, puzzle: PuzzleDocument, cellId: CellId): CellEvaluation {
+  const value = snapshot.entered[cellId] ?? '';
+  if (!value) return { state: 'empty', valueAtEvaluation: '' };
+  if (snapshot.revealedCellIds.includes(cellId)) return { state: 'revealed', valueAtEvaluation: value };
+  return {
+    state: value === answerAt(puzzle, cellId) ? 'correct' : 'incorrect',
+    valueAtEvaluation: value
+  };
+}
+
 export function checkSession(
   snapshot: SolveSessionSnapshot,
   puzzle: PuzzleDocument,
@@ -371,20 +550,102 @@ export function checkSession(
   scope: 'cell' | 'entry' | 'puzzle'
 ): CheckResult {
   const scopeCellIds = cellsForScope(snapshot, puzzle, index, scope);
-  const incorrectCellIds = scopeCellIds.filter(
-    (cellId) => Boolean(snapshot.entered[cellId]) && snapshot.entered[cellId] !== answerAt(puzzle, cellId)
-  );
-  const checkedCellIds = uniqueCellIds([...snapshot.checkedCellIds, ...scopeCellIds]);
+  const evaluations = { ...snapshot.checkPresentation.evaluations };
+  for (const cellId of scopeCellIds) evaluations[cellId] = evaluateCell(snapshot, puzzle, cellId);
+  const incorrectCellIds = scopeCellIds.filter((cellId) => evaluations[cellId]?.state === 'incorrect');
+  const receipt = {
+    id: receiptId(snapshot, 'check-evaluation', snapshot.lastInteractionAtMs),
+    kind: 'check-evaluation' as const,
+    atMs: snapshot.lastInteractionAtMs,
+    hadIncorrectValue: incorrectCellIds.length > 0
+  };
+  const scopeId = scope === 'cell'
+    ? snapshot.selection.cellId
+    : scope === 'entry'
+      ? snapshot.selection.entryId
+      : undefined;
+  const next = appendReceipts(withEvaluations({
+    ...snapshot,
+    checkPresentation: {
+      mode: 'on',
+      scope,
+      ...(scopeId ? { scopeId } : {}),
+      evaluations,
+      receiptId: receipt.id
+    }
+  }, evaluations), [receipt], false);
   return {
     snapshot: addEvent(
-      { ...snapshot, checkedCellIds },
+      next,
       'checked',
       snapshot.lastInteractionAtMs,
-      { entryId: snapshot.selection.entryId, scope }
+      {
+        entryId: snapshot.selection.entryId,
+        scope,
+        hadIncorrectValue: receipt.hadIncorrectValue,
+        receiptId: receipt.id
+      }
     ),
     incorrectCellIds,
-    checkedCellIds
+    checkedCellIds: next.checkedCellIds
   };
+}
+
+export function hideCheck(snapshot: SolveSessionSnapshot): SolveSessionSnapshot {
+  if (snapshot.checkPresentation.mode === 'off') return snapshot;
+  return {
+    ...snapshot,
+    revision: snapshot.revision + 1,
+    checkPresentation: { ...snapshot.checkPresentation, mode: 'off' }
+  };
+}
+
+export function clearIncorrect(
+  snapshot: SolveSessionSnapshot,
+  puzzle: PuzzleDocument,
+  index: PuzzleIndex
+): SolveSessionSnapshot {
+  if (snapshot.checkPresentation.mode !== 'on') return snapshot;
+  const scopeCellIds = cellsForPresentation(snapshot, puzzle, index);
+  const incorrectCellIds = scopeCellIds.filter(
+    (cellId) => snapshot.checkPresentation.evaluations[cellId]?.state === 'incorrect'
+  );
+  if (incorrectCellIds.length === 0) return snapshot;
+  const entered = { ...snapshot.entered };
+  const evaluations = { ...snapshot.checkPresentation.evaluations };
+  const revealedCellIds = snapshot.revealedCellIds.filter((cellId) => !incorrectCellIds.includes(cellId));
+  for (const cellId of incorrectCellIds) {
+    entered[cellId] = '';
+    evaluations[cellId] = {
+      state: 'unevaluated',
+      valueAtEvaluation: evaluations[cellId]?.valueAtEvaluation ?? ''
+    };
+  }
+  return withStatus(addEvent(
+    withEvaluations({ ...snapshot, entered, revealedCellIds, status: 'in-progress' }, evaluations),
+    'cell-cleared',
+    snapshot.lastInteractionAtMs,
+    { entryId: snapshot.selection.entryId }
+  ), puzzle);
+}
+
+export function clearEnteredCells(
+  snapshot: SolveSessionSnapshot,
+  puzzle: PuzzleDocument,
+  index: PuzzleIndex,
+  cellIds: readonly CellId[]
+): SolveSessionSnapshot {
+  if (cellIds.length === 0) return snapshot;
+  const entered = { ...snapshot.entered };
+  for (const cellId of cellIds) entered[cellId] = '';
+  let next: SolveSessionSnapshot = { ...snapshot, entered };
+  for (const cellId of cellIds) next = invalidateEvaluation(next, cellId);
+  return withStatus(addEvent(
+    next,
+    'cell-cleared',
+    snapshot.lastInteractionAtMs,
+    { entryId: snapshot.selection.entryId }
+  ), puzzle);
 }
 
 export function revealCell(
@@ -394,18 +655,48 @@ export function revealCell(
   scope: CheckScope
 ): SolveSessionSnapshot {
   const cellIds = cellsForScope(snapshot, puzzle, index, scope);
+  const newlyRevealedCellIds = cellIds.filter((cellId) =>
+    scope === 'cell'
+      ? !snapshot.entered[cellId]
+      : snapshot.entered[cellId] !== answerAt(puzzle, cellId)
+  );
+  if (newlyRevealedCellIds.length === 0) return snapshot;
   const entered = { ...snapshot.entered };
-  for (const cellId of cellIds) entered[cellId] = answerAt(puzzle, cellId);
+  const evaluations = { ...snapshot.checkPresentation.evaluations };
+  for (const cellId of newlyRevealedCellIds) {
+    const answer = answerAt(puzzle, cellId);
+    entered[cellId] = answer;
+    evaluations[cellId] = { state: 'revealed', valueAtEvaluation: answer };
+  }
+  const receipts: AssistanceReceipt[] = scope === 'puzzle'
+    ? [{
+        id: receiptId(snapshot, 'puzzle-reveal', snapshot.lastInteractionAtMs),
+        kind: 'puzzle-reveal',
+        atMs: snapshot.lastInteractionAtMs,
+        newlyRevealedCellIds
+      }]
+    : newlyRevealedCellIds.map((cellId, offset) => ({
+        id: `${receiptId(snapshot, 'cell-reveal', snapshot.lastInteractionAtMs)}:${offset}`,
+        kind: 'cell-reveal' as const,
+        atMs: snapshot.lastInteractionAtMs,
+        cellId
+      }));
+  const revealedCellIds = uniqueCellIds([...snapshot.revealedCellIds, ...newlyRevealedCellIds]);
+  const next = appendReceipts(withEvaluations({
+    ...snapshot,
+    entered,
+    revealedCellIds,
+  }, evaluations), receipts);
   return withStatus(addEvent(
-    {
-      ...snapshot,
-      entered,
-      revealedCellIds: uniqueCellIds([...snapshot.revealedCellIds, ...cellIds]),
-      assistanceCount: snapshot.assistanceCount + 1
-    },
+    next,
     'revealed',
     snapshot.lastInteractionAtMs,
-    { entryId: snapshot.selection.entryId, scope }
+    {
+      entryId: snapshot.selection.entryId,
+      scope,
+      receiptId: receipts[0]?.id,
+      newlyRevealedCellIds
+    }
   ), puzzle);
 }
 
@@ -427,6 +718,46 @@ export function nudgeEntry(
     snapshot.lastInteractionAtMs,
     { entryId }
   );
+}
+
+export function entrySolveState(
+  entry: Entry,
+  snapshot: SolveSessionSnapshot
+): EntrySolveState {
+  const values = entry.cellIds.map((cellId) => snapshot.entered[cellId] ?? '');
+  const hasValue = values.some(Boolean);
+  const filled = values.every(Boolean);
+  if (!hasValue) return 'empty';
+  if (entry.cellIds.some((cellId) => snapshot.checkPresentation.evaluations[cellId]?.state === 'incorrect')) {
+    return 'checked-incorrect';
+  }
+  if (filled && entry.cellIds.every((cellId) => {
+    const state = snapshot.checkPresentation.evaluations[cellId]?.state;
+    return state === 'correct' || state === 'revealed';
+  })) return 'verified';
+  if (filled) return 'filled-unverified';
+  return 'in-progress';
+}
+
+export function checksUsed(snapshot: SolveSessionSnapshot): number {
+  return snapshot.assistanceReceipts.filter((receipt) => receipt.kind === 'check-evaluation').length;
+}
+
+export function revealsUsed(snapshot: SolveSessionSnapshot): number {
+  return snapshot.assistanceReceipts.reduce((count, receipt) => {
+    if (receipt.kind === 'cell-reveal') return count + 1;
+    if (receipt.kind === 'puzzle-reveal') return count + receipt.newlyRevealedCellIds.length;
+    return count;
+  }, 0);
+}
+
+export function scoreForSession(snapshot: SolveSessionSnapshot): number {
+  const penalty = snapshot.assistanceReceipts.reduce((total, receipt) => {
+    if (receipt.kind === 'check-evaluation') return total + (receipt.hadIncorrectValue ? 10 : 0);
+    if (receipt.kind === 'cell-reveal') return total + 20;
+    return total + 50;
+  }, 0);
+  return Math.max(0, 100 - penalty);
 }
 
 export function pauseSession(
@@ -457,7 +788,10 @@ export function touchSession(
 ): SolveSessionSnapshot {
   if (snapshot.paused) return snapshot;
   const timed = updateActiveTime(snapshot, nowMs);
-  return { ...timed, lastInteractionAtMs: timed.lastClockAtMs };
+  return {
+    ...timed,
+    lastInteractionAtMs: timed.lastClockAtMs
+  };
 }
 
 export function updateActiveTime(

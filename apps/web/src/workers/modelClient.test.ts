@@ -64,4 +64,48 @@ describe('model worker client', () => {
     await expect(promise).rejects.toThrow('stopped unexpectedly');
     client.dispose();
   });
+
+  it('rejects a result whose operation does not match the pending request', async () => {
+    const worker = new FakeWorker();
+    const client = createModelWorkerClient(worker as unknown as Worker);
+    const promise = client.load();
+    const request = worker.posted[0];
+    if (!request || request.type !== 'execute') throw new Error('Expected execute request');
+
+    worker.emit({
+      version: 1,
+      type: 'result',
+      requestId: request.requestId,
+      operation: 'install',
+      result: { ok: true, value: undefined }
+    });
+
+    await expect(promise).rejects.toThrow('operation mismatch');
+    client.dispose();
+  });
+
+  it('rejects a malformed spoken-answer payload at the worker boundary', async () => {
+    const worker = new FakeWorker();
+    const client = createModelWorkerClient(worker as unknown as Worker);
+    const promise = client.resolveSpokenAnswer({
+      spokenAnswer: 'see',
+      targetLength: 3,
+      pattern: '...',
+      locale: 'en-US',
+      maxSuggestions: 4
+    });
+    const request = worker.posted[0];
+    if (!request || request.type !== 'execute') throw new Error('Expected execute request');
+
+    worker.emit({
+      version: 1,
+      type: 'result',
+      requestId: request.requestId,
+      operation: 'resolve-spoken-answer',
+      result: { ok: true, value: 'SEE' }
+    });
+
+    await expect(promise).rejects.toThrow('Invalid model worker response');
+    client.dispose();
+  });
 });

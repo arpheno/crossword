@@ -6,12 +6,20 @@ import {
   getCellPosition,
   getEntryForCell,
   indexPuzzle,
+  isSupportedCrosswordAnswer,
+  normalizeCrosswordAnswer,
   parsePuzzle,
   serializePuzzle,
   validatePuzzle
 } from './puzzle';
 
 describe('puzzle domain', () => {
+  it('normalizes crossword surfaces and identifies the supported alphabet', () => {
+    expect(normalizeCrosswordAnswer('ice-cream')).toBe('ICECREAM');
+    expect(isSupportedCrosswordAnswer('ice cream')).toBe(true);
+    expect(isSupportedCrosswordAnswer('cafe4')).toBe(false);
+  });
+
   it('creates a provider-neutral fixture with stable cells and entries', () => {
     const puzzle = createFixturePuzzle();
     const index = indexPuzzle(puzzle);

@@ -50,6 +50,7 @@ poetry.lock
 
 # Testing
 htmlcov/
+coverage/
 .tox/
 .coverage
 .coverage.*
@@ -79,6 +80,7 @@ instance/
 .webassets-cache
 .idea/
 node_modules/
+target/
 
 # Legacy browser assets are generated from package-lock.json by
 # `make legacy-assets`; never commit a hand-vendored copy.
@@ -87,8 +89,14 @@ src/crossword/static/lib/
 # Local dependency-audit output is intentionally kept out of source control.
 reports/npm-audit.json
 reports/mutation/
+reports/sbom.json
+apps/web/reports/
+
+# Stryker's working copy (left behind only when a mutation run is killed).
+.stryker-tmp/
 .npm-cache/
 .shots/
 .browsers/
 shoot.tmp.cjs
 verify.tmp.cjs
+apps/web/test-results/
