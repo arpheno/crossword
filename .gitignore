@@ -80,6 +80,7 @@ instance/
 .webassets-cache
 .idea/
 node_modules/
+target/
 
 # Legacy browser assets are generated from package-lock.json by
 # `make legacy-assets`; never commit a hand-vendored copy.

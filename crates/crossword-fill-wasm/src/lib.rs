@@ -108,6 +108,10 @@ impl Solve {
 }
 
 fn serialize<T: Serialize>(value: &T) -> Result<JsValue, JsValue> {
-    serde_wasm_bindgen::to_value(value)
+    // The TypeScript contract uses JSON-shaped records for assignments and
+    // other maps. The serde-wasm-bindgen default emits ES Maps, which would
+    // fail the worker protocol's plain-record validator at the real boundary.
+    value
+        .serialize(&serde_wasm_bindgen::Serializer::json_compatible())
         .map_err(|error| JsValue::from_str(&format!("Unable to encode fill result: {error}")))
 }
